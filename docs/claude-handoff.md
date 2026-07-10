@@ -76,6 +76,7 @@
 | 연구노트 | `docs/accounting-ledger-app-research-notes.md` |
 | 개발 품질 게이트 | `docs/skills/accounting-development-governance-skill.md` |
 | 회계 도메인 Guardian | `docs/skills/accounting-domain-guardians-skill.md` |
+| 코드 설계 Guardian | `docs/skills/accounting-code-architecture-guardians-skill.md` |
 | 하네스 기준선 | `docs/accounting-ledger-harness-baseline.md` |
 | 하네스 운영 스킬 | `docs/skills/accounting-harness-quality-gate-skill.md` |
 | Claude 협업 규칙 | `docs/skills/accounting-claude-collaboration-skill.md` |

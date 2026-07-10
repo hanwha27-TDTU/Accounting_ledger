@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.08** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.09** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -186,3 +186,23 @@ advisor 잔여 항목:
 | 1차 중요 축 | 증빙, VAT, 사업유형, 신고준비, 백업·복원은 앱 구조 초기에 검증 축으로 반영 |
 | 표시 대상 | 개발자 모드 레지스트리 총 20개 Guardian |
 | 버전 영향 | 앱 버전 변경 없음. `Sub_domain-guardians_0.03`, `Sub_app-research-notes_0.08` |
+
+## 2026-07-11 코드 설계 효율화 Guardian 체계 추가
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | 단일 HTML 앱 구조를 위한 코드 설계 Guardian 추가 |
+| 배경 | 단일 HTML 앱은 빠르게 만들 수 있지만 UI, 상태, 도메인, 저장소, 원격 adapter가 한 파일 안에서 섞이면 유지보수가 급격히 어려워짐 |
+| 결정 | Single HTML Architecture, State Management, Domain Boundary, Adapter Layer, Complexity Budget, Refactor Safety, Performance Budget, Dependency Minimalism, Error Handling, Developer Experience Agent를 코드 설계 효율화 Guardian으로 채택 |
+| 적용 문서 | `docs/skills/accounting-code-architecture-guardians-skill.md`, `AGENTS.md`, `CLAUDE.md`, `docs/claude-handoff.md`, `docs/skills/accounting-development-governance-skill.md` |
+| 하네스 영향 | 새 코드 설계 Guardian 스킬을 project-contract와 instruction-contract 필수 검사에 포함 |
+| 버전 영향 | 앱 버전 변경 없음. `Sub_code-architecture-guardians_0.01`, `Sub_development-governance_0.05`, `Sub_harness-baseline_0.03`, `Sub_harness-quality-gate_0.03`, `Sub_app-research-notes_0.09` |
+
+적용 원칙:
+
+1. `index.html` 작업은 UI, State, Domain, Persistence, Remote Adapter, Validation, Report 레이어를 의식해 진행한다.
+2. 회계·세무 판단 로직을 DOM 이벤트 핸들러나 Supabase 호출 안에 직접 넣지 않는다.
+3. 저장·동기화·로그인·import 실패는 Error Handling Guardian 기준으로 사용자 메시지와 내부 진단을 분리한다.
+4. 외부 라이브러리 추가는 단일 HTML 유지성, 오프라인 영향, 보안 영향, 대체 가능성을 기록한 뒤 결정한다.

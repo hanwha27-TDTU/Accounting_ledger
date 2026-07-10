@@ -1,4 +1,4 @@
-> **Sub_harness-quality-gate_0.02** · 개정 2026-07-11
+> **Sub_harness-quality-gate_0.03** · 개정 2026-07-11
 
 # Accounting Ledger Harness Quality Gate Skill
 
@@ -26,8 +26,8 @@
 
 | 게이트 | 실제 검증 |
 |---|---|
-| project-contract | 하네스, 공통 지침, CI, 핵심 설계 파일, 회계 도메인 Guardian 스킬 존재 |
-| instruction-contract | AGENTS/CLAUDE에 canonical sync, RLS, 하네스, 도메인 Guardian 지침 존재 |
+| project-contract | 하네스, 공통 지침, CI, 핵심 설계 파일, 회계 도메인 Guardian, 코드 설계 Guardian 스킬 존재 |
+| instruction-contract | AGENTS/CLAUDE에 canonical sync, RLS, 하네스, 도메인 Guardian, 코드 설계 Guardian 지침 존재 |
 | migration-contract | 초기 migration 4개와 RLS·canonical sync 표식 |
 | tracked-scope-and-secrets | 참고 원본의 추적 여부와 자격증명 형태 값 |
 | git-diff-integrity | staged/unstaged diff 공백 오류 |

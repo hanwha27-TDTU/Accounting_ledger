@@ -10,6 +10,7 @@
 - 스킬 문서는 개별 `Sub_<name>_<version>` 체계를 유지한다.
 - 중요 설계·스키마·보안·마이그레이션 변경은 연구노트와 Claude handoff를 함께 갱신한다.
 - 거래, 분개, 계정과목, 대사, 마감, 감사, 세무 매핑, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 적용한다.
+- `index.html`, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 적용한다.
 
 ## 동기화 불변조건
 
