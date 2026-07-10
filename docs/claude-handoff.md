@@ -1,4 +1,4 @@
-> 기준일: 2026-07-10
+> 기준일: 2026-07-11
 > 앱 버전: `0.00`
 > 상태: 설계 및 Supabase 초기 스키마 완료, 화면 구현 시작 전
 
@@ -39,7 +39,7 @@
 | 로그인 | `app_allowed_users`에 owner allowlist seed, Google OAuth/RLS 정책 설계 |
 | 운영 | 역할 기반 개발 운영·품질 게이트 및 연구노트 체계 도입 |
 | 하네스 | Node 기반 `npm run harness:check` 및 동일 명령을 실행하는 GitHub Actions 도입 |
-| 최근 커밋 | `76a5be0 docs: add development governance skill`, `808c672 chore: add accounting ledger design checkpoint` |
+| 최근 커밋 | `b471941 docs: add code architecture guardians`, `778ba5e docs: expand accounting guardian registry`, `d52b416 docs: add guardian developer registry` |
 
 ## 다음 구현 우선순위
 
@@ -64,6 +64,12 @@
 6. 기존 비회계 Supabase 테이블(`news_items`, `language_sync_meta`, `vocab_items`, `usmle_cards`)을 이번 앱 작업 범위로 임의 변경하지 않는다.
 7. 참고용 Excel·PDF·ZIP 파일을 명시적 요청 없이 커밋하지 않는다.
 8. 원격 push나 배포는 사용자 요청 없이 실행하지 않는다.
+
+## 배포 요청 처리
+
+사용자가 “배포해주세요”라고 말하면 검증, 필요한 커밋, main 반영, 원격 push, 가능한 호스팅 배포, Claude 인수인계 메시지 작성을 포함해 진행한다.
+
+현재 저장소는 `main` 직접 작업 흐름이다. 기능 브랜치에서 작업 중인 경우에는 사용자 승인 없이 강제 push, rebase, reset 같은 파괴적 재작성은 하지 않고, main 반영 전략을 먼저 확인한다.
 
 ## 필수 참조 문서
 

@@ -20,6 +20,7 @@
 - service role key, Cloudinary secret, OAuth client secret을 코드·문서·커밋에 넣지 않는다.
 - 법정서식은 최신 스냅샷 검증 없이는 확정 출력으로 표시하지 않는다.
 - 참고용 Excel·PDF·ZIP 원본은 명시적 요청 없이는 Git에 추가하지 않는다.
+- 사용자가 “배포해주세요”라고 하면 검증, 필요한 커밋, main 반영, 원격 push, 가능한 호스팅 배포, Claude 인수인계 메시지 작성을 포함해 진행한다.
 
 ## 검증 절차
 

@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.09** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.10** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -206,3 +206,15 @@ advisor 잔여 항목:
 2. 회계·세무 판단 로직을 DOM 이벤트 핸들러나 Supabase 호출 안에 직접 넣지 않는다.
 3. 저장·동기화·로그인·import 실패는 Error Handling Guardian 기준으로 사용자 메시지와 내부 진단을 분리한다.
 4. 외부 라이브러리 추가는 단일 HTML 유지성, 오프라인 영향, 보안 영향, 대체 가능성을 기록한 뒤 결정한다.
+
+## 2026-07-11 배포 명령 의미 확정
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | “배포해주세요” 명령의 작업 범위 확정 |
+| 결정 | 사용자가 “배포해주세요”라고 말하면 검증, 필요한 커밋, main 반영, 원격 push, 가능한 호스팅 배포, Claude 인수인계 메시지 작성을 포함해 진행 |
+| 적용 문서 | `AGENTS.md`, `CLAUDE.md`, `docs/claude-handoff.md` |
+| 제한 | 원본 참고 Excel·PDF·ZIP, 비밀키, service role, OAuth secret, Cloudinary secret은 배포 범위에서 제외 |
+| 버전 영향 | 앱 버전 변경 없음. `Sub_app-research-notes_0.10` |
