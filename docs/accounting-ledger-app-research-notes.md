@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.07** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.08** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -173,3 +173,16 @@ advisor 잔여 항목:
 | 표시 대상 | Double-Entry, Journal Entry, Chart of Accounts, Ledger Reconciliation, Period Close, Audit Trail, Import Normalization, Financial Statement, Tax Mapping, Anomaly Detection |
 | 구현 원칙 | 실제 앱에서는 레지스트리 표시와 구현 상태를 분리하고, `implemented`, `manual_only`, `planned` 같은 상태값을 별도 관리 |
 | 버전 영향 | 앱 버전 변경 없음. `Sub_domain-guardians_0.02`, `Sub_app-research-notes_0.07` |
+
+## 2026-07-11 회계 Guardian 확장 에이전트 추가
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | 증빙·VAT·사업유형·신고준비·백업복원 중심 확장 Guardian 추가 |
+| 배경 | 기존 10개 Guardian은 원장·분개·계정과목 중심이므로, 실제 세무 실무와 운영 안정성을 위해 증빙, 부가세, 사업유형, 신고준비, 백업·복원, 권한, 법령 업데이트 확인 축이 필요함 |
+| 결정 | Evidence Compliance, VAT Consistency, Depreciation & Asset, Business Classification, Filing Readiness, Cashflow & Liquidity, Backup & Restore, Permission & Owner, Legal Update Watcher, Developer Mode Registry를 확장 Guardian으로 추가 |
+| 1차 중요 축 | 증빙, VAT, 사업유형, 신고준비, 백업·복원은 앱 구조 초기에 검증 축으로 반영 |
+| 표시 대상 | 개발자 모드 레지스트리 총 20개 Guardian |
+| 버전 영향 | 앱 버전 변경 없음. `Sub_domain-guardians_0.03`, `Sub_app-research-notes_0.08` |

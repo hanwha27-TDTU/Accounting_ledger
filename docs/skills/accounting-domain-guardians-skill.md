@@ -1,4 +1,4 @@
-> **Sub_domain-guardians_0.02** · 개정 2026-07-11
+> **Sub_domain-guardians_0.03** · 개정 2026-07-11
 
 # Accounting Ledger Domain Guardians Skill
 
@@ -27,6 +27,21 @@
 | Tax Mapping Reviewer | 필수 | 부가세, 종합소득세, 필요경비, 불공제, 업종별 세무 매핑 검토 | 세무 매핑 근거, 예외 항목, 검토 필요 표시 |
 | Anomaly Detection Agent | 권장 | 중복, 이상금액, 증빙 누락, 계정과목 오분류, 기간 오류 탐지 | anomaly score, 규칙 ID, 사용자 확인 상태 |
 
+## 확장 에이전트
+
+| 에이전트 | 우선순위 | 책임 | 최소 산출물 |
+|---|---|---|---|
+| Evidence Compliance Guardian | 필수 | 증빙 첨부, 보관, 원본성, 거래 연결 상태 검증 | 증빙 누락 목록, 파일 메타데이터, 거래 연결 상태 |
+| VAT Consistency Guardian | 필수 | 공급가액, 부가세, 면세, 불공제, 간이/일반 과세 계산 일관성 검증 | VAT 차이, 과세구분 오류, 불공제 검토 항목 |
+| Depreciation & Asset Guardian | 매우 권장 | 고정자산, 감가상각, 처분, 자본적/수익적 지출 판단 관리 | 자산대장 연결, 상각 스케줄, 처분손익 후보 |
+| Business Classification Agent | 필수 | 개인/법인, 업종코드, 의료·자문·프리랜서 등 사업 유형 판정 | 사업유형 결정 근거, 적용 세무 로직, 검토 필요 항목 |
+| Filing Readiness Guardian | 필수 | 신고 전 누락자료, 마감, 법정서식, 세무사 전달 준비도 점검 | 신고 준비 체크리스트, 차단 오류, 보완 요청 |
+| Cashflow & Liquidity Reviewer | 권장 | 손익과 별개로 현금흐름, 미수·미지급, 세금 납부 예정액 검토 | 현금흐름 요약, 미수·미지급 현황, 납부 예정액 |
+| Backup & Restore Guardian | 필수 | IndexedDB, Supabase, JSON 백업·복원, canonical version 일관성 검증 | 백업 스냅샷, 복원 검증 결과, canonical 차이 |
+| Permission & Owner Guardian | 매우 권장 | Google 로그인 허용 이메일, owner 권한, 추가 허용자 관리 검증 | owner 상태, allowlist 변경 이력, 권한 오류 |
+| Legal Update Watcher | 매우 권장 | 법령·서식 변경 감지와 재검토 필요 상태 표시 | 변경 감지 기록, 영향받는 리포트, 재검토 플래그 |
+| Developer Mode Registry Agent | 권장 | 앱 개발자 모드에서 Guardian 목록, 구현 상태, 최근 검증 결과 표시 | 레지스트리 버전, 구현 상태, 마지막 실행 결과 |
+
 ## 개발자 모드 표시 목록
 
 앱 개발자 모드에는 아래 역할과 기능을 표시한다. 이 목록은 사용자가 “현재 어떤 회계 검증 장치가 설계되어 있는지” 확인하는 용도이며, 각 항목의 실제 구현 상태는 별도 `implemented`, `manual_only`, `planned` 상태값으로 관리한다.
@@ -43,12 +58,22 @@
 | `financial_statement_generator` | 재무·세무 리포트 생성 | 장부 데이터를 보고서와 전달 패키지로 생성 | 손익계산서, 재무상태표, 원장, 간편장부, 세무사 패키지 | 리포트 생성 시 실행 |
 | `tax_mapping_reviewer` | 세무 매핑 검토 | 세법·업종·과세유형에 맞는 매핑 확인 | 부가세, 종소세, 필요경비, 불공제, 업종 예외 검토 | 세무 리포트·신고 준비 전 실행 |
 | `anomaly_detection_agent` | 이상 항목 탐지 | 규칙 기반 오류·누락·중복 후보 탐지 | 중복거래, 이상금액, 증빙 누락, 기간 오류, 계정 오분류 | 저장·import·마감 전후 실행 |
+| `evidence_compliance_guardian` | 증빙 적정성 검사 | 증빙 누락·원본성·거래 연결 확인 | 이미지/PDF 첨부, 파일 메타, 거래 연결, 누락 경고 | 거래 저장·리포트 전 실행 |
+| `vat_consistency_guardian` | 부가세 일관성 검사 | 과세유형과 VAT 금액 일치 확인 | 공급가액·세액 대조, 면세·불공제 구분, 간이/일반 분기 | VAT 검토·신고 준비 전 실행 |
+| `depreciation_asset_guardian` | 자산·감가상각 관리 | 고정자산과 감가상각 흐름 검증 | 자산대장, 상각 스케줄, 처분 후보, 지출 성격 검토 | 자산 등록·결산 전 실행 |
+| `business_classification_agent` | 사업유형 판정 | 사업자·업종·과세유형 판단 | 개인/법인, 업종코드, 의료·자문·프리랜서 분기 | 초기 설정·사업정보 변경 시 실행 |
+| `filing_readiness_guardian` | 신고 준비도 검사 | 신고 전 차단 오류와 보완자료 확인 | 누락자료, 마감상태, 법정서식, 세무사 패키지 점검 | 신고 준비 화면에서 실행 |
+| `cashflow_liquidity_reviewer` | 현금흐름 검토 | 손익과 별개로 자금 흐름 확인 | 현금흐름, 미수·미지급, 세금 납부 예정액 | 월말·분기 검토 시 실행 |
+| `backup_restore_guardian` | 백업·복원 검증 | 로컬·클라우드·JSON 복원성 확인 | 백업 스냅샷, 복원 테스트, canonical version 차이 | 백업·복원·기기변경 시 실행 |
+| `permission_owner_guardian` | 권한·소유자 검사 | Google owner와 allowlist 관리 확인 | owner 상태, 허용 이메일, 권한 변경 이력 | 로그인·권한 변경 시 실행 |
+| `legal_update_watcher` | 법령 업데이트 감시 | 법령·서식 변경 영향 추적 | 변경 감지, 영향 리포트, 재검토 플래그 | 법령 확인·리포트 생성 전 실행 |
+| `developer_mode_registry_agent` | 개발자 모드 레지스트리 | Guardian 상태와 최근 결과 표시 | 레지스트리 버전, 구현 상태, 마지막 실행 결과 | 개발자 모드 진입 시 실행 |
 
 앱에 옮길 때는 아래 JSON을 초기 레지스트리 후보로 사용한다. 단, 실제 런타임에서는 코드 안에 하드코딩하기보다 앱 내부 상수 또는 설정 데이터로 분리하고, 구현 상태와 마지막 검증 결과는 별도 상태 저장소에 둔다.
 
 ```json
 {
-  "registryVersion": "Sub_domain-guardians_0.02",
+  "registryVersion": "Sub_domain-guardians_0.03",
   "displayTarget": "developer_mode",
   "agents": [
     {
@@ -150,6 +175,106 @@
       "functions": ["중복거래 탐지", "이상금액 탐지", "증빙 누락 탐지", "기간 오류 탐지", "계정과목 오분류 후보 탐지"],
       "triggers": ["transaction_save", "import_complete", "period_review", "before_close"],
       "outputs": ["anomaly_score", "rule_id", "candidate_items", "user_confirmation_status"]
+    },
+    {
+      "id": "evidence_compliance_guardian",
+      "name": "Evidence Compliance Guardian",
+      "labelKo": "증빙 적정성 검사",
+      "priority": "required",
+      "role": "증빙 누락·원본성·거래 연결 확인",
+      "functions": ["이미지/PDF 첨부 확인", "파일 메타데이터 확인", "거래 연결 상태 확인", "증빙 누락 경고"],
+      "triggers": ["transaction_save", "evidence_upload", "report_generate", "tax_package_generate"],
+      "outputs": ["missing_evidence", "file_metadata", "linked_transaction_status", "evidence_review_items"]
+    },
+    {
+      "id": "vat_consistency_guardian",
+      "name": "VAT Consistency Guardian",
+      "labelKo": "부가세 일관성 검사",
+      "priority": "required",
+      "role": "과세유형과 VAT 금액 일치 확인",
+      "functions": ["공급가액 검증", "부가세액 검증", "면세 구분 검증", "불공제 구분 검증", "간이/일반 과세 분기 검증"],
+      "triggers": ["vat_review", "transaction_save", "business_type_change", "tax_package_generate"],
+      "outputs": ["vat_differences", "tax_type_errors", "non_deductible_review_items"]
+    },
+    {
+      "id": "depreciation_asset_guardian",
+      "name": "Depreciation & Asset Guardian",
+      "labelKo": "자산·감가상각 관리",
+      "priority": "strongly_recommended",
+      "role": "고정자산과 감가상각 흐름 검증",
+      "functions": ["자산대장 연결 확인", "감가상각 스케줄 생성", "처분 후보 탐지", "자본적/수익적 지출 후보 검토"],
+      "triggers": ["asset_create", "asset_update", "expense_review", "year_close"],
+      "outputs": ["asset_register_links", "depreciation_schedule", "disposal_candidates", "expense_character_review"]
+    },
+    {
+      "id": "business_classification_agent",
+      "name": "Business Classification Agent",
+      "labelKo": "사업유형 판정",
+      "priority": "required",
+      "role": "사업자·업종·과세유형 판단",
+      "functions": ["개인/법인 구분", "업종코드 매핑", "의료·자문·프리랜서 분기", "간편장부/복식부기 의무 후보 판정"],
+      "triggers": ["business_profile_create", "business_profile_update", "industry_code_change"],
+      "outputs": ["classification_basis", "applied_tax_logic", "manual_review_items"]
+    },
+    {
+      "id": "filing_readiness_guardian",
+      "name": "Filing Readiness Guardian",
+      "labelKo": "신고 준비도 검사",
+      "priority": "required",
+      "role": "신고 전 차단 오류와 보완자료 확인",
+      "functions": ["누락자료 점검", "기간 마감 상태 점검", "법정서식 snapshot 점검", "세무사 전달 패키지 점검"],
+      "triggers": ["filing_readiness_check", "tax_package_generate", "year_close"],
+      "outputs": ["readiness_checklist", "blocking_errors", "required_followups"]
+    },
+    {
+      "id": "cashflow_liquidity_reviewer",
+      "name": "Cashflow & Liquidity Reviewer",
+      "labelKo": "현금흐름 검토",
+      "priority": "recommended",
+      "role": "손익과 별개로 자금 흐름 확인",
+      "functions": ["현금흐름 요약", "미수금 확인", "미지급금 확인", "세금 납부 예정액 추정"],
+      "triggers": ["month_review", "quarter_review", "tax_payment_review"],
+      "outputs": ["cashflow_summary", "receivable_payable_status", "estimated_tax_payments"]
+    },
+    {
+      "id": "backup_restore_guardian",
+      "name": "Backup & Restore Guardian",
+      "labelKo": "백업·복원 검증",
+      "priority": "required",
+      "role": "로컬·클라우드·JSON 복원성 확인",
+      "functions": ["IndexedDB 백업 확인", "Supabase 동기화 확인", "JSON 백업 구조 확인", "canonical version 차이 탐지"],
+      "triggers": ["backup_create", "restore_preview", "restore_apply", "device_sync"],
+      "outputs": ["backup_snapshot", "restore_validation", "canonical_version_diff"]
+    },
+    {
+      "id": "permission_owner_guardian",
+      "name": "Permission & Owner Guardian",
+      "labelKo": "권한·소유자 검사",
+      "priority": "strongly_recommended",
+      "role": "Google owner와 allowlist 관리 확인",
+      "functions": ["owner 이메일 확인", "allowlist 상태 확인", "권한 변경 이력 확인", "비허용 로그인 차단 확인"],
+      "triggers": ["login", "allowlist_update", "owner_permission_review"],
+      "outputs": ["owner_status", "allowed_email_status", "permission_change_events"]
+    },
+    {
+      "id": "legal_update_watcher",
+      "name": "Legal Update Watcher",
+      "labelKo": "법령 업데이트 감시",
+      "priority": "strongly_recommended",
+      "role": "법령·서식 변경 영향 추적",
+      "functions": ["법령 snapshot 변경 확인", "서식 snapshot 변경 확인", "영향받는 리포트 표시", "재검토 플래그 설정"],
+      "triggers": ["legal_reference_check", "report_generate", "tax_rule_refresh"],
+      "outputs": ["legal_change_records", "affected_reports", "review_required_flags"]
+    },
+    {
+      "id": "developer_mode_registry_agent",
+      "name": "Developer Mode Registry Agent",
+      "labelKo": "개발자 모드 레지스트리",
+      "priority": "recommended",
+      "role": "Guardian 상태와 최근 결과 표시",
+      "functions": ["레지스트리 버전 표시", "구현 상태 표시", "마지막 실행 결과 표시", "관련 문서 링크 표시"],
+      "triggers": ["developer_mode_open", "guardian_registry_refresh"],
+      "outputs": ["registry_version", "implementation_status", "last_run_summary", "document_links"]
     }
   ]
 }
@@ -161,28 +286,38 @@
 
 | 판단 단계 | 연결 에이전트 | 법령·서식 연결점 |
 |---|---|---|
-| 사업자 유형·과세유형 판단 | Tax Mapping Reviewer | 소득세법, 부가가치세법, 업종코드, 간편장부/복식부기 의무 기준 |
+| 사업자 유형·과세유형 판단 | Business Classification Agent, Tax Mapping Reviewer | 소득세법, 부가가치세법, 업종코드, 간편장부/복식부기 의무 기준 |
 | 계정과목 선택 | Chart of Accounts Guardian | 국세청 계정과목·신고서 항목·필요경비 분류 |
-| 거래 입력·자동분개 | Journal Entry Validator, Double-Entry Guardian | 장부 기장 원칙, 증빙 보관, 과세/면세/불공제 구분 |
+| 거래 입력·자동분개 | Journal Entry Validator, Double-Entry Guardian, Evidence Compliance Guardian | 장부 기장 원칙, 증빙 보관, 과세/면세/불공제 구분 |
 | 원장·잔액 검증 | Ledger Reconciliation Agent | 총수입금액, 필요경비, 자산·부채 잔액 근거 |
-| 부가세·종소세 매핑 | Tax Mapping Reviewer | 신고서 항목, 세액계산 구조, 업종별 예외 |
-| 법정 리포트 출력 | Financial Statement Generator | 최신 법정서식 snapshot, 신고서·명세서 별지 |
+| 부가세·종소세 매핑 | VAT Consistency Guardian, Tax Mapping Reviewer | 신고서 항목, 세액계산 구조, 업종별 예외 |
+| 자산·감가상각 판단 | Depreciation & Asset Guardian | 감가상각, 고정자산, 처분손익, 지출 성격 판단 근거 |
+| 법정 리포트 출력 | Financial Statement Generator, Filing Readiness Guardian, Legal Update Watcher | 최신 법정서식 snapshot, 신고서·명세서 별지 |
 | 마감·수정·감사 | Period Close Guardian, Audit Trail Guardian | 신고기한, 수정신고·경정청구, 보관·감사 추적 |
+| 백업·권한·개발자 확인 | Backup & Restore Guardian, Permission & Owner Guardian, Developer Mode Registry Agent | 신고자료 보존, owner 권한, 앱 내부 검증 상태 표시 |
 
 ## 검증 흐름
 
 ```mermaid
 flowchart LR
   A["원천 거래 입력·import"] --> B["Import Normalization"]
+  A --> K["Business Classification"]
   B --> C["Journal Entry Validator"]
   C --> D["Double-Entry Guardian"]
+  C --> L["Evidence Compliance"]
   D --> E["Chart of Accounts Guardian"]
   E --> F["Ledger Reconciliation"]
+  E --> M["VAT Consistency"]
   F --> G["Tax Mapping Reviewer"]
+  M --> G
   G --> H["Financial Statement Generator"]
+  G --> N["Filing Readiness"]
   H --> I["Period Close / Audit Trail"]
   F --> J["Anomaly Detection"]
   G --> J
+  K --> G
+  O["Legal Update Watcher"] --> H
+  P["Backup / Permission / Developer Registry"] --> I
 ```
 
 ## 구현 규칙
@@ -195,6 +330,9 @@ flowchart LR
 6. 법령·서식 기반 검증은 `legal_form_snapshots`, `legal_reference_checks`, `tax_rule_version`과 연결한다.
 7. import 검증은 원본 행 번호, 원본 파일 해시, 변환 전후 값을 보존한다.
 8. 동기화 대상 검증 레코드는 `id`, `created_at`, `updated_at`, `deleted_at`과 canonical sync 규칙을 따른다.
+9. 증빙 검증은 파일 원본성 자체를 단정하지 않고, 업로드 메타데이터·거래 연결·보관 상태를 기록한다.
+10. 법령 업데이트 감시는 최신성 확인 시각과 기준 snapshot을 남기며, 자동 신고 판단으로 표시하지 않는다.
+11. 개발자 모드 레지스트리는 구현 상태 표시용이며, 검증 통과 자체를 대체하지 않는다.
 
 ## 데이터 모델 권장
 
@@ -240,12 +378,17 @@ accounting_validation_findings (
 | 변경 유형 | 반드시 적용할 도메인 에이전트 |
 |---|---|
 | 거래 입력·자동분개 | Double-Entry, Journal Entry, Chart of Accounts, Audit Trail |
+| 증빙 첨부·보관 | Evidence Compliance, Audit Trail, Security |
 | Excel/CSV/import | Import Normalization, Journal Entry, Double-Entry, Anomaly Detection |
-| 계정과목·업종코드 | Chart of Accounts, Tax Mapping, Legal Forms |
-| 부가세·종소세 | Tax Mapping, Financial Statement, Legal Forms |
-| 리포트·세무사 패키지 | Financial Statement, Tax Mapping, Audit Trail, Legal Forms |
+| 사업자·업종코드·과세유형 | Business Classification, Chart of Accounts, Tax Mapping, Legal Forms |
+| 부가세·종소세 | VAT Consistency, Tax Mapping, Financial Statement, Legal Forms |
+| 고정자산·감가상각 | Depreciation & Asset, Tax Mapping, Audit Trail |
+| 리포트·세무사 패키지 | Filing Readiness, Financial Statement, Tax Mapping, Audit Trail, Legal Forms, Legal Update Watcher |
 | 마감·수정취소 | Period Close, Audit Trail, Ledger Reconciliation |
-| Supabase/IndexedDB 동기화 | Audit Trail, Schema/Contract, Migration, Security |
+| 현금흐름·납부 예정액 | Cashflow & Liquidity, Ledger Reconciliation, Tax Mapping |
+| Supabase/IndexedDB 동기화 | Backup & Restore, Audit Trail, Schema/Contract, Migration, Security |
+| 로그인·허용 이메일 | Permission & Owner, Security, Audit Trail |
+| 개발자 모드 Guardian 표시 | Developer Mode Registry, Release Manager, Harness Quality Gate |
 
 ## 금지 사항
 
@@ -255,3 +398,6 @@ accounting_validation_findings (
 - import 실패 행을 조용히 버리지 않는다.
 - 마감 후 수정 이력을 삭제하거나 덮어쓰지 않는다.
 - 이상탐지를 AI 추론처럼 표시하지 않는다. V1은 규칙 기반 검증으로 시작한다.
+- 증빙 파일 존재만으로 세법상 적격증빙이라고 단정하지 않는다.
+- 법령 업데이트 감지 결과를 검토 없이 자동 신고 판단으로 사용하지 않는다.
+- 개발자 모드 레지스트리의 `implemented` 표시를 실제 테스트 통과로 대체하지 않는다.
