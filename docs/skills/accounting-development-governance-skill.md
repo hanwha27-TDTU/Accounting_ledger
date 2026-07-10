@@ -1,4 +1,4 @@
-> **Sub_development-governance_0.05** · 개정 2026-07-11
+> **Sub_development-governance_0.06** · 개정 2026-07-11
 
 # Accounting Ledger Development Governance Skill
 
@@ -30,6 +30,8 @@
 | Release Manager | 앱·스킬 버전, 연구노트, 변경 이력, 배포 전 게이트 확인 | 필수 | 릴리스 체크리스트와 버전 기록 |
 | Debugger | 실패 재현, 원인 최소화, 수정, 재검증 | 필수 | 재현 조건·원인·수정 검증 |
 | Simplifier | 동작을 유지하면서 불필요한 복잡성·중복 제거 | 선택 | 제거 또는 유지 근거 |
+| Retention & Deletion Guardian | 증빙·장부·백업 보관기간, soft delete, 삭제 복구 정책 검토 | 매우 권장 | 보관/삭제 정책, tombstone 영향, 복구 가능성 |
+| Test Data & Fixture Guardian | 샘플 거래, 2025 소급 입력, VAT·면세·감가상각 테스트 케이스 관리 | 권장 | fixture 목록, 테스트 시나리오, 실제 개인정보 부재 확인 |
 
 ## 역할을 적용하는 방법
 
@@ -44,6 +46,8 @@
 | Excel import/export 변경 | 위 전체 | Schema/Contract, Migration, UI/UX |
 | Cloudinary 증빙 업로드 변경 | 위 전체 | Security, Schema/Contract, UI/UX |
 | 법정서식·세법 규칙 변경 | 위 전체 | Schema/Contract, Migration, Security |
+| 보관기간·삭제·복원 정책 변경 | 위 전체 | Retention & Deletion, Schema/Contract, Security, Migration |
+| 샘플 데이터·테스트 케이스 변경 | Mapper, Planner, Implementer, Test, Reviewer, Release | Test Data & Fixture, Security |
 | 오류 수정 | Mapper, Debugger, Implementer, Test, Reviewer, Release | 영향 범위에 따른 추가 역할 |
 | 배포 | Mapper, Test, Reviewer, Release | Security, UI/UX |
 
@@ -91,6 +95,8 @@ flowchart LR
 | 증빙 | 이미지/PDF 형식·크기·실패 상태·거래 연결·권한 없는 URL 노출 여부 |
 | UI | 데스크톱·모바일, 키보드 사용, 오류·로딩·빈 상태, 긴 한국어 텍스트 |
 | 리포트 | 법정서식 스냅샷 확인 없이는 확정 출력 차단, Excel/PDF 결과 검토 |
+| 보관/삭제 | 보관기간, soft delete, tombstone, 백업 잔존, 복구 가능성 |
+| 테스트 데이터 | 실제 개인정보·실제 증빙 파일 부재, 2025 소급·VAT·면세·감가상각 fixture 포함 |
 
 ### 릴리스 전 게이트
 
@@ -106,6 +112,7 @@ flowchart LR
 | 문서 | 관련 스킬·설계 문서·연구노트가 현재 동작과 일치함 |
 | 버전 | 앱 버전은 `0.01` 증가, 관련 스킬 버전은 변경 시 증가 |
 | Git | 의도한 파일만 커밋, 참고 원본·키·개인정보는 제외, 원격 push 결과 확인 |
+| Fixture | 테스트 데이터가 실제 개인정보나 실제 세무자료를 포함하지 않음 |
 
 ## 연구노트 기록 형식
 
@@ -129,6 +136,8 @@ flowchart LR
 4. 참고용 Excel·PDF·ZIP 원본을 저장소에 무심코 포함하지 않는다.
 5. 사용자 데이터가 있는 상태에서 원본 삭제·테이블 재생성·강제 동기화를 실행하지 않는다.
 6. 단일 HTML이라는 이유로 비밀키나 관리자 권한을 클라이언트에 두지 않는다.
+7. 보관/삭제 정책 없이 증빙, 장부, 백업 데이터를 영구 보존하거나 즉시 삭제하지 않는다.
+8. 실제 개인정보가 들어간 데이터를 fixture나 테스트 샘플로 사용하지 않는다.
 
 ## 관련 스킬
 

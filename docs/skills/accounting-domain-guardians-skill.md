@@ -1,4 +1,4 @@
-> **Sub_domain-guardians_0.03** · 개정 2026-07-11
+> **Sub_domain-guardians_0.04** · 개정 2026-07-11
 
 # Accounting Ledger Domain Guardians Skill
 
@@ -42,6 +42,14 @@
 | Legal Update Watcher | 매우 권장 | 법령·서식 변경 감지와 재검토 필요 상태 표시 | 변경 감지 기록, 영향받는 리포트, 재검토 플래그 |
 | Developer Mode Registry Agent | 권장 | 앱 개발자 모드에서 Guardian 목록, 구현 상태, 최근 검증 결과 표시 | 레지스트리 버전, 구현 상태, 마지막 실행 결과 |
 
+## 리포트·이식성 에이전트
+
+| 에이전트 | 우선순위 | 책임 | 최소 산출물 |
+|---|---|---|---|
+| Form Field Mapping Guardian | 필수 | 법정서식·국세청 양식 필드와 앱 데이터 매핑 검증 | 필드 매핑표, 미매핑 필드, 서식 snapshot 연결 |
+| Report Explainability Agent | 매우 권장 | 리포트 숫자가 어떤 거래·분개에서 왔는지 추적 설명 | 금액 산출 근거, 거래·분개 링크, 검토 경로 |
+| Data Export Portability Guardian | 매우 권장 | 세무사 전달, JSON/CSV/Excel export, 다른 시스템 이전 가능성 보장 | export manifest, 스키마 버전, 재가져오기 검증 결과 |
+
 ## 개발자 모드 표시 목록
 
 앱 개발자 모드에는 아래 역할과 기능을 표시한다. 이 목록은 사용자가 “현재 어떤 회계 검증 장치가 설계되어 있는지” 확인하는 용도이며, 각 항목의 실제 구현 상태는 별도 `implemented`, `manual_only`, `planned` 상태값으로 관리한다.
@@ -68,12 +76,15 @@
 | `permission_owner_guardian` | 권한·소유자 검사 | Google owner와 allowlist 관리 확인 | owner 상태, 허용 이메일, 권한 변경 이력 | 로그인·권한 변경 시 실행 |
 | `legal_update_watcher` | 법령 업데이트 감시 | 법령·서식 변경 영향 추적 | 변경 감지, 영향 리포트, 재검토 플래그 | 법령 확인·리포트 생성 전 실행 |
 | `developer_mode_registry_agent` | 개발자 모드 레지스트리 | Guardian 상태와 최근 결과 표시 | 레지스트리 버전, 구현 상태, 마지막 실행 결과 | 개발자 모드 진입 시 실행 |
+| `form_field_mapping_guardian` | 서식 필드 매핑 검사 | 법정서식·국세청 양식과 앱 데이터 연결 확인 | 필드 매핑, 미매핑 필드, snapshot 연결 | 리포트·export 생성 전 실행 |
+| `report_explainability_agent` | 리포트 산출근거 설명 | 리포트 숫자의 거래·분개 추적성 보장 | 금액 산출 근거, 원천 거래 링크, 검토 경로 | 리포트 생성·검토 시 실행 |
+| `data_export_portability_guardian` | 데이터 export 이식성 검사 | 세무사 전달·이전·재가져오기 가능성 보장 | export manifest, 스키마 버전, roundtrip 결과 | export·백업 패키지 생성 시 실행 |
 
 앱에 옮길 때는 아래 JSON을 초기 레지스트리 후보로 사용한다. 단, 실제 런타임에서는 코드 안에 하드코딩하기보다 앱 내부 상수 또는 설정 데이터로 분리하고, 구현 상태와 마지막 검증 결과는 별도 상태 저장소에 둔다.
 
 ```json
 {
-  "registryVersion": "Sub_domain-guardians_0.03",
+  "registryVersion": "Sub_domain-guardians_0.04",
   "displayTarget": "developer_mode",
   "agents": [
     {
@@ -275,6 +286,36 @@
       "functions": ["레지스트리 버전 표시", "구현 상태 표시", "마지막 실행 결과 표시", "관련 문서 링크 표시"],
       "triggers": ["developer_mode_open", "guardian_registry_refresh"],
       "outputs": ["registry_version", "implementation_status", "last_run_summary", "document_links"]
+    },
+    {
+      "id": "form_field_mapping_guardian",
+      "name": "Form Field Mapping Guardian",
+      "labelKo": "서식 필드 매핑 검사",
+      "priority": "required",
+      "role": "법정서식·국세청 양식과 앱 데이터 연결 확인",
+      "functions": ["법정서식 필드 매핑", "국세청 양식 필드 매핑", "미매핑 필드 탐지", "서식 snapshot 연결 확인"],
+      "triggers": ["report_generate", "form_snapshot_update", "excel_export", "tax_package_generate"],
+      "outputs": ["field_mapping_table", "unmapped_fields", "form_snapshot_id"]
+    },
+    {
+      "id": "report_explainability_agent",
+      "name": "Report Explainability Agent",
+      "labelKo": "리포트 산출근거 설명",
+      "priority": "strongly_recommended",
+      "role": "리포트 숫자의 거래·분개 추적성 보장",
+      "functions": ["금액 산출 근거 생성", "원천 거래 링크 생성", "분개 링크 생성", "검토 경로 표시"],
+      "triggers": ["report_generate", "report_review", "tax_package_generate"],
+      "outputs": ["calculation_basis", "source_transaction_links", "journal_entry_links", "review_path"]
+    },
+    {
+      "id": "data_export_portability_guardian",
+      "name": "Data Export Portability Guardian",
+      "labelKo": "데이터 export 이식성 검사",
+      "priority": "strongly_recommended",
+      "role": "세무사 전달·이전·재가져오기 가능성 보장",
+      "functions": ["export manifest 생성", "스키마 버전 표시", "재가져오기 가능성 확인", "필수 파일 누락 확인"],
+      "triggers": ["json_export", "csv_export", "excel_export", "tax_package_generate"],
+      "outputs": ["export_manifest", "schema_version", "roundtrip_validation", "missing_export_items"]
     }
   ]
 }
@@ -384,6 +425,9 @@ accounting_validation_findings (
 | 부가세·종소세 | VAT Consistency, Tax Mapping, Financial Statement, Legal Forms |
 | 고정자산·감가상각 | Depreciation & Asset, Tax Mapping, Audit Trail |
 | 리포트·세무사 패키지 | Filing Readiness, Financial Statement, Tax Mapping, Audit Trail, Legal Forms, Legal Update Watcher |
+| 법정서식 필드 매핑 | Form Field Mapping, Legal Forms, Financial Statement |
+| 리포트 금액 설명 | Report Explainability, Financial Statement, Ledger Reconciliation, Audit Trail |
+| 데이터 export·이전 | Data Export Portability, Import Normalization, Backup & Restore, Schema/Contract |
 | 마감·수정취소 | Period Close, Audit Trail, Ledger Reconciliation |
 | 현금흐름·납부 예정액 | Cashflow & Liquidity, Ledger Reconciliation, Tax Mapping |
 | Supabase/IndexedDB 동기화 | Backup & Restore, Audit Trail, Schema/Contract, Migration, Security |
@@ -401,3 +445,6 @@ accounting_validation_findings (
 - 증빙 파일 존재만으로 세법상 적격증빙이라고 단정하지 않는다.
 - 법령 업데이트 감지 결과를 검토 없이 자동 신고 판단으로 사용하지 않는다.
 - 개발자 모드 레지스트리의 `implemented` 표시를 실제 테스트 통과로 대체하지 않는다.
+- 법정서식 필드와 앱 필드의 미매핑 항목을 무시한 채 확정 리포트를 생성하지 않는다.
+- 리포트 합계만 표시하고 원천 거래·분개 추적 경로를 잃어버리지 않는다.
+- export 파일을 만들 때 스키마 버전, 기준일, 포함 범위를 생략하지 않는다.

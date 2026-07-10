@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.10** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.11** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -218,3 +218,24 @@ advisor 잔여 항목:
 | 적용 문서 | `AGENTS.md`, `CLAUDE.md`, `docs/claude-handoff.md` |
 | 제한 | 원본 참고 Excel·PDF·ZIP, 비밀키, service role, OAuth secret, Cloudinary secret은 배포 범위에서 제외 |
 | 버전 영향 | 앱 버전 변경 없음. `Sub_app-research-notes_0.10` |
+
+## 2026-07-11 개인정보·오프라인·리포트 설명성 Guardian 추가
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | 민감정보, 법정서식 필드 매핑, 리포트 설명성, 오프라인·충돌, 테스트 데이터 Guardian 추가 |
+| 배경 | 기존 Guardian 체계가 회계 정확성·코드 구조를 포괄하지만, 개인정보 노출, 서식 필드 매핑, 리포트 숫자 추적성, 오프라인 UX, 충돌 해결, 보관/삭제, fixture 품질을 별도 검토 축으로 둘 필요가 있음 |
+| 도메인 추가 | Form Field Mapping Guardian, Report Explainability Agent, Data Export Portability Guardian |
+| 코드 설계 추가 | Data Privacy Guardian, User Guidance Copy Reviewer, Accessibility Guardian, Offline-First UX Guardian, Conflict Resolution Guardian |
+| 개발 운영 추가 | Retention & Deletion Guardian, Test Data & Fixture Guardian |
+| 버전 영향 | 앱 버전 변경 없음. `Sub_domain-guardians_0.04`, `Sub_code-architecture-guardians_0.02`, `Sub_development-governance_0.06`, `Sub_app-research-notes_0.11` |
+
+적용 원칙:
+
+1. 리포트 숫자는 원천 거래와 분개까지 추적 가능해야 한다.
+2. 법정서식과 앱 데이터 필드의 미매핑 항목은 확정 출력 전에 차단한다.
+3. 개인정보와 세무자료는 화면, 로그, export, 개발자 모드에서 각각 노출 경로를 점검한다.
+4. 오프라인 상태와 동기화 충돌은 오류로 숨기지 않고 사용자에게 상태와 복구 경로를 표시한다.
+5. 테스트 fixture에는 실제 개인정보와 실제 증빙 원본을 사용하지 않는다.

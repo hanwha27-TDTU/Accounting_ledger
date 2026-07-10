@@ -1,4 +1,4 @@
-> **Sub_code-architecture-guardians_0.01** · 개정 2026-07-11
+> **Sub_code-architecture-guardians_0.02** · 개정 2026-07-11
 
 # Accounting Ledger Code Architecture Guardians Skill
 
@@ -26,6 +26,16 @@
 | Dependency Minimalism Reviewer | 권장 | CDN/외부 라이브러리 남용 방지와 의존성 근거 검토 | 의존성 목록, 사용 이유, 대체 가능성, 제거 후보 |
 | Error Handling Guardian | 필수 | 저장·동기화·로그인·import·리포트 실패 처리 일관화 | 오류 코드, 사용자 메시지, 복구 동작, 진단 로그 |
 | Developer Experience Agent | 권장 | 개발자 모드, 디버그 패널, 내부 상태·버전·검증 결과 표시 | 개발자 모드 항목, 표시 상태, 진단 export 후보 |
+
+## 품질·UX 에이전트
+
+| 에이전트 | 우선순위 | 책임 | 최소 산출물 |
+|---|---|---|---|
+| Data Privacy Guardian | 필수 | 세무자료, 증빙, 거래처, 이메일 등 민감정보 노출 방지 | 민감정보 위치, 노출 경로, 마스킹·제외 기준 |
+| User Guidance Copy Reviewer | 권장 | 회계용어를 사용자가 이해할 수 있게 설명하는 문구 검토 | 쉬운 설명 문구, 용어 도움말, 오해 가능 문구 |
+| Accessibility Guardian | 권장 | 모바일·데스크톱, 키보드, 색 대비, 글자 크기 접근성 검토 | 접근성 체크 결과, 수정 후보, 미검증 항목 |
+| Offline-First UX Guardian | 필수 | 인터넷 끊김, Supabase 실패, IndexedDB 단독 사용 시 UX 보장 | 오프라인 상태, 재시도 동작, 로컬 저장 안내 |
+| Conflict Resolution Guardian | 필수 | 여러 기기 동기화 충돌, canonical version 변경, tombstone 처리 검증 | 충돌 목록, 선택 기준, canonical 수렴 결과 |
 
 ## 권장 레이어
 
@@ -55,12 +65,17 @@
 | `dependency_minimalism_reviewer` | 의존성 최소화 검사 | CDN·외부 라이브러리 추가 근거 검토 | 의존성 이유, 대체 가능성, 제거 후보 확인 | 라이브러리 추가·변경 시 실행 |
 | `error_handling_guardian` | 오류 처리 검사 | 실패 메시지와 복구 흐름 일관화 | 오류 코드, 사용자 문구, 재시도, 진단 로그 확인 | 실패 가능 기능 변경 시 실행 |
 | `developer_experience_agent` | 개발자 경험 검사 | 개발자 모드와 내부 진단 개선 | 버전, Guardian 상태, sync 상태, export 후보 표시 | 개발자 모드 변경 시 실행 |
+| `data_privacy_guardian` | 개인정보 보호 검사 | 민감정보 노출 방지 | 세무자료, 증빙, 거래처, 이메일, 키 노출 확인 | 저장·export·로그 변경 시 실행 |
+| `user_guidance_copy_reviewer` | 사용자 안내문구 검사 | 쉬운 회계용어 설명 보장 | 용어 도움말, 오류 문구, 중학생 수준 설명 검토 | UI 문구·도움말 변경 시 실행 |
+| `accessibility_guardian` | 접근성 검사 | 모바일·키보드·색 대비·글자 크기 확인 | 키보드 이동, 대비, 터치 크기, 긴 문구 확인 | 화면 변경 시 실행 |
+| `offline_first_ux_guardian` | 오프라인 우선 UX 검사 | 네트워크 실패 시 로컬 작업 지속 보장 | 오프라인 상태, 로컬 저장, 재시도, 동기화 대기 표시 | 저장·동기화 UX 변경 시 실행 |
+| `conflict_resolution_guardian` | 동기화 충돌 해결 검사 | 여러 기기 변경과 canonical 수렴 검증 | 충돌 항목, tombstone 처리, canonical version 반영 | 동기화 로직 변경 시 실행 |
 
 앱에 옮길 때는 아래 JSON을 초기 레지스트리 후보로 사용한다.
 
 ```json
 {
-  "registryVersion": "Sub_code-architecture-guardians_0.01",
+  "registryVersion": "Sub_code-architecture-guardians_0.02",
   "displayTarget": "developer_mode",
   "agents": [
     {
@@ -162,6 +177,56 @@
       "functions": ["버전 표시 확인", "Guardian 상태 표시 확인", "sync 상태 표시 확인", "진단 export 후보 확인"],
       "triggers": ["developer_mode_change", "debug_panel_change", "release_check"],
       "outputs": ["developer_panel_items", "debug_state_summary", "diagnostic_export_candidates"]
+    },
+    {
+      "id": "data_privacy_guardian",
+      "name": "Data Privacy Guardian",
+      "labelKo": "개인정보 보호 검사",
+      "priority": "required",
+      "role": "민감정보 노출 방지",
+      "functions": ["세무자료 노출 확인", "증빙 URL 노출 확인", "거래처 정보 노출 확인", "이메일·키 노출 확인"],
+      "triggers": ["storage_change", "export_change", "log_change", "developer_mode_change"],
+      "outputs": ["sensitive_data_locations", "exposure_paths", "masking_rules", "exclusion_rules"]
+    },
+    {
+      "id": "user_guidance_copy_reviewer",
+      "name": "User Guidance Copy Reviewer",
+      "labelKo": "사용자 안내문구 검사",
+      "priority": "recommended",
+      "role": "쉬운 회계용어 설명 보장",
+      "functions": ["용어 도움말 검토", "오류 문구 검토", "중학생 수준 설명 검토", "오해 가능 문구 탐지"],
+      "triggers": ["ui_copy_change", "help_text_change", "error_message_change"],
+      "outputs": ["plain_language_suggestions", "term_help_items", "ambiguous_copy_findings"]
+    },
+    {
+      "id": "accessibility_guardian",
+      "name": "Accessibility Guardian",
+      "labelKo": "접근성 검사",
+      "priority": "recommended",
+      "role": "모바일·키보드·색 대비·글자 크기 확인",
+      "functions": ["키보드 이동 확인", "색 대비 확인", "터치 크기 확인", "긴 한국어 문구 확인"],
+      "triggers": ["screen_change", "component_change", "developer_mode_change"],
+      "outputs": ["accessibility_findings", "responsive_issues", "contrast_issues", "manual_checks"]
+    },
+    {
+      "id": "offline_first_ux_guardian",
+      "name": "Offline-First UX Guardian",
+      "labelKo": "오프라인 우선 UX 검사",
+      "priority": "required",
+      "role": "네트워크 실패 시 로컬 작업 지속 보장",
+      "functions": ["오프라인 상태 표시", "로컬 저장 안내", "재시도 동작 확인", "동기화 대기 표시"],
+      "triggers": ["save_flow_change", "sync_flow_change", "connection_failure", "indexeddb_change"],
+      "outputs": ["offline_states", "retry_actions", "local_save_status", "pending_sync_items"]
+    },
+    {
+      "id": "conflict_resolution_guardian",
+      "name": "Conflict Resolution Guardian",
+      "labelKo": "동기화 충돌 해결 검사",
+      "priority": "required",
+      "role": "여러 기기 변경과 canonical 수렴 검증",
+      "functions": ["충돌 항목 탐지", "updated_at 선택 확인", "tombstone 처리 확인", "canonical version 반영 확인"],
+      "triggers": ["sync_merge", "canonical_version_change", "restore_apply", "device_sync"],
+      "outputs": ["conflict_items", "resolution_basis", "tombstone_results", "canonical_convergence_status"]
     }
   ]
 }
@@ -175,8 +240,13 @@
 | 거래 입력·분개·세무 로직 | Domain Boundary, State Management, Refactor Safety |
 | Supabase·IndexedDB·Cloudinary·OAuth | Adapter Layer, Error Handling, State Management, Security Reviewer |
 | import/export·백업·복원 | Adapter Layer, State Management, Error Handling, Performance Budget |
+| 개인정보·로그·export | Data Privacy, Dependency Minimalism, Error Handling |
+| 오프라인 저장·동기화 | Offline-First UX, Conflict Resolution, State Management, Adapter Layer |
+| 동기화 충돌·canonical 변경 | Conflict Resolution, State Management, Error Handling |
 | 대량 거래 목록·검색·리포트 | Performance Budget, Complexity Budget, State Management |
 | CDN·라이브러리 추가 | Dependency Minimalism, Security Reviewer, Performance Budget |
+| 도움말·오류 문구·회계용어 설명 | User Guidance Copy, Accessibility, Error Handling |
+| 모바일·접근성 화면 변경 | Accessibility, Performance Budget, Developer Experience |
 | 리팩터링 | Refactor Safety, Complexity Budget, Harness Quality Gate |
 | 개발자 모드·디버그 패널 | Developer Experience, Single HTML Architecture, Error Handling |
 
@@ -190,6 +260,9 @@
 6. 대량 데이터는 필터링, 정렬, 페이지네이션, 렌더링 비용을 분리해 검토한다.
 7. 새 외부 의존성은 기능 필요성, 대체 방법, 오프라인 영향, 보안 영향을 기록한다.
 8. 리팩터링은 동작 변경 여부를 명시하고, 변경 전후 검증 명령을 남긴다.
+9. 개인정보와 세무자료는 화면 표시, 로그, export, 개발자 모드에서 각각 노출 경로를 점검한다.
+10. 동기화 충돌은 `updated_at`, `deleted_at`, `canonical_version` 기준으로 설명 가능한 결과를 남긴다.
+11. 오프라인 상태는 실패가 아니라 로컬 작업 가능 상태로 설계한다.
 
 ## 금지 사항
 
@@ -199,3 +272,7 @@
 - 오류를 `alert()` 하나로 처리하고 내부 원인을 잃어버리지 않는다.
 - 의존성 추가를 “편해서”라는 이유만으로 허용하지 않는다.
 - 개발자 모드 표시를 실제 테스트 통과 또는 보안 검토로 대체하지 않는다.
+- 민감정보를 개발자 모드, 콘솔 로그, export 파일에 무심코 노출하지 않는다.
+- 온라인 연결 실패를 데이터 저장 실패로 단정하지 않는다.
+- 충돌 해결을 조용히 덮어쓰기만으로 처리하지 않는다.
+- 회계용어 도움말을 전문가용 문구 그대로 방치하지 않는다.
