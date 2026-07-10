@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.04** · 개정 2026-07-10
+> **📌 Sub_app-research-notes_0.05** · 개정 2026-07-10
 
 # Accounting Ledger App Research Notes
 
@@ -119,3 +119,24 @@ advisor 잔여 항목:
 1. Git 최신 커밋과 작업 트리가 실제 상태의 최종 기준이다.
 2. Claude 결과는 그대로 반영하지 않고, 현재 저장소 기준의 diff·계약·보안·테스트 검토를 거친다.
 3. 원격 push·배포·파괴적 DB 작업은 사용자의 명시적 요청이 있어야 한다.
+
+## 2026-07-10 프로젝트 전용 품질 하네스 도입
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | 실행 가능한 AI 협업 품질 하네스와 CI 도입 |
+| 기준선 | 런타임 `index.html`, 기존 패키지 명령, 자동 테스트, CI가 없는 설계 단계. Supabase migration 4개와 AI 협업 문서만 존재 |
+| 결정 | Node 24 기반 `npm run harness:check`을 공식 순수 검증 명령으로 도입하고, 동일 명령을 GitHub Actions의 main push/PR에서 실행 |
+| Required | 공통 문서 계약, migration 계약, 참고 원본·자격증명 추적 방지, Git diff 공백 검사 |
+| Baseline/Manual | `index.html` 버전·업데이트 이력 검사, 브라우저 왕복, 원격 Supabase advisor 검증은 실제 기능·도구 도입 전에는 상태를 숨기지 않고 별도 보고 |
+| 앱 영향 | 앱 코드·스키마·운영 Supabase 데이터 변경 없음. 문서·검사·CI만 추가 |
+| 적용 문서 | `AGENTS.md`, `CLAUDE.md`, `package.json`, `scripts/harness-check.mjs`, `.github/workflows/harness.yml`, `docs/accounting-ledger-harness-baseline.md`, `docs/skills/accounting-harness-quality-gate-skill.md` |
+
+적용 원칙:
+
+1. Required 실패가 있으면 완료 선언을 하지 않는다.
+2. Baseline과 Manual은 통과로 가장하지 않고, 기능 도입 시 Required 승격 여부를 검토한다.
+3. 기존 검사·코드가 없는 상태에서 `DOMAIN_REGISTRY`, 브라우저 테스트, 백업 포맷을 추측해 만들지 않는다.
+4. 하네스 작업은 앱 버전을 올리지 않으며, 앱 `index.html` 변경부터 `0.01` 증가 규칙을 적용한다.

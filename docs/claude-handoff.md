@@ -38,6 +38,7 @@
 | 동기화 | `updated_at` 병합, tombstone, `canonical_version` 최종본 모드 설계 |
 | 로그인 | `app_allowed_users`에 owner allowlist seed, Google OAuth/RLS 정책 설계 |
 | 운영 | 역할 기반 개발 운영·품질 게이트 및 연구노트 체계 도입 |
+| 하네스 | Node 기반 `npm run harness:check` 및 동일 명령을 실행하는 GitHub Actions 도입 |
 | 최근 커밋 | `76a5be0 docs: add development governance skill`, `808c672 chore: add accounting ledger design checkpoint` |
 
 ## 다음 구현 우선순위
@@ -74,6 +75,8 @@
 | 화면/사용 흐름 | `docs/accounting-ledger-v1-screen-flow.md` |
 | 연구노트 | `docs/accounting-ledger-app-research-notes.md` |
 | 개발 품질 게이트 | `docs/skills/accounting-development-governance-skill.md` |
+| 하네스 기준선 | `docs/accounting-ledger-harness-baseline.md` |
+| 하네스 운영 스킬 | `docs/skills/accounting-harness-quality-gate-skill.md` |
 | Claude 협업 규칙 | `docs/skills/accounting-claude-collaboration-skill.md` |
 | 작업 요청 템플릿 | `docs/claude-task-template.md` |
 

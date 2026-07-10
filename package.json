@@ -1,0 +1,12 @@
+{
+  "name": "accounting-ledger-pg",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Quality harness for the Accounting Ledger project.",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "harness:check": "node scripts/harness-check.mjs"
+  }
+}

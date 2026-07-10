@@ -244,3 +244,4 @@ V1 첫 화면은 랜딩페이지가 아니라 업무 대시보드다.
 | `docs/skills/accounting-mobile-apk-readiness-skill.md` | 모바일/APK 대비 |
 | `docs/skills/accounting-development-governance-skill.md` | 개발 운영, 품질 게이트, 릴리스 관리 |
 | `docs/skills/accounting-claude-collaboration-skill.md` | Claude 또는 다른 AI와의 인수인계 기준 |
+| `docs/skills/accounting-harness-quality-gate-skill.md` | 실행 가능한 품질 게이트와 CI 기준 |
