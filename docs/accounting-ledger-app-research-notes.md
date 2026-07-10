@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.06** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.07** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -160,3 +160,16 @@ advisor 잔여 항목:
 2. 법정 신고·세무사 전달 리포트는 최신 법령·서식 snapshot 확인 없이는 확정 출력으로 표시하지 않는다.
 3. import, 자동분개, 세무 매핑, 마감, 감사 이력은 각각 담당 Guardian의 검증 결과를 남긴다.
 4. V1의 이상탐지는 AI 추론이 아니라 규칙 기반 finding으로 시작한다.
+
+## 2026-07-11 개발자 모드용 Guardian 표시 레지스트리 추가
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | 앱 개발자 모드에서 확인할 회계 Guardian 역할·기능 목록 추가 |
+| 배경 | 향후 앱 개발자 모드에 버튼을 만들어 현재 적용된 회계 검증 에이전트의 역할과 기능을 확인할 수 있게 할 예정 |
+| 결정 | `accounting-domain-guardians-skill.md`에 사람용 표와 앱 이식용 JSON 레지스트리를 함께 기록 |
+| 표시 대상 | Double-Entry, Journal Entry, Chart of Accounts, Ledger Reconciliation, Period Close, Audit Trail, Import Normalization, Financial Statement, Tax Mapping, Anomaly Detection |
+| 구현 원칙 | 실제 앱에서는 레지스트리 표시와 구현 상태를 분리하고, `implemented`, `manual_only`, `planned` 같은 상태값을 별도 관리 |
+| 버전 영향 | 앱 버전 변경 없음. `Sub_domain-guardians_0.02`, `Sub_app-research-notes_0.07` |

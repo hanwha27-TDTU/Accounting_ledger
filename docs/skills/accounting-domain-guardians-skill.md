@@ -1,4 +1,4 @@
-> **Sub_domain-guardians_0.01** · 개정 2026-07-11
+> **Sub_domain-guardians_0.02** · 개정 2026-07-11
 
 # Accounting Ledger Domain Guardians Skill
 
@@ -26,6 +26,134 @@
 | Financial Statement Generator | 매우 권장 | 손익계산서, 재무상태표, 원장, 간편장부, 세무사 전달 패키지 생성 | 리포트 ID, 기준기간, form snapshot, 검증 상태 |
 | Tax Mapping Reviewer | 필수 | 부가세, 종합소득세, 필요경비, 불공제, 업종별 세무 매핑 검토 | 세무 매핑 근거, 예외 항목, 검토 필요 표시 |
 | Anomaly Detection Agent | 권장 | 중복, 이상금액, 증빙 누락, 계정과목 오분류, 기간 오류 탐지 | anomaly score, 규칙 ID, 사용자 확인 상태 |
+
+## 개발자 모드 표시 목록
+
+앱 개발자 모드에는 아래 역할과 기능을 표시한다. 이 목록은 사용자가 “현재 어떤 회계 검증 장치가 설계되어 있는지” 확인하는 용도이며, 각 항목의 실제 구현 상태는 별도 `implemented`, `manual_only`, `planned` 상태값으로 관리한다.
+
+| ID | 표시명 | 역할 | 주요 기능 | 상태 기준 |
+|---|---|---|---|---|
+| `double_entry_guardian` | 복식부기 균형 검사 | 차변·대변 균형 보장 | 분개 합계 비교, 불균형 차액 표시, 원천 거래 추적 | 거래 저장·수정·import 후 실행 |
+| `journal_entry_validator` | 분개 입력 검증 | 입력값과 자동분개의 유효성 확인 | 날짜·금액·계정과목·거래처·증빙·과세구분 검증 | 분개 생성 전후 실행 |
+| `chart_of_accounts_guardian` | 계정과목 체계 검사 | 국세청 용어와 내부 계정과목 일관성 유지 | 계정과목 매핑, 중복·비활성·미분류 계정 탐지 | 계정과목 변경·세무 매핑 전 실행 |
+| `ledger_reconciliation_agent` | 원장 대사 검사 | 원장과 현금·통장·카드 잔액 차이 확인 | 잔액 대사, 미매칭 거래 탐지, 조정 후보 제시 | 월말·마감 전 실행 |
+| `period_close_guardian` | 기간 마감 관리 | 마감 후 수정 통제와 재개방 이력 관리 | 마감 잠금, 마감취소 사유, 후속 수정 이력 | 월·분기·연도 마감 시 실행 |
+| `audit_trail_guardian` | 변경 이력 보존 | 생성·수정·삭제·동기화·권한 변경 추적 | 변경 전후 값, actor, timestamp, source 보존 | 모든 중요 변경 시 실행 |
+| `import_normalization_agent` | 가져오기 정규화 | 외부 자료를 표준 거래 구조로 변환 | Excel/CSV/카드/통장 행 매핑, 실패 행, 중복 후보 | import 실행 시 실행 |
+| `financial_statement_generator` | 재무·세무 리포트 생성 | 장부 데이터를 보고서와 전달 패키지로 생성 | 손익계산서, 재무상태표, 원장, 간편장부, 세무사 패키지 | 리포트 생성 시 실행 |
+| `tax_mapping_reviewer` | 세무 매핑 검토 | 세법·업종·과세유형에 맞는 매핑 확인 | 부가세, 종소세, 필요경비, 불공제, 업종 예외 검토 | 세무 리포트·신고 준비 전 실행 |
+| `anomaly_detection_agent` | 이상 항목 탐지 | 규칙 기반 오류·누락·중복 후보 탐지 | 중복거래, 이상금액, 증빙 누락, 기간 오류, 계정 오분류 | 저장·import·마감 전후 실행 |
+
+앱에 옮길 때는 아래 JSON을 초기 레지스트리 후보로 사용한다. 단, 실제 런타임에서는 코드 안에 하드코딩하기보다 앱 내부 상수 또는 설정 데이터로 분리하고, 구현 상태와 마지막 검증 결과는 별도 상태 저장소에 둔다.
+
+```json
+{
+  "registryVersion": "Sub_domain-guardians_0.02",
+  "displayTarget": "developer_mode",
+  "agents": [
+    {
+      "id": "double_entry_guardian",
+      "name": "Double-Entry Guardian",
+      "labelKo": "복식부기 균형 검사",
+      "priority": "required",
+      "role": "차변·대변 균형 보장",
+      "functions": ["차변 합계 계산", "대변 합계 계산", "불균형 차액 표시", "원천 거래 추적"],
+      "triggers": ["transaction_save", "journal_update", "import_complete"],
+      "outputs": ["imbalance_findings", "difference_amount", "source_transaction_id"]
+    },
+    {
+      "id": "journal_entry_validator",
+      "name": "Journal Entry Validator",
+      "labelKo": "분개 입력 검증",
+      "priority": "required",
+      "role": "입력값과 자동분개의 유효성 확인",
+      "functions": ["날짜 검증", "금액 검증", "계정과목 검증", "거래처 검증", "증빙 연결 검증", "과세구분 검증"],
+      "triggers": ["journal_create", "journal_update", "auto_posting"],
+      "outputs": ["field_errors", "missing_fields", "auto_posting_basis"]
+    },
+    {
+      "id": "chart_of_accounts_guardian",
+      "name": "Chart of Accounts Guardian",
+      "labelKo": "계정과목 체계 검사",
+      "priority": "required",
+      "role": "국세청 용어와 내부 계정과목 일관성 유지",
+      "functions": ["계정과목 매핑 확인", "중복 계정 탐지", "비활성 계정 사용 탐지", "미분류 계정 탐지"],
+      "triggers": ["account_create", "account_update", "tax_mapping_review"],
+      "outputs": ["account_mapping_findings", "inactive_account_usage", "unmapped_accounts"]
+    },
+    {
+      "id": "ledger_reconciliation_agent",
+      "name": "Ledger Reconciliation Agent",
+      "labelKo": "원장 대사 검사",
+      "priority": "required",
+      "role": "원장과 현금·통장·카드 잔액 차이 확인",
+      "functions": ["총계정원장 대사", "현금 잔액 대사", "통장 잔액 대사", "카드 잔액 대사", "미매칭 거래 탐지"],
+      "triggers": ["period_review", "month_close", "statement_import"],
+      "outputs": ["reconciliation_differences", "unmatched_transactions", "adjustment_candidates"]
+    },
+    {
+      "id": "period_close_guardian",
+      "name": "Period Close Guardian",
+      "labelKo": "기간 마감 관리",
+      "priority": "strongly_recommended",
+      "role": "마감 후 수정 통제와 재개방 이력 관리",
+      "functions": ["마감 잠금", "마감취소 사유 기록", "마감 후 수정 탐지", "기간별 상태 표시"],
+      "triggers": ["month_close", "quarter_close", "year_close", "period_reopen"],
+      "outputs": ["close_status", "locked_periods", "reopen_reason", "post_close_changes"]
+    },
+    {
+      "id": "audit_trail_guardian",
+      "name": "Audit Trail Guardian",
+      "labelKo": "변경 이력 보존",
+      "priority": "required",
+      "role": "생성·수정·삭제·동기화·권한 변경 추적",
+      "functions": ["변경 전후 값 기록", "actor 기록", "timestamp 기록", "source 기록", "삭제 이력 보존"],
+      "triggers": ["create", "update", "delete", "sync", "permission_change", "close"],
+      "outputs": ["audit_events", "before_after_values", "actor", "source"]
+    },
+    {
+      "id": "import_normalization_agent",
+      "name": "Import Normalization Agent",
+      "labelKo": "가져오기 정규화",
+      "priority": "required",
+      "role": "외부 자료를 표준 거래 구조로 변환",
+      "functions": ["Excel 행 매핑", "CSV 행 매핑", "카드자료 매핑", "통장자료 매핑", "실패 행 기록", "중복 후보 탐지"],
+      "triggers": ["excel_import", "csv_import", "bank_import", "card_import"],
+      "outputs": ["import_batch", "field_mapping", "failed_rows", "duplicate_candidates"]
+    },
+    {
+      "id": "financial_statement_generator",
+      "name": "Financial Statement Generator",
+      "labelKo": "재무·세무 리포트 생성",
+      "priority": "strongly_recommended",
+      "role": "장부 데이터를 보고서와 전달 패키지로 생성",
+      "functions": ["손익계산서 생성", "재무상태표 생성", "총계정원장 출력", "간편장부 출력", "세무사 전달 패키지 생성"],
+      "triggers": ["report_generate", "tax_package_generate", "period_close_review"],
+      "outputs": ["report_id", "report_period", "form_snapshot_id", "validation_status"]
+    },
+    {
+      "id": "tax_mapping_reviewer",
+      "name": "Tax Mapping Reviewer",
+      "labelKo": "세무 매핑 검토",
+      "priority": "required",
+      "role": "세법·업종·과세유형에 맞는 매핑 확인",
+      "functions": ["부가세 매핑 검토", "종합소득세 매핑 검토", "필요경비 검토", "불공제 항목 검토", "업종별 예외 검토"],
+      "triggers": ["vat_review", "income_tax_review", "business_type_change", "industry_code_change"],
+      "outputs": ["tax_mapping_basis", "exception_items", "manual_review_items"]
+    },
+    {
+      "id": "anomaly_detection_agent",
+      "name": "Anomaly Detection Agent",
+      "labelKo": "이상 항목 탐지",
+      "priority": "recommended",
+      "role": "규칙 기반 오류·누락·중복 후보 탐지",
+      "functions": ["중복거래 탐지", "이상금액 탐지", "증빙 누락 탐지", "기간 오류 탐지", "계정과목 오분류 후보 탐지"],
+      "triggers": ["transaction_save", "import_complete", "period_review", "before_close"],
+      "outputs": ["anomaly_score", "rule_id", "candidate_items", "user_confirmation_status"]
+    }
+  ]
+}
+```
 
 ## 법령 체계도 연결
 
