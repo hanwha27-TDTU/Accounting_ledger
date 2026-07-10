@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.12** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.13** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -272,3 +272,34 @@ advisor 잔여 항목:
 2. Cloudinary 이미지/PDF 업로드, 국세청 Excel import/export, 법정서식 snapshot 출력은 완료 기능이 아니다.
 3. canonical version 변경 수렴 구조는 구현했지만 두 기기·원격 DB 자동 시나리오 테스트와 현재 기기 최종본 지정 UI가 남아 있다.
 4. JSON 백업 생성 구조는 구현했지만 브라우저 다운로드·복원 왕복의 자동 테스트를 추가해야 한다.
+
+## 2026-07-11 앱 0.02 Supabase 공개 연결·인증 사전 진단
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.02` |
+| note_type | `feature_release`, `security_review` |
+| 제목 | 운영 Supabase publishable 연결과 Google provider 준비 상태 진단 |
+| 사용자 변화 | 별도 키 입력 없이 운영 프로젝트 연결 상태를 확인하고, Google provider가 준비되지 않으면 로그인 시도를 차단 |
+| 보안 변화 | 로그인 전 `businesses` 조회가 비어 있는지 확인해 익명 회계자료 노출 시 연결을 중단 |
+| 데이터 영향 | Supabase schema와 row 변경 없음. 진단은 read-only 요청만 사용 |
+| 스킬 버전 | `Sub_auth-login_0.02`, `Sub_v1-scope_0.03`, `Sub_harness-quality-gate_0.05`, `Sub_harness-baseline_0.05`, `Sub_app-research-notes_0.13` |
+
+원격 확인 결과:
+
+1. 운영 프로젝트 `ihxiywffzmvrwmqvatzt`는 정상 상태이며 modern publishable key를 브라우저 공개 연결에 사용한다.
+2. owner allowlist는 `hanwha27@gmail.com` 1건, Auth 사용자와 Google identity는 각각 0건이다.
+3. `accounting_sync_meta.canonical_version`은 `0`, `last_schema_version`은 `0.03`이다.
+4. 익명 REST `businesses?select=id&limit=1`은 HTTP 200과 빈 배열을 반환한다. 현재 `businesses`가 0건이므로 이 결과는 노출 감지 canary로 기록한다.
+5. SQL에서 `businesses` SELECT 정책은 `authenticated` 역할에만 적용되고 `owner_user_id = auth.uid()`와 `deleted_at is null`을 요구한다. 익명 격리 판정은 이 정책 검증과 REST 결과를 합쳐 내렸다.
+6. Google authorize endpoint는 provider 비활성으로 HTTP 400을 반환한다. 따라서 실로그인 완료로 간주하지 않는다.
+7. 기존 비회계 테이블의 advisor 경고는 이번 범위에서 수정하지 않았다.
+
+브라우저 확인 결과:
+
+1. Data API `정상`, 익명 회계자료 `차단 정상`, Google OAuth `설정 필요`가 표시된다.
+2. Google 로그인 버튼은 비활성이고 Supabase provider 설정 링크가 표시된다.
+3. 수동 `연결 진단`을 다시 실행해도 같은 상태로 수렴한다.
+4. 390px 모바일 폭에서 가로 overflow가 없고 console error가 없다.
+
+다음 단계는 Google Cloud 웹 OAuth Client ID와 Client Secret을 Supabase Dashboard에만 등록하고, Redirect URL을 설정한 뒤 `hanwha27@gmail.com` 실제 로그인·allowlist 연결·인증 RLS·로그아웃을 왕복 검증하는 것이다.

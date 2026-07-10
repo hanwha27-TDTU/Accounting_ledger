@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.01`
-> 상태: 첫 단일 HTML 런타임과 로컬 회계 코어 구현 완료, 외부 연동·V1 확장 기능 구현 중
+> 앱 버전: `0.02`
+> 상태: Supabase 공개 연결·익명 RLS 격리 진단 완료, Google OAuth provider 설정 대기
 
 # Claude Handoff
 
@@ -40,20 +40,21 @@
 | 운영 | 역할 기반 개발 운영·품질 게이트 및 연구노트 체계 도입 |
 | 하네스 | Node 기반 `npm run harness:check` 및 동일 명령을 실행하는 GitHub Actions 도입 |
 | 앱 0.01 | 단일 HTML 업무 대시보드, 사업자 설정, 거래 입력, 자동 복식분개, 장부·전표 검토, IndexedDB, JSON 백업·복원, Supabase/Auth adapter, 개발자 Guardian 레지스트리 구현 |
-| 최근 기준 커밋 | `f7d1a5a docs: add privacy and offline guardians`. 앱 0.01 변경은 현재 작업 트리 기준 |
+| 앱 0.02 | 운영 Supabase URL과 publishable key 기본 연결, Data API 응답·익명 `businesses` RLS 격리·Google provider 활성 상태 진단, provider 비활성 시 로그인 차단 구현 |
+| 최근 기준 커밋 | `5f83ad8 feat: implement accounting ledger app 0.01`. 앱 0.02 변경은 현재 작업 트리 기준 |
 
 ## 다음 구현 우선순위
 
-앱 `0.02`는 아래 순서로 진행한다.
+앱 `0.03`은 아래 순서로 진행한다.
 
-1. 실제 publishable key와 Redirect URL 설정 후 Google OAuth·allowlist·RLS 브라우저 왕복 검증
+1. Google OAuth Client ID·Secret을 Supabase Auth에 등록하고 Redirect URL 설정 후 owner 로그인·allowlist·인증 RLS 브라우저 왕복 검증
 2. 일반 동기화와 canonical version 변경 수렴의 다기기 자동 테스트
 3. Cloudinary 이미지/PDF 업로드와 증빙 파일 메타·삭제 상태 연결
 4. 국세청 간편장부 Excel import 미리보기·원본 행 보존·확정 흐름
 5. 거래 수정·soft delete·마감 후 변경 통제와 감사로그 고도화
 6. 법정서식 스냅샷과 리포트 필드 매핑
 
-현재 0.01에서 외부 설정 없이 검증한 범위는 로컬 IndexedDB 저장, 사업자 설정, 2025 소급 거래 입력, VAT 금액 후보 분리, 복식 전표 균형, 장부·개발자 모드 표시다. Google OAuth 실로그인, 원격 RLS, Cloudinary, Excel, 법정서식 출력은 아직 완료 기능이 아니다.
+현재 0.02에서 운영 Supabase의 Data API 연결과 로그인 전 회계자료 격리까지 검증했다. Google provider는 비활성 상태이며 Auth 사용자와 Google identity가 아직 없어 실로그인·인증 후 allowlist/RLS 왕복은 완료 기능이 아니다. Cloudinary, Excel, 법정서식 출력도 아직 완료 기능이 아니다.
 
 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI는 만들지 않는다.
 

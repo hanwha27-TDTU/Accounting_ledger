@@ -1,4 +1,4 @@
-> **📌 Sub_auth-login_0.01** · 개정 2026-07-09
+> **📌 Sub_auth-login_0.02** · 개정 2026-07-11
 
 # Accounting Ledger Auth/Login Skill
 
@@ -158,6 +158,29 @@ owner로 로그인
 - RLS 없는 세무 테이블 공개 금지
 - 허용 사용자 변경을 감사로그 없이 처리 금지
 
+## 2026-07-11 운영 프로젝트 진단 기준
+
+| 항목 | 확인 결과 |
+|---|---|
+| 브라우저용 키 | modern publishable key 사용. secret/service role key는 사용하지 않음 |
+| Data API | publishable key로 정상 응답 |
+| 익명 RLS | 로그인 전 `businesses?select=id&limit=1`이 HTTP 200과 빈 배열을 반환 |
+| RLS 정책 SQL | `businesses` SELECT는 `authenticated` 역할과 본인 `auth.uid()` 조건만 허용 |
+| 현재 원격 row | `businesses` 0건. 빈 배열 검사는 노출 감지 canary이며 정책 검증은 SQL 결과와 함께 판정 |
+| owner allowlist | `hanwha27@gmail.com` 1건 존재 |
+| Auth 사용자 | 0명 |
+| Google identity | 0건 |
+| Google provider | 비활성. authorize 요청이 `provider is not enabled`로 거부됨 |
+| 앱 동작 | provider가 준비되기 전 Google 로그인 버튼을 비활성화하고 설정 필요 상태를 표시 |
+
+빈 테이블의 익명 조회 결과만으로 RLS 정책 전체가 증명되지는 않는다. 런타임 진단은 데이터 노출 감지 장치로 사용하고, 릴리스 보안 검토에서는 `pg_policies`의 역할·조건을 함께 확인한다. 이 결과는 공개 연결과 익명 격리 검증이지 Google 로그인의 완료 증거도 아니다. 실제 인증 완료 판정은 다음 조건을 모두 충족해야 한다.
+
+1. Google Cloud에서 웹 OAuth Client ID와 Client Secret을 발급한다.
+2. Client Secret은 Supabase Dashboard에만 입력하고 앱·저장소·문서에 기록하지 않는다.
+3. Supabase Auth Google provider와 허용 Redirect URL을 설정한다.
+4. owner로 실제 로그인한 뒤 `auth.uid()` 연결, allowlist, 인증 RLS, 로그아웃을 왕복 검증한다.
+5. 비허용 Google 계정의 데이터 접근 차단도 별도로 검증한다.
+
 ## 검증 체크리스트
 
 | 테스트 | 기대 결과 |
@@ -170,6 +193,8 @@ owner로 로그인
 | HTML 키 검사 | service role/secret 문자열 없음 |
 | RLS 검사 | authenticated 전체허용 정책 없음 |
 | Data API 검사 | 필요한 테이블만 explicit GRANT + RLS 적용 |
+| provider 미설정 | 설정 필요 표시, Google 로그인 버튼 비활성 |
+| 익명 공개 연결 | Data API는 응답하지만 회계 row는 0건 |
 
 ## 참고 공식 문서
 

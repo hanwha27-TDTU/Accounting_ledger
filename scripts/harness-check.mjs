@@ -205,6 +205,10 @@ addGate('runtime-version-contract', 'REQUIRED', () => {
   hasRequiredText(currentHtml, 'validateJournal(lines)', 'index.html');
   hasRequiredText(currentHtml, 'response.ok', 'index.html');
   hasRequiredText(currentHtml, 'canonical_version', 'index.html');
+  hasRequiredText(currentHtml, 'supabasePublishableKey', 'index.html');
+  hasRequiredText(currentHtml, 'connectionDiagnostics', 'index.html');
+  hasRequiredText(currentHtml, 'ANONYMOUS_DATA_EXPOSED', 'index.html');
+  hasRequiredText(currentHtml, 'GOOGLE_PROVIDER_DISABLED', 'index.html');
   hasRequiredText(currentHtml, '@supabase/supabase-js@2.110.2', 'index.html');
   hasRequiredText(currentHtml, 'lucide@0.468.0', 'index.html');
   const currentVersionOccurrences = currentHtml.split(currentVersion).length - 1;

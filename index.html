@@ -431,16 +431,18 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.01',
+      version: '0.02',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
-      supabaseProjectUrl: 'https://ihxiywffzmvrwmqvatzt.supabase.co'
+      supabaseProjectUrl: 'https://ihxiywffzmvrwmqvatzt.supabase.co',
+      supabasePublishableKey: 'sb_publishable_odSJPQq5HtylGyJEp-x95g_LL9wlcxR'
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.01', date: '2026-07-11', label: '최신 · 첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
+      { version: '0.02', date: '2026-07-11', label: '최신 · Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
+      { version: '0.01', date: '2026-07-11', label: '첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
     ]);
 
     const NAV_ITEMS = Object.freeze([
@@ -780,10 +782,46 @@
         return data.session;
       }
       async signIn() {
+        const diagnostic = await this.diagnose();
+        if (diagnostic.googleProvider !== 'ready') throw new Error('GOOGLE_PROVIDER_DISABLED');
         const client = await this.ensureClient();
         const redirectTo = `${location.origin}${location.pathname}`;
         const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
         if (error) throw error;
+      }
+      async diagnose() {
+        const client = await this.ensureClient();
+        const response = await fetch(`${state.config.supabaseUrl}/rest/v1/businesses?select=id&limit=1`, {
+          headers: {
+            apikey: state.config.supabaseKey,
+            Authorization: `Bearer ${state.config.supabaseKey}`
+          }
+        });
+        if (!response.ok) throw new Error(`PUBLIC_CONNECTION_${response.status}`);
+        const anonymousRows = await response.json();
+        if (!Array.isArray(anonymousRows)) throw new Error('PUBLIC_CONNECTION_INVALID_RESPONSE');
+        if (anonymousRows.length > 0) throw new Error('ANONYMOUS_DATA_EXPOSED');
+
+        const redirectTo = `${location.origin}${location.pathname}`;
+        const providerResponse = await fetch(
+          `${state.config.supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`,
+          { headers: { apikey: state.config.supabaseKey }, redirect: 'manual' }
+        );
+        let providerDisabled = false;
+        if (providerResponse.status === 400) {
+          const providerDetail = await providerResponse.text();
+          providerDisabled = /unsupported provider|provider is not enabled/i.test(providerDetail);
+          if (!providerDisabled) throw new Error(`GOOGLE_PROVIDER_${providerResponse.status}:${providerDetail.slice(0, 160)}`);
+        } else if (!(providerResponse.type === 'opaqueredirect' || providerResponse.status === 0 || (providerResponse.status >= 300 && providerResponse.status < 400))) {
+          throw new Error(`GOOGLE_PROVIDER_UNEXPECTED_${providerResponse.status}`);
+        }
+        return {
+          api: 'ready',
+          anonymousIsolation: 'pass',
+          googleProvider: providerDisabled ? 'disabled' : 'ready',
+          checkedAt: Utils.now(),
+          detail: providerDisabled ? 'Supabase Google provider가 비활성입니다.' : null
+        };
       }
       async signOut() {
         const client = await this.ensureClient();
@@ -837,9 +875,16 @@
     // 6. Application state and services
     const storage = new IndexedDbAdapter();
     const remote = new SupabaseAdapter();
+    const savedConfig = ConfigAdapter.load();
     const state = {
       route: (location.hash || '#dashboard').slice(1),
-      config: { supabaseUrl: APP_INFO.supabaseProjectUrl, supabaseKey: '', cloudinaryCloud: '', cloudinaryPreset: '', canonicalVersion: 0, lastSyncAt: null, ...ConfigAdapter.load() },
+      config: {
+        supabaseUrl: APP_INFO.supabaseProjectUrl,
+        supabaseKey: APP_INFO.supabasePublishableKey,
+        cloudinaryCloud: '', cloudinaryPreset: '', canonicalVersion: 0, lastSyncAt: null,
+        ...savedConfig,
+        supabaseKey: savedConfig.supabaseKey || APP_INFO.supabasePublishableKey
+      },
       business: null,
       site: null,
       accounts: [],
@@ -852,6 +897,7 @@
       queue: [],
       session: null,
       allowedUser: null,
+      connectionDiagnostics: { status: 'idle', api: 'unknown', anonymousIsolation: 'unknown', googleProvider: 'unknown', checkedAt: null, detail: null },
       online: navigator.onLine,
       syncStatus: 'idle',
       syncError: null,
@@ -1059,6 +1105,21 @@
     });
 
     const SyncService = Object.freeze({
+      async runConnectionDiagnostics() {
+        state.connectionDiagnostics = { ...state.connectionDiagnostics, status: 'checking', detail: null };
+        renderShellStatus();
+        try {
+          state.connectionDiagnostics = { status: 'complete', ...(await remote.diagnose()) };
+        } catch (error) {
+          state.connectionDiagnostics = {
+            status: 'error', api: 'error', anonymousIsolation: 'unknown', googleProvider: 'unknown',
+            checkedAt: Utils.now(), detail: error.message
+          };
+        }
+        renderShellStatus();
+        if (state.route === 'settings' || state.route === 'developer') render();
+        return state.connectionDiagnostics;
+      },
       async initializeAuth() {
         if (!remote.isConfigured()) return;
         try {
@@ -1147,6 +1208,9 @@
       if (code.includes('SUPABASE_NOT_CONFIGURED')) return 'Supabase URL과 publishable key를 먼저 설정해 주세요.';
       if (code.includes('AUTH_REQUIRED')) return 'Google 로그인이 필요합니다.';
       if (code.includes('AUTH_EMAIL_NOT_ALLOWED')) return '허용되지 않은 Google 계정입니다. owner가 허용 목록에 추가해야 합니다.';
+      if (code.includes('GOOGLE_PROVIDER_DISABLED') || /unsupported provider|provider is not enabled/i.test(code)) return 'Supabase에서 Google 로그인 제공자가 아직 활성화되지 않았습니다. Google Client ID와 Secret 설정이 필요합니다.';
+      if (code.includes('ANONYMOUS_DATA_EXPOSED')) return '로그인하지 않은 상태에서 회계 데이터가 조회되어 연결을 중단했습니다. RLS를 점검해 주세요.';
+      if (code.includes('PUBLIC_CONNECTION')) return 'Supabase 공개 연결을 확인하지 못했습니다. 네트워크와 프로젝트 설정을 확인해 주세요.';
       if (code.includes('SECRET_KEY_NOT_ALLOWED')) return '비밀키 또는 service role 형태의 키는 이 앱에 저장할 수 없습니다.';
       if (code.includes('BUSINESS_REQUIRED')) return '사업자 정보를 먼저 설정해 주세요.';
       if (code.includes('JOURNAL_UNBALANCED')) return '차변과 대변이 맞지 않아 거래를 저장하지 않았습니다.';
@@ -1169,7 +1233,8 @@
       const configured = remote.isConfigured();
       const connected = Boolean(state.session && state.allowedUser);
       const pending = state.queue.length;
-      let label = !state.online ? '오프라인 · 로컬 저장' : !configured ? '로컬 전용' : !connected ? '로그인 필요' : state.syncStatus === 'syncing' ? '동기화 중' : pending ? `대기 ${pending}건` : '동기화 완료';
+      const providerDisabled = state.connectionDiagnostics.googleProvider === 'disabled';
+      let label = !state.online ? '오프라인 · 로컬 저장' : !configured ? '로컬 전용' : providerDisabled ? 'Google 설정 필요' : !connected ? '로그인 필요' : state.syncStatus === 'syncing' ? '동기화 중' : pending ? `대기 ${pending}건` : '동기화 완료';
       let kind = !state.online ? 'offline' : state.syncStatus === 'error' ? 'error' : connected ? 'online' : '';
       el('syncLabel').textContent = label;
       el('syncDot').className = `status-dot ${kind}`;
@@ -1272,7 +1337,7 @@
     function renderEvidence() {
       const missing = activeTransactions().filter(row => row.evidence_status !== 'attached');
       return `${pageHeader('증빙','이미지와 PDF 원본은 Cloudinary에, 파일 메타는 장부와 Supabase에 연결할 예정입니다.')}
-        <div class="notice info">${icon('info')}<div><strong>0.01에서는 증빙 보관 여부와 누락 목록을 먼저 제공합니다.</strong><br>실제 파일 업로드는 Cloudinary cloud name과 제한된 unsigned preset 검증을 마친 다음 활성화됩니다.</div></div>
+        <div class="notice info">${icon('info')}<div><strong>현재는 증빙 보관 여부와 누락 목록을 먼저 제공합니다.</strong><br>실제 파일 업로드는 Cloudinary cloud name과 제한된 unsigned preset 검증을 마친 다음 활성화됩니다.</div></div>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">증빙이 필요한 거래</h2><p class="section-help">파일이 없다고 거래를 삭제하지 않고 검토 항목으로 남깁니다.</p></div>${badge(`${missing.length}건`, missing.length?'warning':'success')}</div>${missing.length?`<div class="activity-list">${missing.map(row=>`<div class="activity-row"><span class="metric-icon warm">${icon('paperclip')}</span><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))}</div></div><strong>${Utils.won(row.total_amount)}</strong></div>`).join('')}</div>`:emptyState('circle-check','미첨부 거래가 없습니다','현재 입력된 거래의 증빙 보관 여부가 모두 확인되었습니다.')}</section>`;
     }
 
@@ -1294,13 +1359,17 @@
       const year = Utils.today().slice(0,4);
       const closed = state.closings.filter(row=>!row.deleted_at);
       return `${pageHeader('마감','기간을 잠그기 전에 전표, 증빙, VAT 검토 항목을 확인합니다.')}
-        <div class="notice">${icon('lock-keyhole')}<div><strong>0.01은 마감 준비 상태를 표시합니다.</strong><br>마감 후 수정 통제와 재개방 감사로그가 완성되기 전에는 실제 잠금 버튼을 활성화하지 않습니다.</div></div>
+        <div class="notice">${icon('lock-keyhole')}<div><strong>현재는 마감 준비 상태를 표시합니다.</strong><br>마감 후 수정 통제와 재개방 감사로그가 완성되기 전에는 실제 잠금 버튼을 활성화하지 않습니다.</div></div>
         <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">${year}년 장부</span>${badge(closed.some(row=>row.period_start.startsWith(year))?'마감 기록 있음':'열림','info')}</div><div class="status-item-body">거래 ${activeTransactions().filter(row=>row.transaction_date.startsWith(year)).length}건 · 검토 필요 ${AccountingDomain.summarize(activeTransactions().filter(row=>row.transaction_date.startsWith(year))).review}건</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">신고 준비</span>${badge('검토 필요','warning')}</div><div class="status-item-body">법정서식 스냅샷과 증빙 누락을 먼저 확인해야 합니다.</div></div></div>`;
     }
 
     function renderSettings() {
       const b = state.business || {};
       const s = state.site || {};
+      const diagnostic = state.connectionDiagnostics;
+      const diagnosticLabel = diagnostic.status === 'checking' ? '확인 중' : diagnostic.api === 'ready' ? '공개 연결 정상' : '확인 필요';
+      const diagnosticKind = diagnostic.api === 'ready' ? 'success' : diagnostic.status === 'checking' ? 'info' : 'warning';
+      const providerReady = diagnostic.googleProvider === 'ready';
       return `${pageHeader('설정','사업자 정보, 과세유형 후보, 클라우드 연결, 백업을 관리합니다.')}
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">사업자 기본정보</h2><p class="section-help">큰 업종에서 시작해 공식 업종코드와 세부 조건으로 좁혀갑니다.</p></div></div>
           <form id="businessForm" class="form-grid" novalidate>
@@ -1319,8 +1388,14 @@
             <div class="field full"><div class="form-actions"><button class="button primary" type="submit">${icon('save')}사업자 정보 저장</button></div></div>
           </form>
         </section>
-        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">Supabase 및 Google 로그인</h2><p class="section-help">publishable key만 저장할 수 있습니다. RLS가 실제 데이터 접근을 통제합니다.</p></div>${state.session?badge(Utils.normalizeEmail(state.session.user.email),'success'):badge('로그아웃')}</div>
-          <form id="supabaseForm" class="form-grid"><div class="field"><label for="supabaseUrl">Project URL</label><input class="input" id="supabaseUrl" type="url" value="${Utils.escape(state.config.supabaseUrl)}"></div><div class="field"><label for="supabaseKey">Publishable key</label><input class="input" id="supabaseKey" type="password" autocomplete="off" value="${Utils.escape(state.config.supabaseKey || '')}" placeholder="sb_publishable_..."><div class="field-help">service role, secret key, OAuth client secret은 입력하지 마세요.</div></div><div class="field full"><div class="form-actions"><button class="button" id="saveSupabaseButton" type="submit">설정 저장</button>${state.session?`<button class="button danger" id="logoutButton" type="button">${icon('log-out')}로그아웃</button><button class="button primary" id="syncNowButton" type="button">${icon('refresh-cw')}지금 동기화</button>`:`<button class="button primary" id="googleLoginButton" type="button">${icon('log-in')}Google로 로그인</button>`}</div></div></form>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">Supabase 및 Google 로그인</h2><p class="section-help">publishable key만 저장할 수 있습니다. RLS가 실제 데이터 접근을 통제합니다.</p></div>${state.session?badge(Utils.normalizeEmail(state.session.user.email),'success'):badge(diagnosticLabel,diagnosticKind)}</div>
+          ${diagnostic.googleProvider === 'disabled' ? `<div class="notice danger">${icon('shield-alert')}<div><strong>Google 로그인 제공자가 비활성입니다.</strong><br>Supabase Auth에 Google Client ID와 Secret을 등록하기 전에는 로그인을 시작하지 않습니다.</div></div>` : ''}
+          <div class="task-list" style="margin-bottom:16px">
+            <div class="task-row"><div class="task-main"><div class="task-title">Data API 연결</div><div class="task-note">프로젝트 URL과 publishable key 응답</div></div>${badge(diagnostic.api === 'ready' ? '정상' : diagnostic.api === 'error' ? '오류' : '미확인', diagnostic.api === 'ready' ? 'success' : diagnostic.api === 'error' ? 'danger' : '')}</div>
+            <div class="task-row"><div class="task-main"><div class="task-title">익명 회계자료 격리</div><div class="task-note">로그인 전 businesses 조회 결과가 비어 있어야 합니다.</div></div>${badge(diagnostic.anonymousIsolation === 'pass' ? '차단 정상' : '미확인', diagnostic.anonymousIsolation === 'pass' ? 'success' : '')}</div>
+            <div class="task-row"><div class="task-main"><div class="task-title">Google OAuth</div><div class="task-note">Supabase provider 활성 상태</div></div>${badge(providerReady ? '사용 가능' : diagnostic.googleProvider === 'disabled' ? '설정 필요' : '미확인', providerReady ? 'success' : diagnostic.googleProvider === 'disabled' ? 'danger' : '')}</div>
+          </div>
+          <form id="supabaseForm" class="form-grid"><div class="field"><label for="supabaseUrl">Project URL</label><input class="input" id="supabaseUrl" type="url" value="${Utils.escape(state.config.supabaseUrl)}"></div><div class="field"><label for="supabaseKey">Publishable key</label><input class="input" id="supabaseKey" type="password" autocomplete="off" value="${Utils.escape(state.config.supabaseKey || '')}" placeholder="sb_publishable_..."><div class="field-help">service role, secret key, OAuth client secret은 입력하지 마세요.</div></div><div class="field full"><div class="form-actions"><button class="button" id="saveSupabaseButton" type="submit">설정 저장</button><button class="button" id="connectionDiagnosticButton" type="button" ${diagnostic.status === 'checking' ? 'disabled' : ''}>${icon('activity')}연결 진단</button>${diagnostic.googleProvider === 'disabled' ? `<a class="button" href="https://supabase.com/dashboard/project/ihxiywffzmvrwmqvatzt/auth/providers" target="_blank" rel="noopener">${icon('external-link')}Supabase에서 설정</a>` : ''}${state.session?`<button class="button danger" id="logoutButton" type="button">${icon('log-out')}로그아웃</button><button class="button primary" id="syncNowButton" type="button">${icon('refresh-cw')}지금 동기화</button>`:`<button class="button primary" id="googleLoginButton" type="button" ${providerReady ? '' : 'disabled'}>${icon('log-in')}Google로 로그인</button>`}</div></div></form>
         </section>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">백업과 복원</h2><p class="section-help">암호화되지 않은 JSON 파일이므로 안전한 위치에 보관하세요.</p></div>${state.config.lastBackupAt?badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'),'success'):badge('백업 없음','warning')}</div><div class="inline-actions"><button class="button" id="backupButton" type="button">${icon('download')}JSON 백업</button><button class="button" id="restoreButton" type="button">${icon('upload')}JSON 복원</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div></section>`;
     }
@@ -1330,7 +1405,7 @@
       const statusKind = { implemented:'success', manual_only:'warning', planned:'', blocked:'danger' };
       const registry = [...DOMAIN_GUARDIANS, ...ARCH_GUARDIANS, ...GOVERNANCE_AGENTS];
       return `${pageHeader('개발 기록','앱 버전, 저장소 계약, Guardian의 실제 구현 상태를 확인합니다.')}
-        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">앱 버전</span>${badge(`v${APP_INFO.version}`,'info')}</div><div class="status-item-body">DB schema ${APP_INFO.schemaVersion} · Backup ${APP_INFO.backupSchemaVersion} · Posting ${APP_INFO.postingRuleVersion}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">로컬 저장소</span>${badge(state.ready?'정상':'확인 필요',state.ready?'success':'danger')}</div><div class="status-item-body">IndexedDB <code>${storage.name}</code> · ${LOCAL_STORES.length} stores</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">동기화</span>${badge(state.syncStatus,state.syncStatus==='error'?'danger':'info')}</div><div class="status-item-body">canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건${state.syncError?`<br>진단: ${Utils.escape(state.syncError.slice(0,180))}`:''}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">릴리스 기록</span>${badge(UPDATE_HISTORY[0].label,'success')}</div><div class="status-item-body">${UPDATE_HISTORY[0].date} · ${Utils.escape(UPDATE_HISTORY[0].detail)}</div></div></div>
+        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">앱 버전</span>${badge(`v${APP_INFO.version}`,'info')}</div><div class="status-item-body">DB schema ${APP_INFO.schemaVersion} · Backup ${APP_INFO.backupSchemaVersion} · Posting ${APP_INFO.postingRuleVersion}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">로컬 저장소</span>${badge(state.ready?'정상':'확인 필요',state.ready?'success':'danger')}</div><div class="status-item-body">IndexedDB <code>${storage.name}</code> · ${LOCAL_STORES.length} stores</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">동기화</span>${badge(state.syncStatus,state.syncStatus==='error'?'danger':'info')}</div><div class="status-item-body">canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건 · RLS ${state.connectionDiagnostics.anonymousIsolation === 'pass' ? '격리 확인' : '미확인'} · Google ${state.connectionDiagnostics.googleProvider === 'ready' ? '준비' : state.connectionDiagnostics.googleProvider === 'disabled' ? '비활성' : '미확인'}${state.syncError?`<br>진단: ${Utils.escape(state.syncError.slice(0,180))}`:''}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">릴리스 기록</span>${badge(UPDATE_HISTORY[0].label,'success')}</div><div class="status-item-body">${UPDATE_HISTORY[0].date} · ${Utils.escape(UPDATE_HISTORY[0].detail)}</div></div></div>
         <section class="panel"><div class="panel-head"><div><h2 class="section-title">Guardian 레지스트리</h2><p class="section-help">설계 목록과 실제 구현 상태를 구분합니다. 표시 자체가 테스트 통과를 뜻하지는 않습니다.</p></div>${badge(`${registry.length}개`)}</div><div class="developer-grid">${registry.map(([id,name,status,role])=>`<article class="guardian-item"><div class="guardian-head"><div class="guardian-name">${Utils.escape(name)}</div>${badge(statusText[status],statusKind[status])}</div><div class="guardian-role">${Utils.escape(role)}<br><code>${id}</code></div></article>`).join('')}</div></section>`;
     }
 
@@ -1405,16 +1480,22 @@
         } catch (error) { diagnostic(error); }
       });
 
-      el('supabaseForm')?.addEventListener('submit', event => {
+      el('supabaseForm')?.addEventListener('submit', async event => {
         event.preventDefault();
         try {
           const key = el('supabaseKey').value.trim();
           if (Utils.isSecretKey(key)) throw new Error('SECRET_KEY_NOT_ALLOWED');
           state.config.supabaseUrl = el('supabaseUrl').value.trim().replace(/\/$/,'');
-          state.config.supabaseKey = key;
+          state.config.supabaseKey = key || APP_INFO.supabasePublishableKey;
           ConfigAdapter.save(state.config); remote.resetClient();
-          toast('Supabase 공개 연결 설정을 저장했습니다.', 'success'); renderShellStatus();
+          toast('Supabase 공개 연결 설정을 저장했습니다.', 'success');
+          await SyncService.runConnectionDiagnostics();
         } catch (error) { diagnostic(error); }
+      });
+      el('connectionDiagnosticButton')?.addEventListener('click', async () => {
+        const result = await SyncService.runConnectionDiagnostics();
+        if (result.api === 'ready' && result.anonymousIsolation === 'pass') toast('Data API 연결과 익명 RLS 격리를 확인했습니다.', 'success');
+        else toast('Supabase 연결 진단에서 확인이 필요한 항목이 있습니다.', 'error');
       });
       el('googleLoginButton')?.addEventListener('click', async () => { try { await remote.signIn(); } catch (error) { diagnostic(error); } });
       el('logoutButton')?.addEventListener('click', async () => { try { await remote.signOut(); state.session=null; state.allowedUser=null; toast('로그아웃했습니다. 로컬 데이터는 유지됩니다.','success'); render(); } catch(error){ diagnostic(error); } });
@@ -1466,8 +1547,10 @@
         await storage.open();
         AppService.deviceId();
         await AppService.reload();
-        await SyncService.initializeAuth();
         state.ready = true;
+        render();
+        await SyncService.runConnectionDiagnostics();
+        await SyncService.initializeAuth();
         render();
         if (!state.business) setTimeout(() => toast('사업자 정보를 설정하면 거래 입력을 시작할 수 있습니다.'), 500);
       } catch (error) {
