@@ -1,4 +1,4 @@
-> **Sub_harness-baseline_0.01** · 기록 2026-07-10
+> **Sub_harness-baseline_0.02** · 기록 2026-07-11
 
 # Accounting Ledger Harness Baseline
 
@@ -21,8 +21,8 @@
 
 | 게이트 | 등급 | 현재 상태 | 근거 |
 |---|---|---|---|
-| project-contract | Required | 활성 | 공통 지침, 하네스, CI, 핵심 설계 문서의 존재 확인 |
-| instruction-contract | Required | 활성 | AI 공통 규칙에 동기화·RLS·하네스 규칙이 있는지 확인 |
+| project-contract | Required | 활성 | 공통 지침, 하네스, CI, 핵심 설계 문서, 회계 도메인 Guardian 스킬 존재 확인 |
+| instruction-contract | Required | 활성 | AI 공통 규칙에 동기화·RLS·하네스·도메인 Guardian 규칙이 있는지 확인 |
 | migration-contract | Required | 활성 | 초기 migration 4개와 RLS·canonical sync 표식 확인 |
 | tracked-scope-and-secrets | Required | 활성 | 참고 원본 커밋과 자격증명 형태의 값 차단 |
 | git-diff-integrity | Required | 활성 | staged/unstaged diff 공백 오류 차단 |

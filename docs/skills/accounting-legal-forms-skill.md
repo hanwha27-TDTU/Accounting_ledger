@@ -1,4 +1,4 @@
-> **📌 Sub_legal-forms_0.01** · 개정 2026-07-09
+> **📌 Sub_legal-forms_0.02** · 개정 2026-07-11
 
 # Accounting Ledger Legal Forms Skill
 
@@ -100,3 +100,17 @@ legal_form_snapshots (
 - 파일명이나 인터넷 검색 결과만 보고 최신서식이라고 판단하지 않는다.
 - 앱 자체 디자인 리포트를 법정서식처럼 표시하지 않는다.
 - 구버전 서식 스냅샷을 최신 기준으로 재사용하지 않는다.
+
+## 도메인 Guardian 연결
+
+법령 체계도는 단순 서식 확인용이 아니라 장부 검증 흐름의 상위 근거로 사용한다. 다음 에이전트는 법령·서식 snapshot을 참조해야 한다.
+
+| 도메인 에이전트 | 참조해야 하는 법령·서식 근거 |
+|---|---|
+| Chart of Accounts Guardian | 국세청 용어, 신고서 항목, 필요경비 분류, 업종별 계정과목 |
+| Tax Mapping Reviewer | 소득세법, 부가가치세법, 업종코드, 간편장부/복식부기 의무 기준 |
+| Financial Statement Generator | 최신 법정서식 snapshot, 신고서·명세서 별지, 세무사 전달 출력 기준 |
+| Period Close Guardian | 신고기간, 마감 기준일, 수정신고·경정청구와 연결되는 변경 제한 |
+| Audit Trail Guardian | 법정 보관, 변경 이력, 신고용 출력의 생성 근거 |
+
+세부 역할과 릴리스 게이트는 `docs/skills/accounting-domain-guardians-skill.md`를 따른다.

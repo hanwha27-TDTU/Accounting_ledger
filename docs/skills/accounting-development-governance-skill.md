@@ -1,4 +1,4 @@
-> **Sub_development-governance_0.03** · 개정 2026-07-10
+> **Sub_development-governance_0.04** · 개정 2026-07-11
 
 # Accounting Ledger Development Governance Skill
 
@@ -145,3 +145,4 @@ flowchart LR
 | `accounting-v1-scope-skill.md` | 1차 범위 판정 |
 | `accounting-claude-collaboration-skill.md` | Claude 또는 다른 AI와의 인수인계·결과 반영 |
 | `accounting-harness-quality-gate-skill.md` | 실행 가능한 품질 게이트와 CI 운영 |
+| `accounting-domain-guardians-skill.md` | 복식부기, 분개, 계정과목, 대사, 마감, 감사, 세무 매핑 검증 |

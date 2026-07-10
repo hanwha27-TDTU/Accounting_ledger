@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.05** · 개정 2026-07-10
+> **📌 Sub_app-research-notes_0.06** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -140,3 +140,23 @@ advisor 잔여 항목:
 2. Baseline과 Manual은 통과로 가장하지 않고, 기능 도입 시 Required 승격 여부를 검토한다.
 3. 기존 검사·코드가 없는 상태에서 `DOMAIN_REGISTRY`, 브라우저 테스트, 백업 포맷을 추측해 만들지 않는다.
 4. 하네스 작업은 앱 버전을 올리지 않으며, 앱 `index.html` 변경부터 `0.01` 증가 규칙을 적용한다.
+
+## 2026-07-11 회계 도메인 Guardian 체계 도입
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | 복식부기·분개·계정과목·세무 매핑 검증 Guardian 체계 도입 |
+| 배경 | 기존 개발 품질 에이전트는 코드·스키마·배포 품질을 보지만, 장부 데이터가 회계적으로 성립하는지 별도 검증 축이 필요함 |
+| 결정 | Double-Entry Guardian, Journal Entry Validator, Chart of Accounts Guardian, Ledger Reconciliation Agent, Period Close Guardian, Audit Trail Guardian, Import Normalization Agent, Financial Statement Generator, Tax Mapping Reviewer, Anomaly Detection Agent를 회계 도메인 검증 에이전트로 채택 |
+| 법령 체계도 연결 | Tax Mapping, Financial Statement, Chart of Accounts, Period Close, Audit Trail 검증은 법령·서식 snapshot과 연결 |
+| 적용 문서 | `docs/skills/accounting-domain-guardians-skill.md`, `docs/skills/accounting-legal-forms-skill.md`, `docs/skills/accounting-development-governance-skill.md`, `docs/claude-handoff.md` |
+| 버전 영향 | 앱 버전 변경 없음. `Sub_domain-guardians_0.01`, `Sub_legal-forms_0.02`, `Sub_development-governance_0.04`, `Sub_app-research-notes_0.06` |
+
+적용 원칙:
+
+1. 입력 UX가 간편장부처럼 보여도 내부 검증은 복식부기 기준으로 수행한다.
+2. 법정 신고·세무사 전달 리포트는 최신 법령·서식 snapshot 확인 없이는 확정 출력으로 표시하지 않는다.
+3. import, 자동분개, 세무 매핑, 마감, 감사 이력은 각각 담당 Guardian의 검증 결과를 남긴다.
+4. V1의 이상탐지는 AI 추론이 아니라 규칙 기반 finding으로 시작한다.

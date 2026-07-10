@@ -117,7 +117,8 @@ addGate('project-contract', 'REQUIRED', () => {
     '.github/workflows/harness.yml',
     'docs/accounting-ledger-harness-baseline.md',
     'docs/claude-handoff.md',
-    'docs/accounting-ledger-v1-detailed-design.md'
+    'docs/accounting-ledger-v1-detailed-design.md',
+    'docs/skills/accounting-domain-guardians-skill.md'
   ];
   const missing = requiredFiles.filter((file) => !existsSync(absolute(file)));
   if (missing.length > 0) {
@@ -132,8 +133,10 @@ addGate('instruction-contract', 'REQUIRED', () => {
   hasRequiredText(agents, 'canonical_version', 'AGENTS.md');
   hasRequiredText(agents, 'harness:check', 'AGENTS.md');
   hasRequiredText(agents, 'RLS', 'AGENTS.md');
+  hasRequiredText(agents, 'accounting-domain-guardians-skill.md', 'AGENTS.md');
   hasRequiredText(claude, 'harness:check', 'CLAUDE.md');
   hasRequiredText(claude, 'AGENTS.md', 'CLAUDE.md');
+  hasRequiredText(claude, 'accounting-domain-guardians-skill.md', 'CLAUDE.md');
   return { detail: 'shared AI instructions include sync, security, and harness rules' };
 });
 
