@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.03** · 개정 2026-07-10
+> **📌 Sub_app-research-notes_0.04** · 개정 2026-07-10
 
 # Accounting Ledger App Research Notes
 
@@ -100,3 +100,22 @@ advisor 잔여 항목:
 2. 각각의 역할을 별도 자동 에이전트로 늘리기보다, 변경 성격에 맞는 체크포인트로 실행하고 결과를 남긴다.
 3. 동기화 구조는 `updated_at` 병합과 `canonical_version` 최종본 모드를 계속 분리한다.
 4. RLS 제거, 클라이언트 비밀키 보관, 마이그레이션 없는 데이터 계약 변경은 금지한다.
+
+## 2026-07-10 Claude 협업 인수인계 체계 도입
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.00` |
+| note_type | `design_decision` |
+| 제목 | Claude 및 AI 협업자용 공유 인수인계 기준 도입 |
+| 배경 | 다른 AI가 작업에 참여할 때 대화 기억이 아닌 저장소의 공통 문서로 현재 상태·불변조건·다음 우선순위를 일치시킬 필요가 있음 |
+| 결정 | 루트 `CLAUDE.md`를 진입점으로 두고, `docs/claude-handoff.md`에 현재 상태를, `docs/claude-task-template.md`에 작업 요청 형식을, 별도 협업 스킬에 수령·검토 규칙을 기록 |
+| 적용 문서 | `AGENTS.md`, `CLAUDE.md`, `docs/claude-handoff.md`, `docs/claude-task-template.md`, `docs/skills/accounting-claude-collaboration-skill.md` |
+| 보안 원칙 | API secret, service role, OAuth client secret, 원본 세무자료는 협업 문서·프롬프트에 포함하지 않음 |
+| 갱신 기준 | 다음 구현 우선순위, 앱 버전, 스키마·RLS·Auth·동기화·법정서식·증빙 정책이 바뀌면 인수인계와 연구노트를 함께 갱신 |
+
+적용 원칙:
+
+1. Git 최신 커밋과 작업 트리가 실제 상태의 최종 기준이다.
+2. Claude 결과는 그대로 반영하지 않고, 현재 저장소 기준의 diff·계약·보안·테스트 검토를 거친다.
+3. 원격 push·배포·파괴적 DB 작업은 사용자의 명시적 요청이 있어야 한다.

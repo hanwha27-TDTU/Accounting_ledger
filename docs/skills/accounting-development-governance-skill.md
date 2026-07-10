@@ -1,4 +1,4 @@
-> **Sub_development-governance_0.01** · 개정 2026-07-10
+> **Sub_development-governance_0.02** · 개정 2026-07-10
 
 # Accounting Ledger Development Governance Skill
 
@@ -67,6 +67,7 @@ flowchart LR
 3. 관련 스킬 문서, 설계 문서, 마이그레이션, 연구노트를 읽는다.
 4. 완료 조건과 테스트 기준을 먼저 적는다.
 5. 데이터·권한·동기화가 걸리면 Schema/Contract Guardian, Security Reviewer, Migration Agent를 계획에 포함한다.
+6. 다른 AI에게 인수인계하거나 받은 결과를 반영하면 `CLAUDE.md`와 `docs/claude-handoff.md`를 기준으로 협업 상태를 확인한다.
 
 ### 구현 중
 
@@ -141,3 +142,4 @@ flowchart LR
 | `accounting-app-research-note-skill.md` | 버전·개발 이력 기록 |
 | `accounting-mobile-apk-readiness-skill.md` | PWA·APK·모바일 어댑터 |
 | `accounting-v1-scope-skill.md` | 1차 범위 판정 |
+| `accounting-claude-collaboration-skill.md` | Claude 또는 다른 AI와의 인수인계·결과 반영 |
