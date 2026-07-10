@@ -1,4 +1,4 @@
-> **Sub_harness-baseline_0.03** · 기록 2026-07-11
+> **Sub_harness-baseline_0.04** · 기록 2026-07-11
 
 # Accounting Ledger Harness Baseline
 
@@ -6,16 +6,16 @@
 
 | 항목 | 관찰 결과 |
 |---|---|
-| 기준 커밋 | `da077ce docs: add Claude collaboration handoff` |
-| 앱 버전 | `0.00` |
-| 런타임 | `index.html` 없음. 앱 구현 시작 전 |
-| 패키지·스크립트 | 기존 `package.json`, `scripts/`, 테스트 명령 없음 |
-| CI | 기존 GitHub Actions 없음 |
-| 테스트 | 자동 테스트·브라우저 테스트 없음 |
+| 기준 커밋 | `f7d1a5a docs: add privacy and offline guardians` 이후 앱 0.01 작업 트리 |
+| 앱 버전 | `0.01` |
+| 런타임 | 단일 `index.html` 업무 앱. IndexedDB, 회계 도메인, Supabase/Auth adapter 포함 |
+| 패키지·스크립트 | `package.json`, `scripts/harness-check.mjs`, `npm run harness:check` |
+| CI | `.github/workflows/harness.yml`에서 같은 하네스 실행 |
+| 테스트 | 런타임 정적 계약 Required. 브라우저 왕복은 현재 수동 실행 |
 | 데이터 | Supabase 초기 스키마와 로컬 migration 4개 존재 |
 | 사용자 참고 파일 | Excel·PDF·ZIP 4개가 미추적 상태이며 커밋 제외 대상 |
 
-기준선 조사에서 기존 실패한 자동 검사는 발견되지 않았다. 기존 자동 검사 자체가 없었으므로, 이 문서의 “없음”은 통과가 아니라 도입 전 상태를 뜻한다.
+최초 설계 기준선에는 자동 검사가 없었다. 앱 0.01부터 런타임 계약은 Required로 승격했고, 실제 브라우저 왕복은 자동화 전까지 Manual 결과와 시나리오를 이 문서에 남긴다.
 
 ## 하네스 등급
 
@@ -26,8 +26,8 @@
 | migration-contract | Required | 활성 | 초기 migration 4개와 RLS·canonical sync 표식 확인 |
 | tracked-scope-and-secrets | Required | 활성 | 참고 원본 커밋과 자격증명 형태의 값 차단 |
 | git-diff-integrity | Required | 활성 | staged/unstaged diff 공백 오류 차단 |
-| runtime-version-contract | Baseline | 대기 | `index.html` 생성 시 `APP_INFO.version`, `UPDATE_HISTORY`, `0.01` 증가 규칙 자동 활성화 |
-| browser-roundtrip | Manual | 대기 | 런타임과 브라우저 테스트 도구 도입 전에는 수동 점검 |
+| runtime-version-contract | Required | 활성 | `APP_INFO.version`, `UPDATE_HISTORY`, 정확한 버전 증가, 핵심 레이어·동기화·고정 의존성 표식 확인 |
+| browser-roundtrip | Manual | 실행 | 사업자 설정, 2025 비용 거래, VAT 100,000/10,000 분리, 차대변 110,000원 일치, 모바일 390px, 개발자 레지스트리 확인 |
 | Supabase advisor/RLS 실측 | Manual | 대기 | 별도 인증이 필요한 원격 점검. 스키마·RLS 변경 시 수행 |
 
 ## 공식 명령
@@ -40,11 +40,10 @@ npm run harness:check
 
 ## 향후 활성화 순서
 
-1. `index.html`을 처음 추가할 때 `APP_INFO.version = '0.01'`과 `UPDATE_HISTORY`를 함께 추가한다.
-2. 거래 저장·복원 기능이 생기면 IndexedDB/백업 왕복 테스트를 추가하고 Required로 올린다.
-3. 동기화 기능이 생기면 canonical sync 시나리오를 자동 테스트로 추가한다.
-4. UI가 생기면 Playwright 등의 실제 브라우저 왕복 테스트를 연결하고 CI에 포함한다.
-5. Supabase 스키마·RLS 변경 시 원격 advisor 검증 절차를 수동에서 자동 또는 Required 검토로 승격한다.
+1. 브라우저 왕복 시나리오를 자동 실행 가능한 테스트로 옮겨 Required로 승격한다.
+2. JSON 백업·복원 왕복과 실제 파일 다운로드 검증을 자동화한다.
+3. canonical version 변경, tombstone, 원격 병합 시나리오를 mock 또는 별도 테스트 프로젝트로 자동화한다.
+4. Supabase 스키마·RLS 변경 시 원격 advisor 검증 절차를 수동에서 자동 또는 Required 검토로 승격한다.
 
 ## 금지사항
 

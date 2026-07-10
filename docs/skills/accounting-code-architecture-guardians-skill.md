@@ -1,4 +1,4 @@
-> **Sub_code-architecture-guardians_0.02** · 개정 2026-07-11
+> **Sub_code-architecture-guardians_0.03** · 개정 2026-07-11
 
 # Accounting Ledger Code Architecture Guardians Skill
 
@@ -49,6 +49,20 @@
 | Validation Layer | Guardian 결과, 오류, 경고, manual review | 저장소 구현 세부사항에 의존하지 않는다 |
 | Report Layer | 간편장부, 원장, 세무사 패키지, 법정서식 | 최신 법정서식 검증 없이 확정 출력하지 않는다 |
 
+## 앱 0.01 실제 레이어 매핑
+
+| 레이어 | `index.html` 구현 |
+|---|---|
+| UI Layer | route별 renderer와 `bindViewEvents` |
+| State Layer | 단일 `state`와 route·sync·filter 상태 |
+| Domain Layer | `AccountingDomain` 금액 분리·자동분개·차대변 검증 |
+| Persistence Layer | `IndexedDbAdapter`, `ConfigAdapter`, JSON 백업·복원 |
+| Remote Adapter Layer | `SupabaseAdapter`, `SyncService` |
+| Validation Layer | 입력 오류, 전표 균형, secret key 차단, 증빙·세무 검토 상태 |
+| Report Layer | 간편장부 view와 검토용 요약. 법정 확정 출력은 차단 |
+
+실제 구현 상태는 개발자 모드 레지스트리에서 `implemented`, `manual_only`, `planned`, `blocked`로 표시한다. 개발 운영 역할은 런타임 자동 기능이 아니라 수동 품질 절차로 구분한다.
+
 ## 개발자 모드 표시 목록
 
 앱 개발자 모드에는 아래 역할과 기능을 표시한다. 실제 구현 상태는 `implemented`, `manual_only`, `planned`, `blocked` 중 하나로 별도 관리한다.
@@ -75,7 +89,7 @@
 
 ```json
 {
-  "registryVersion": "Sub_code-architecture-guardians_0.02",
+  "registryVersion": "Sub_code-architecture-guardians_0.03",
   "displayTarget": "developer_mode",
   "agents": [
     {

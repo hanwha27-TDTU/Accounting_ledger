@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.11** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.12** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -239,3 +239,36 @@ advisor 잔여 항목:
 3. 개인정보와 세무자료는 화면, 로그, export, 개발자 모드에서 각각 노출 경로를 점검한다.
 4. 오프라인 상태와 동기화 충돌은 오류로 숨기지 않고 사용자에게 상태와 복구 경로를 표시한다.
 5. 테스트 fixture에는 실제 개인정보와 실제 증빙 원본을 사용하지 않는다.
+
+## 2026-07-11 앱 0.01 첫 런타임 구현
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.01` |
+| note_type | `feature_release` |
+| 제목 | 단일 HTML 업무 앱과 로컬 복식부기 기준선 구현 |
+| 사용자 변화 | 대시보드에서 사업자 설정, 2025 소급 거래 입력, 장부와 복식 전표 검토를 실제로 사용할 수 있음 |
+| 내부 변화 | UI·State·Domain·Persistence·Remote Adapter·Validation·Report 경계를 단일 `index.html` 안에 분리 |
+| 데이터 | IndexedDB 13개 store, 공통 UUID·created_at·updated_at·deleted_at, sync queue, JSON 백업·복원 |
+| 회계 | 총액 VAT 후보 분리, 수입·비용·자산 자동분개, 차변·대변 균형 차단, 원천거래 추적 |
+| 원격 | Supabase JS `2.110.2` Google OAuth adapter, allowlist 확인, REST `response.ok`, updated_at 병합, canonical version 변경 감지 구조 |
+| 개발자 모드 | 회계 Guardian 23개, 코드 설계 Guardian 15개, 개발 운영 역할 14개의 실제 구현 상태 표시 |
+| 적용 역할 | Repository Mapper, Planner, Implementer, Test Engineer, Reviewer, Schema/Contract, UI/UX, Security, Migration, Release, Domain·Architecture Guardians |
+| 변경 문서 | `index.html`, `CLAUDE.md`, `docs/claude-handoff.md`, 하네스 기준선, V1 범위·코드 구조·하네스 스킬 |
+| 스킬 버전 | `Sub_v1-scope_0.02`, `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.04`, `Sub_harness-baseline_0.04` |
+
+검증 결과:
+
+1. `npm run harness:check`의 Required 게이트가 모두 통과했다.
+2. 실제 브라우저에서 테스트 사업자와 2025-03-15 비용 110,000원을 저장했다.
+3. 공급가액 100,000원, 부가세대급금 10,000원, 보통예금 대변 110,000원으로 전표가 생성되었다.
+4. 전표 차변 합계와 대변 합계가 각각 110,000원으로 일치했다.
+5. 390x844 모바일 viewport에서 문서 가로 overflow가 없고 모바일 메뉴가 정상 열렸다.
+6. 개발자 모드에서 52개 역할·Guardian 상태가 표시되며 브라우저 console error는 없었다.
+
+남은 위험과 다음 단계:
+
+1. 실제 publishable key와 Redirect URL이 없어 Google OAuth·allowlist·RLS 왕복은 아직 검증하지 않았다.
+2. Cloudinary 이미지/PDF 업로드, 국세청 Excel import/export, 법정서식 snapshot 출력은 완료 기능이 아니다.
+3. canonical version 변경 수렴 구조는 구현했지만 두 기기·원격 DB 자동 시나리오 테스트와 현재 기기 최종본 지정 UI가 남아 있다.
+4. JSON 백업 생성 구조는 구현했지만 브라우저 다운로드·복원 왕복의 자동 테스트를 추가해야 한다.

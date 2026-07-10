@@ -1,7 +1,7 @@
 # Accounting Ledger V1 Detailed Design
 
 > 작성일: 2026-07-09  
-> 상태: V1 상세 설계 시작  
+> 상태: V1 구현 진행 중 · 앱 0.01 로컬 회계 코어 기준선
 > 기준 문서: `accounting-ledger-design-directive-v2.md`, `accounting-v1-scope-skill.md`
 
 ## 1. V1 설계 목표

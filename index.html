@@ -1,0 +1,1485 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#163b33">
+  <meta name="description" content="대한민국 개인사업자를 위한 간편장부·복식부기 통합 회계장부">
+  <title>바른장부</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211f;
+      --muted: #66736f;
+      --line: #d9e0dd;
+      --line-strong: #bdc9c5;
+      --surface: #ffffff;
+      --surface-soft: #f4f7f5;
+      --surface-warm: #fff9ee;
+      --brand: #17624f;
+      --brand-strong: #104b3d;
+      --brand-soft: #e6f3ee;
+      --accent: #b65b27;
+      --accent-soft: #fff0e5;
+      --danger: #b33b3b;
+      --danger-soft: #fff0ef;
+      --warning: #8a5a12;
+      --warning-soft: #fff4d8;
+      --success: #1d6b45;
+      --shadow: 0 10px 28px rgba(25, 47, 41, .08);
+      --sidebar: 232px;
+      --header: 68px;
+      font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: #edf2ef; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background: var(--surface-soft);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .52; }
+    a { color: inherit; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid rgba(23, 98, 79, .24); outline-offset: 2px; }
+
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 40;
+      width: var(--sidebar);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #24483f;
+      background: #163b33;
+      color: #f7fbf9;
+    }
+    .brand {
+      height: var(--header);
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 20px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #f4c45f;
+      color: #163b33;
+      font-weight: 900;
+      font-size: 16px;
+    }
+    .brand-name { font-size: 17px; font-weight: 800; }
+    .brand-version { margin-top: 2px; color: #b9d1ca; font-size: 11px; }
+    .nav { padding: 14px 10px; overflow-y: auto; }
+    .nav-group-label { padding: 13px 10px 7px; color: #98b9af; font-size: 11px; font-weight: 700; }
+    .nav-button {
+      width: 100%;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 9px 11px;
+      border: 0;
+      border-radius: 6px;
+      color: #dce9e5;
+      background: transparent;
+      text-align: left;
+    }
+    .nav-button:hover { background: rgba(255,255,255,.08); }
+    .nav-button.active { background: #f7fbf9; color: #163b33; font-weight: 800; }
+    .nav-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .sidebar-footer { margin-top: auto; padding: 14px; border-top: 1px solid rgba(255,255,255,.12); }
+    .sidebar-status { display: flex; align-items: center; gap: 8px; color: #c8dbd5; font-size: 12px; }
+
+    .main-column { grid-column: 2; min-width: 0; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      height: var(--header);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.94);
+      backdrop-filter: blur(12px);
+    }
+    .topbar-left, .topbar-actions, .inline-actions { display: flex; align-items: center; gap: 9px; }
+    .topbar-title { font-size: 18px; font-weight: 800; }
+    .topbar-context { color: var(--muted); font-size: 12px; }
+    .icon-button.mobile-menu { display: none; }
+    .content { width: min(1420px, 100%); margin: 0 auto; padding: 24px 28px 56px; }
+
+    .icon-button, .button {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .button { padding: 8px 14px; }
+    .icon-button { width: 38px; padding: 0; }
+    .button svg, .icon-button svg { width: 17px; height: 17px; }
+    .button:hover, .icon-button:hover { border-color: #8da39c; background: #f9fbfa; }
+    .button.primary { border-color: var(--brand); background: var(--brand); color: #fff; }
+    .button.primary:hover { background: var(--brand-strong); }
+    .button.danger { border-color: #e2b4b4; color: var(--danger); background: var(--danger-soft); }
+    .button.ghost { border-color: transparent; background: transparent; }
+    .button.small { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+    .button.block { width: 100%; }
+
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #99aaa4; flex: 0 0 auto; }
+    .status-dot.online { background: #4bc184; box-shadow: 0 0 0 3px rgba(75,193,132,.14); }
+    .status-dot.offline { background: #e1a43d; }
+    .status-dot.error { background: #d45151; }
+    .sync-chip {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+    .page-title { margin: 0; font-size: 25px; line-height: 1.25; }
+    .page-subtitle { margin: 7px 0 0; color: var(--muted); line-height: 1.65; }
+    .section-title { margin: 0; font-size: 16px; }
+    .section-help { margin: 5px 0 0; color: var(--muted); line-height: 1.55; font-size: 13px; }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      padding: 13px 14px;
+      margin-bottom: 16px;
+      border: 1px solid #ead8a7;
+      border-radius: 6px;
+      background: var(--warning-soft);
+      color: #6d4c17;
+      line-height: 1.55;
+    }
+    .notice.info { border-color: #bad7cc; background: var(--brand-soft); color: #245849; }
+    .notice.danger { border-color: #e4bcbc; background: var(--danger-soft); color: #7d2d2d; }
+    .notice svg { width: 18px; height: 18px; margin-top: 1px; flex: 0 0 auto; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
+    .metric-card {
+      min-width: 0;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      box-shadow: 0 2px 8px rgba(25,47,41,.03);
+    }
+    .metric-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .metric-label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .metric-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 6px; background: var(--brand-soft); color: var(--brand); }
+    .metric-icon.warm { background: var(--accent-soft); color: var(--accent); }
+    .metric-icon svg { width: 16px; height: 16px; }
+    .metric-value { margin-top: 13px; font-size: 23px; font-weight: 850; font-variant-numeric: tabular-nums; }
+    .metric-foot { margin-top: 7px; color: var(--muted); font-size: 12px; }
+
+    .layout-two { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .8fr); gap: 16px; }
+    .panel { border-top: 1px solid var(--line-strong); background: transparent; padding: 18px 0 4px; }
+    .panel + .panel { margin-top: 18px; }
+    .panel.card-panel { padding: 18px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 15px; }
+
+    .task-list, .activity-list, .guardian-list { display: grid; gap: 8px; }
+    .task-row, .activity-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 10px 0;
+      border-bottom: 1px solid #e8ecea;
+    }
+    .task-row:last-child, .activity-row:last-child { border-bottom: 0; }
+    .task-main, .activity-main { min-width: 0; flex: 1; }
+    .task-title, .activity-title { font-weight: 750; }
+    .task-note, .activity-note { margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      background: #edf1ef;
+      color: #53615d;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge.success { background: #e5f3ea; color: var(--success); }
+    .badge.warning { background: var(--warning-soft); color: var(--warning); }
+    .badge.danger { background: var(--danger-soft); color: var(--danger); }
+    .badge.info { background: var(--brand-soft); color: var(--brand); }
+
+    .form-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+    .field { grid-column: span 6; min-width: 0; }
+    .field.third { grid-column: span 4; }
+    .field.full { grid-column: 1 / -1; }
+    .field label, .field-label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 800; }
+    .required::after { content: " *"; color: var(--danger); }
+    .input, .select, .textarea {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+    }
+    .textarea { min-height: 84px; resize: vertical; }
+    .input:focus, .select:focus, .textarea:focus { border-color: var(--brand); outline: 3px solid rgba(23,98,79,.1); }
+    .field-help { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .field-error { min-height: 18px; margin-top: 5px; color: var(--danger); font-size: 11px; }
+    .money-wrap { position: relative; }
+    .money-wrap .input { padding-right: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+    .money-unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+    .segment { min-height: 42px; border: 0; border-right: 1px solid var(--line); background: #fff; color: var(--muted); font-weight: 750; }
+    .segment:last-child { border-right: 0; }
+    .segment.active { background: var(--brand); color: #fff; }
+    .checkbox-row { display: flex; align-items: flex-start; gap: 9px; line-height: 1.5; }
+    .checkbox-row input { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--brand); }
+    .calc-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 14px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--line); }
+    .calc-item { padding: 11px; background: var(--surface-soft); text-align: right; }
+    .calc-label { color: var(--muted); font-size: 11px; }
+    .calc-value { margin-top: 4px; font-weight: 850; font-variant-numeric: tabular-nums; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    table { width: 100%; border-collapse: collapse; min-width: 820px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid #e8ecea; text-align: left; vertical-align: middle; }
+    th { position: sticky; top: 0; z-index: 2; background: #f3f6f4; color: #57645f; font-size: 11px; font-weight: 850; }
+    tbody tr:hover { background: #fafcfb; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
+    .empty-state { padding: 42px 20px; text-align: center; color: var(--muted); }
+    .empty-state svg { width: 30px; height: 30px; margin-bottom: 10px; color: #8da39c; }
+    .empty-title { color: var(--ink); font-weight: 800; }
+    .empty-note { margin: 6px auto 0; max-width: 420px; line-height: 1.6; font-size: 12px; }
+
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .filter-bar .input, .filter-bar .select { width: auto; min-width: 150px; min-height: 36px; padding: 7px 9px; }
+    .amount-positive { color: var(--brand); font-weight: 800; }
+    .amount-negative { color: var(--accent); font-weight: 800; }
+
+    .status-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .status-item { padding: 14px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .status-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .status-item-title { font-weight: 800; }
+    .status-item-body { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+    .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
+    .tooltip {
+      position: fixed;
+      z-index: 100;
+      width: min(320px, calc(100vw - 28px));
+      padding: 12px 13px;
+      border: 1px solid #9eb4ad;
+      border-radius: 6px;
+      background: #112f28;
+      color: #f3f8f6;
+      box-shadow: var(--shadow);
+      line-height: 1.6;
+      font-size: 12px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 30, 26, .54);
+    }
+    .modal {
+      width: min(680px, 100%);
+      max-height: min(780px, calc(100vh - 40px));
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(9, 24, 20, .24);
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .modal-title { margin: 0; font-size: 18px; }
+    .modal-body { padding: 20px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 20px; border-top: 1px solid var(--line); }
+
+    .toast-region { position: fixed; right: 18px; bottom: 18px; z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
+    .toast { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px; border: 1px solid #b7c8c2; border-radius: 7px; background: #fff; box-shadow: var(--shadow); line-height: 1.5; }
+    .toast.error { border-color: #e0aaaa; background: #fff7f6; }
+    .toast.success { border-color: #a7ceb9; background: #f5fcf8; }
+
+    .developer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .guardian-item { padding: 13px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+    .guardian-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .guardian-name { font-weight: 800; }
+    .guardian-role { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+
+    @media (max-width: 1100px) {
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layout-two { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 780px) {
+      :root { --header: 60px; }
+      .app-shell { display: block; }
+      .sidebar { transform: translateX(-100%); transition: transform .2s ease; box-shadow: 12px 0 30px rgba(0,0,0,.15); }
+      .sidebar.open { transform: translateX(0); }
+      .main-column { width: 100%; }
+      .icon-button.mobile-menu { display: inline-flex; }
+      .topbar { padding: 0 14px; }
+      .topbar-context { display: none; }
+      .content { padding: 18px 14px 42px; }
+      .page-header { align-items: stretch; flex-direction: column; }
+      .page-header .inline-actions { width: 100%; }
+      .page-header .inline-actions .button { flex: 1; }
+      .page-title { font-size: 21px; }
+      .metric-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
+      .metric-card { padding: 14px; }
+      .metric-value { font-size: 19px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field, .field.third, .field.full { grid-column: 1; }
+      .status-board, .developer-grid { grid-template-columns: 1fr; }
+      .topbar-actions .button-label { display: none; }
+    }
+    @media (max-width: 480px) {
+      .metric-grid { grid-template-columns: 1fr; }
+      .segmented { grid-template-columns: 1fr; }
+      .segment { border-right: 0; border-bottom: 1px solid var(--line); }
+      .segment:last-child { border-bottom: 0; }
+      .calc-strip { grid-template-columns: 1fr; }
+      .form-actions { flex-direction: column-reverse; }
+      .form-actions .button { width: 100%; }
+      .topbar-title { font-size: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="주 메뉴">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">장</div>
+        <div>
+          <div class="brand-name">바른장부</div>
+          <div class="brand-version">Accounting Ledger <span id="sidebarVersion"></span></div>
+        </div>
+      </div>
+      <nav class="nav" id="mainNav"></nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-status"><span class="status-dot" id="sidebarStatusDot"></span><span id="sidebarStatusText">로컬 저장 준비 중</span></div>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button mobile-menu" id="mobileMenuButton" type="button" title="메뉴 열기" aria-label="메뉴 열기"><i data-lucide="menu"></i></button>
+          <div>
+            <div class="topbar-title" id="topbarTitle">대시보드</div>
+            <div class="topbar-context" id="topbarContext">사업자 설정을 확인하세요</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="sync-chip" id="syncChip"><span class="status-dot" id="syncDot"></span><span id="syncLabel">로컬 전용</span></div>
+          <button class="button" id="quickAddButton" type="button"><i data-lucide="plus"></i><span class="button-label">거래 입력</span></button>
+        </div>
+      </header>
+      <main class="content" id="app" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalRoot" hidden></div>
+  <div class="tooltip" id="termTooltip" role="tooltip" hidden></div>
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.js"></script>
+  <script>
+  (() => {
+    'use strict';
+
+    // 1. Release and domain constants
+    const APP_INFO = Object.freeze({
+      name: '바른장부',
+      version: '0.01',
+      schemaVersion: '0.03',
+      backupSchemaVersion: '0.01',
+      postingRuleVersion: 'posting-0.01',
+      ownerEmail: 'hanwha27@gmail.com',
+      supabaseProjectUrl: 'https://ihxiywffzmvrwmqvatzt.supabase.co'
+    });
+
+    const UPDATE_HISTORY = Object.freeze([
+      { version: '0.01', date: '2026-07-11', label: '최신 · 첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
+    ]);
+
+    const NAV_ITEMS = Object.freeze([
+      { group: '업무', id: 'dashboard', label: '대시보드', icon: 'layout-dashboard' },
+      { group: '업무', id: 'transactions', label: '거래 입력', icon: 'circle-plus' },
+      { group: '업무', id: 'ledger', label: '장부', icon: 'book-open' },
+      { group: '업무', id: 'journals', label: '전표 검토', icon: 'scale' },
+      { group: '자료', id: 'evidence', label: '증빙', icon: 'paperclip' },
+      { group: '자료', id: 'imports', label: '가져오기', icon: 'file-input' },
+      { group: '자료', id: 'reports', label: '리포트', icon: 'file-chart-column' },
+      { group: '관리', id: 'closing', label: '마감', icon: 'lock-keyhole' },
+      { group: '관리', id: 'settings', label: '설정', icon: 'settings-2' },
+      { group: '관리', id: 'developer', label: '개발 기록', icon: 'code-2' }
+    ]);
+
+    const ACCOUNT_TEMPLATES = Object.freeze([
+      { key: 'cash', account_code: '101', account_name: '현금', account_type: 'asset', explanation: '사업을 하면서 손에 보관하거나 바로 쓸 수 있는 현금입니다.' },
+      { key: 'bank', account_code: '103', account_name: '보통예금', account_type: 'asset', explanation: '사업용 통장에 들어 있는 돈입니다.' },
+      { key: 'receivable', account_code: '108', account_name: '외상매출금', account_type: 'asset', explanation: '매출은 생겼지만 아직 받지 못한 돈입니다.' },
+      { key: 'vat_receivable', account_code: '135', account_name: '부가세대급금', account_type: 'asset', explanation: '과세 매입에서 나중에 공제받을 가능성이 있는 부가가치세입니다.' },
+      { key: 'equipment', account_code: '203', account_name: '비품', account_type: 'asset', explanation: '컴퓨터, 책상처럼 여러 해 사용하는 사업용 물건입니다.' },
+      { key: 'payable', account_code: '251', account_name: '미지급금', account_type: 'liability', explanation: '비용이나 자산은 생겼지만 아직 지급하지 않은 돈입니다.' },
+      { key: 'vat_payable', account_code: '255', account_name: '부가세예수금', account_type: 'liability', explanation: '과세 매출 때 고객에게 받아 나중에 납부할 가능성이 있는 부가가치세입니다.' },
+      { key: 'sales', account_code: '401', account_name: '매출', account_type: 'revenue', explanation: '사업 활동으로 벌어들인 수입입니다.' },
+      { key: 'service_revenue', account_code: '404', account_name: '용역매출', account_type: 'revenue', explanation: '의료, 자문, 강의처럼 서비스를 제공하고 얻은 수입입니다.' },
+      { key: 'supplies', account_code: '811', account_name: '소모품비', account_type: 'expense', explanation: '사무용품처럼 비교적 짧게 쓰고 없어지는 물품 비용입니다.' },
+      { key: 'rent', account_code: '819', account_name: '지급임차료', account_type: 'expense', explanation: '사무실이나 장비를 빌리고 지급한 비용입니다.' },
+      { key: 'fees', account_code: '831', account_name: '지급수수료', account_type: 'expense', explanation: '플랫폼, 은행, 전문가에게 서비스를 받고 지급한 수수료입니다.' },
+      { key: 'travel', account_code: '813', account_name: '여비교통비', account_type: 'expense', explanation: '업무 이동에 사용한 교통비와 출장비입니다.' },
+      { key: 'communication', account_code: '814', account_name: '통신비', account_type: 'expense', explanation: '업무용 전화, 인터넷, 우편 등에 사용한 비용입니다.' },
+      { key: 'welfare', account_code: '812', account_name: '복리후생비', account_type: 'expense', explanation: '직원이나 사업 운영을 위해 지출한 식대·복지 관련 비용 후보입니다.' }
+    ]);
+
+    const TERM_HELP = Object.freeze({
+      '복식부기': '한 거래를 돈이 들어온 쪽과 그 돈의 원인 쪽에 함께 기록하는 방식입니다. 두 쪽의 합계는 항상 같아야 합니다.',
+      '차변': '자산이나 비용이 늘어나는 쪽을 주로 적는 자리입니다. 이 앱은 거래 내용을 보고 자동으로 배치합니다.',
+      '대변': '부채나 수입이 늘어나는 쪽을 주로 적는 자리입니다. 차변 합계와 같은 금액이 되어야 합니다.',
+      '공급가액': '부가가치세를 빼기 전 상품이나 서비스 자체의 금액입니다.',
+      '부가세': '과세 거래에서 공급가액에 더해지는 세금입니다. 업종과 증빙에 따라 처리 방식이 달라질 수 있습니다.',
+      '계정과목': '돈이 왜 들어오거나 나갔는지 같은 성격끼리 묶는 이름입니다. 예: 매출, 소모품비, 보통예금.',
+      '원천거래': '실제로 발생한 거래 사실의 원본 기록입니다. 앱은 이 기록에서 복식 전표를 만듭니다.',
+      '전표': '한 거래를 차변과 대변으로 나누어 적은 회계 기록입니다.',
+      'canonical_version': '여러 기기 중 어느 데이터가 최종본인지 표시하는 번호입니다. 번호가 바뀌면 다른 기기는 클라우드 최종본에 맞춥니다.'
+    });
+
+    const DOMAIN_GUARDIANS = Object.freeze([
+      ['double_entry_guardian', '복식부기 균형 검사', 'implemented', '거래 저장 전 차변·대변 합계와 차액을 검사합니다.'],
+      ['journal_entry_validator', '분개 입력 검증', 'implemented', '날짜, 금액, 계정과목, 분개라인 유효성을 확인합니다.'],
+      ['chart_of_accounts_guardian', '계정과목 체계 검사', 'implemented', '거래유형에 맞는 계정과목 사용 여부를 확인합니다.'],
+      ['ledger_reconciliation_agent', '원장 대사 검사', 'planned', '통장·카드·현금 잔액 대사는 다음 단계에서 구현합니다.'],
+      ['period_close_guardian', '기간 마감 관리', 'manual_only', '마감 상태를 표시하며 완전한 수정 통제는 후속 구현입니다.'],
+      ['audit_trail_guardian', '변경 이력 보존', 'implemented', '거래와 설정 변경을 로컬 감사로그에 남깁니다.'],
+      ['import_normalization_agent', '가져오기 정규화', 'planned', '국세청 Excel 원본 보존과 미리보기 흐름을 후속 구현합니다.'],
+      ['financial_statement_generator', '재무·세무 리포트 생성', 'manual_only', '검토용 요약만 제공하며 법정 확정 출력은 차단합니다.'],
+      ['tax_mapping_reviewer', '세무 매핑 검토', 'manual_only', 'VAT 후보와 검토 필요 상태를 표시합니다.'],
+      ['anomaly_detection_agent', '이상 항목 탐지', 'implemented', '증빙 누락과 금액·기간 오류를 규칙으로 탐지합니다.'],
+      ['evidence_compliance_guardian', '증빙 적정성 검사', 'implemented', '증빙 미첨부 거래를 표시합니다.'],
+      ['vat_consistency_guardian', '부가세 일관성 검사', 'implemented', '총액과 공급가액·세액 합계가 맞는지 검사합니다.'],
+      ['depreciation_asset_guardian', '자산·감가상각 관리', 'planned', '자산대장과 감가상각 스케줄은 후속 구현합니다.'],
+      ['business_classification_agent', '사업유형 판정', 'manual_only', '업종과 과세유형을 후보로 저장하고 사용자 확인을 요구합니다.'],
+      ['filing_readiness_guardian', '신고 준비도 검사', 'manual_only', '법정서식·증빙·검토 항목의 준비 상태를 보여줍니다.'],
+      ['cashflow_liquidity_reviewer', '현금흐름 검토', 'planned', '미수·미지급과 세금 납부 예정액 검토는 후속 구현합니다.'],
+      ['backup_restore_guardian', '백업·복원 검증', 'implemented', 'JSON 백업 구조와 복원 미리보기를 검사합니다.'],
+      ['permission_owner_guardian', '권한·소유자 검사', 'implemented', 'Google 이메일과 allowlist 상태를 확인합니다.'],
+      ['legal_update_watcher', '법령 업데이트 감시', 'planned', '법령·서식 최신성의 자동 확인은 후속 구현입니다.'],
+      ['developer_mode_registry_agent', '개발자 모드 레지스트리', 'implemented', 'Guardian의 현재 구현 상태를 표시합니다.'],
+      ['form_field_mapping_guardian', '서식 필드 매핑 검사', 'planned', '법정서식 매핑은 스냅샷과 함께 구현합니다.'],
+      ['report_explainability_agent', '리포트 산출근거 설명', 'implemented', '요약 금액을 원천거래와 전표로 추적할 수 있습니다.'],
+      ['data_export_portability_guardian', '데이터 이식성 검사', 'implemented', '백업에 버전과 테이블 범위를 기록합니다.']
+    ]);
+
+    const ARCH_GUARDIANS = Object.freeze([
+      ['single_html_architecture_guardian', '단일 HTML 구조 검사', 'implemented', 'UI·State·Domain·Persistence·Remote Adapter 경계를 한 파일 안에서 분리했습니다.'],
+      ['state_management_guardian', '상태 관리 검사', 'implemented', '화면 상태와 저장 데이터, 동기화 상태를 분리합니다.'],
+      ['domain_boundary_guardian', '도메인 경계 검사', 'implemented', '회계 계산 함수는 DOM과 저장소에 직접 접근하지 않습니다.'],
+      ['adapter_layer_guardian', '어댑터 계층 검사', 'implemented', 'IndexedDB와 Supabase 접근을 어댑터로 격리했습니다.'],
+      ['complexity_budget_reviewer', '복잡도 예산 검사', 'manual_only', '단일 파일의 모듈 경계를 릴리스 때 검토합니다.'],
+      ['refactor_safety_agent', '리팩터링 안전성 검사', 'manual_only', '하네스와 브라우저 시나리오로 회귀를 확인합니다.'],
+      ['performance_budget_guardian', '성능 예산 검사', 'manual_only', '목록 렌더링과 IndexedDB 조회량을 점검합니다.'],
+      ['dependency_minimalism_reviewer', '의존성 최소화 검사', 'implemented', '아이콘과 Supabase 브라우저 클라이언트만 버전을 고정해 사용합니다.'],
+      ['error_handling_guardian', '오류 처리 검사', 'implemented', '사용자 메시지와 내부 오류코드를 분리합니다.'],
+      ['developer_experience_agent', '개발자 경험 검사', 'implemented', '버전·저장소·동기화·Guardian 상태를 한 화면에 표시합니다.'],
+      ['data_privacy_guardian', '개인정보 보호 검사', 'implemented', '비밀키 입력을 차단하고 백업 생성 전 민감자료 경고를 표시합니다.'],
+      ['user_guidance_copy_reviewer', '사용자 안내문구 검사', 'implemented', '회계용어를 누르면 쉬운 설명을 제공합니다.'],
+      ['accessibility_guardian', '접근성 검사', 'implemented', '키보드 초점, 명시적 라벨, 모바일 터치 크기를 반영했습니다.'],
+      ['offline_first_ux_guardian', '오프라인 우선 UX 검사', 'implemented', '네트워크와 관계없이 로컬 입력을 저장하고 동기화 대기를 표시합니다.'],
+      ['conflict_resolution_guardian', '동기화 충돌 해결 검사', 'manual_only', 'updated_at 병합과 canonical 변경 감지 구조를 구현했습니다.']
+    ]);
+
+    const GOVERNANCE_AGENTS = Object.freeze([
+      ['repository_mapper', '저장소 구조 분석', 'manual_only', '저장소 구조, SSOT, 의존성과 변경 영향을 작업 전에 확인합니다.'],
+      ['planner', '구현 계획 관리', 'manual_only', '요구사항을 작업 단위, 완료 조건, 제외 범위로 나눕니다.'],
+      ['implementer', '코드 구현', 'manual_only', '승인된 범위 안에서 앱과 문서를 변경합니다.'],
+      ['test_engineer', '테스트 엔지니어', 'manual_only', '정상·오류·경계·회귀 시나리오를 실행합니다.'],
+      ['reviewer', '코드 리뷰', 'manual_only', '회귀, 중복, 구조 위반과 과도한 변경을 검토합니다.'],
+      ['schema_contract_guardian', '스키마·계약 검사', 'manual_only', 'Supabase, IndexedDB, 백업, import/export 호환성을 확인합니다.'],
+      ['ui_ux_reviewer', 'UI·UX 검토', 'manual_only', '반응형, 접근성, 오류·빈 상태를 검토합니다.'],
+      ['security_reviewer', '보안 검토', 'manual_only', '비밀키, RLS, 권한, 입력 검증과 파일 접근을 확인합니다.'],
+      ['migration_agent', '데이터 이전 검토', 'manual_only', '기존 로컬·클라우드 데이터의 이전과 복구 경로를 확인합니다.'],
+      ['release_manager', '릴리스 관리', 'manual_only', '앱·스킬 버전, 연구노트, 검증과 배포 게이트를 확인합니다.'],
+      ['debugger', '오류 재현·수정', 'manual_only', '실패를 재현하고 원인을 줄여 수정한 뒤 재검증합니다.'],
+      ['simplifier', '복잡성 정리', 'manual_only', '동작을 유지하면서 불필요한 중복과 복잡성을 줄입니다.'],
+      ['retention_deletion_guardian', '보관·삭제 정책 검사', 'manual_only', 'soft delete, tombstone, 백업 잔존과 복구 가능성을 확인합니다.'],
+      ['test_data_fixture_guardian', '테스트 데이터 검사', 'manual_only', '실제 개인정보 없이 2025 소급·VAT·면세 테스트 자료를 관리합니다.']
+    ]);
+
+    const SYNC_TABLE_ORDER = Object.freeze([
+      'businesses', 'business_sites', 'ledger_period_settings', 'accounts', 'counterparties',
+      'source_transactions', 'journal_entries', 'journal_entry_lines', 'audit_logs', 'period_closings'
+    ]);
+    const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
+
+    // 2. Small pure utilities
+    const Utils = Object.freeze({
+      uuid: () => crypto.randomUUID(),
+      now: () => new Date().toISOString(),
+      today: () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()),
+      won: value => `${Math.round(Number(value || 0)).toLocaleString('ko-KR')}원`,
+      number: value => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0,
+      escape: value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])),
+      normalizeEmail: value => String(value || '').trim().toLowerCase(),
+      isSecretKey: value => /(?:service[_-]?role|sb_secret_|cloudinary:\/\/[^:]+:|oauth.{0,8}secret)/i.test(String(value || '')),
+      latestByUpdatedAt(local, remote) {
+        if (!local) return remote;
+        if (!remote) return local;
+        return Date.parse(local.updated_at || local.created_at || 0) > Date.parse(remote.updated_at || remote.created_at || 0) ? local : remote;
+      },
+      debounce(fn, wait = 180) {
+        let timer;
+        return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
+      }
+    });
+
+    // 3. Accounting domain layer: no DOM, storage, or remote calls
+    const AccountingDomain = Object.freeze({
+      calculateAmounts(totalInput, vatType) {
+        const total = Math.max(0, Math.round(Utils.number(totalInput)));
+        if (vatType !== 'taxable') return { supplyAmount: total, vatAmount: 0, totalAmount: total };
+        const supplyAmount = Math.round(total / 1.1);
+        return { supplyAmount, vatAmount: total - supplyAmount, totalAmount: total };
+      },
+
+      accountChoices(accounts, transactionType) {
+        return accounts.filter(account => {
+          if (account.deleted_at) return false;
+          if (transactionType === 'income') return account.account_type === 'revenue';
+          if (transactionType === 'expense') return account.account_type === 'expense';
+          return account.local_key === 'equipment' || account.account_code === '203';
+        });
+      },
+
+      buildPosting(transaction, accountsByKey) {
+        const lines = [];
+        const total = Number(transaction.total_amount);
+        const supply = Number(transaction.supply_amount);
+        const vat = Number(transaction.vat_amount);
+        const settled = transaction.payment_status === 'paid';
+        const selectedAccount = transaction.account_id;
+
+        const addLine = (accountId, debit, credit, memo, sortOrder) => lines.push({
+          id: Utils.uuid(),
+          business_id: transaction.business_id,
+          journal_entry_id: null,
+          account_id: accountId,
+          debit_amount: debit,
+          credit_amount: credit,
+          line_memo: memo,
+          sort_order: sortOrder,
+          created_at: transaction.created_at,
+          updated_at: transaction.updated_at,
+          deleted_at: null
+        });
+
+        if (transaction.transaction_type === 'income') {
+          addLine(settled ? accountsByKey.bank.id : accountsByKey.receivable.id, total, 0, settled ? '입금 또는 즉시 수입' : '아직 받지 않은 수입', 1);
+          addLine(selectedAccount, 0, supply, transaction.description, 2);
+          if (vat > 0) addLine(accountsByKey.vat_payable.id, 0, vat, '매출 부가세 후보', 3);
+        } else if (transaction.transaction_type === 'expense') {
+          addLine(selectedAccount, supply, 0, transaction.description, 1);
+          if (vat > 0) addLine(accountsByKey.vat_receivable.id, vat, 0, '매입 부가세 공제 후보', 2);
+          addLine(settled ? accountsByKey.bank.id : accountsByKey.payable.id, 0, total, settled ? '지급 완료' : '아직 지급하지 않은 금액', 3);
+        } else if (transaction.transaction_type === 'asset_purchase') {
+          addLine(selectedAccount, supply, 0, transaction.description, 1);
+          if (vat > 0) addLine(accountsByKey.vat_receivable.id, vat, 0, '자산 매입 부가세 공제 후보', 2);
+          addLine(settled ? accountsByKey.bank.id : accountsByKey.payable.id, 0, total, settled ? '자산 대금 지급' : '자산 미지급금', 3);
+        } else {
+          throw new Error('POSTING_TYPE_UNSUPPORTED');
+        }
+        return lines;
+      },
+
+      validateTransaction(input) {
+        const errors = {};
+        if (!/^20\d{2}-\d{2}-\d{2}$/.test(input.transactionDate || '')) errors.transactionDate = '거래일을 확인해 주세요.';
+        if (!['income', 'expense', 'asset_purchase'].includes(input.transactionType)) errors.transactionType = '거래 유형을 선택해 주세요.';
+        if (!String(input.description || '').trim()) errors.description = '거래 내용을 입력해 주세요.';
+        if (!input.accountId) errors.accountId = '계정과목을 선택해 주세요.';
+        if (Utils.number(input.totalAmount) <= 0) errors.totalAmount = '0원보다 큰 금액을 입력해 주세요.';
+        return errors;
+      },
+
+      validateJournal(lines) {
+        const debit = lines.reduce((sum, line) => sum + Number(line.debit_amount || 0), 0);
+        const credit = lines.reduce((sum, line) => sum + Number(line.credit_amount || 0), 0);
+        const invalidLine = lines.some(line => !line.account_id || (Number(line.debit_amount) > 0) === (Number(line.credit_amount) > 0));
+        return { status: !invalidLine && debit === credit && debit > 0 ? 'pass' : 'error', debit, credit, difference: debit - credit, invalidLine };
+      },
+
+      summarize(transactions) {
+        return transactions.filter(row => !row.deleted_at).reduce((summary, row) => {
+          summary.count += 1;
+          if (row.transaction_type === 'income') summary.income += Number(row.total_amount || 0);
+          if (row.transaction_type === 'expense') summary.expense += Number(row.total_amount || 0);
+          if (row.transaction_type === 'asset_purchase') summary.assets += Number(row.total_amount || 0);
+          if (row.evidence_status !== 'attached') summary.missingEvidence += 1;
+          if (row.review_status !== 'normal') summary.review += 1;
+          return summary;
+        }, { count: 0, income: 0, expense: 0, assets: 0, missingEvidence: 0, review: 0 });
+      }
+    });
+
+    // 4. IndexedDB persistence adapter
+    class IndexedDbAdapter {
+      constructor() { this.db = null; this.name = 'accounting-ledger-v1'; this.version = 1; }
+      async open() {
+        if (this.db) return this.db;
+        this.db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open(this.name, this.version);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            for (const storeName of LOCAL_STORES) {
+              if (!db.objectStoreNames.contains(storeName)) {
+                const store = db.createObjectStore(storeName, { keyPath: 'id' });
+                if (storeName !== 'sync_queue' && storeName !== 'tombstones') store.createIndex('updated_at', 'updated_at');
+                if (['source_transactions','journal_entries','journal_entry_lines','accounts','counterparties'].includes(storeName)) store.createIndex('business_id', 'business_id');
+              }
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error('IDB_OPEN_FAILED'));
+        });
+        return this.db;
+      }
+      async transaction(storeNames, mode, executor) {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeNames, mode);
+          let result;
+          tx.oncomplete = () => resolve(result);
+          tx.onerror = () => reject(tx.error || new Error('IDB_TRANSACTION_FAILED'));
+          tx.onabort = () => reject(tx.error || new Error('IDB_TRANSACTION_ABORTED'));
+          result = executor(tx);
+        });
+      }
+      async getAll(storeName) {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        });
+      }
+      async get(storeName, id) {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const request = db.transaction(storeName, 'readonly').objectStore(storeName).get(id);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error);
+        });
+      }
+      async put(storeName, value) {
+        return this.transaction([storeName], 'readwrite', tx => tx.objectStore(storeName).put(value));
+      }
+      async putMany(recordsByStore) {
+        const names = Object.keys(recordsByStore);
+        if (!names.length) return;
+        return this.transaction(names, 'readwrite', tx => {
+          for (const [storeName, rows] of Object.entries(recordsByStore)) {
+            const store = tx.objectStore(storeName);
+            for (const row of rows) store.put(row);
+          }
+        });
+      }
+      async replaceStore(storeName, rows) {
+        return this.transaction([storeName], 'readwrite', tx => {
+          const store = tx.objectStore(storeName);
+          store.clear();
+          for (const row of rows) store.put(row);
+        });
+      }
+      async clearAll() {
+        return this.transaction([...LOCAL_STORES], 'readwrite', tx => {
+          for (const store of LOCAL_STORES) tx.objectStore(store).clear();
+        });
+      }
+      async snapshot() {
+        const tables = {};
+        for (const store of LOCAL_STORES) tables[store] = await this.getAll(store);
+        return tables;
+      }
+    }
+
+    const ConfigAdapter = Object.freeze({
+      key: 'accounting-ledger-config-v1',
+      load() {
+        try { return JSON.parse(localStorage.getItem(this.key) || '{}'); }
+        catch { return {}; }
+      },
+      save(next) {
+        const clean = { ...next };
+        if (Utils.isSecretKey(clean.supabaseKey)) throw new Error('SECRET_KEY_NOT_ALLOWED');
+        localStorage.setItem(this.key, JSON.stringify(clean));
+        return clean;
+      },
+      clear() { localStorage.removeItem(this.key); }
+    });
+
+    // 5. Remote adapter: Supabase Auth plus REST requests that always check response.ok
+    class SupabaseAdapter {
+      constructor() { this.client = null; this.module = null; }
+      isConfigured() { return Boolean(state.config.supabaseUrl && state.config.supabaseKey); }
+      async ensureClient() {
+        if (this.client) return this.client;
+        if (!this.isConfigured()) throw new Error('SUPABASE_NOT_CONFIGURED');
+        if (Utils.isSecretKey(state.config.supabaseKey)) throw new Error('SECRET_KEY_NOT_ALLOWED');
+        this.module = this.module || await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.2/+esm');
+        this.client = this.module.createClient(state.config.supabaseUrl, state.config.supabaseKey, {
+          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        });
+        return this.client;
+      }
+      resetClient() { this.client = null; }
+      async session() {
+        const client = await this.ensureClient();
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        return data.session;
+      }
+      async signIn() {
+        const client = await this.ensureClient();
+        const redirectTo = `${location.origin}${location.pathname}`;
+        const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+        if (error) throw error;
+      }
+      async signOut() {
+        const client = await this.ensureClient();
+        const { error } = await client.auth.signOut();
+        if (error) throw error;
+      }
+      async checkAllowed(session) {
+        const email = Utils.normalizeEmail(session?.user?.email);
+        if (!email) throw new Error('AUTH_EMAIL_MISSING');
+        const client = await this.ensureClient();
+        const { data, error } = await client.from('app_allowed_users').select('email,role,status,label').eq('email', email).maybeSingle();
+        if (error) throw error;
+        if (!data || data.status !== 'active') throw new Error('AUTH_EMAIL_NOT_ALLOWED');
+        return data;
+      }
+      async raw(path, { method = 'GET', body, prefer } = {}) {
+        const session = await this.session();
+        if (!session?.access_token) throw new Error('AUTH_REQUIRED');
+        const response = await fetch(`${state.config.supabaseUrl}/rest/v1/${path}`, {
+          method,
+          headers: {
+            apikey: state.config.supabaseKey,
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+            ...(prefer ? { Prefer: prefer } : {})
+          },
+          body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(`REMOTE_${response.status}:${detail.slice(0, 240)}`);
+        }
+        if (response.status === 204) return null;
+        const text = await response.text();
+        return text ? JSON.parse(text) : null;
+      }
+      async pullTable(table) {
+        const orderColumn = table === 'audit_logs' ? 'created_at' : 'updated_at';
+        return this.raw(`${table}?select=*&order=${orderColumn}.desc`);
+      }
+      async upsert(table, payload) {
+        const body = table === 'businesses' && state.session?.user?.id ? { ...payload, owner_user_id: state.session.user.id } : payload;
+        return this.raw(`${table}?on_conflict=id`, { method: 'POST', body: [body], prefer: 'resolution=merge-duplicates,return=minimal' });
+      }
+      async syncMeta() {
+        const rows = await this.raw('accounting_sync_meta?select=key,value,updated_at');
+        return Object.fromEntries((rows || []).map(row => [row.key, row]));
+      }
+    }
+
+    // 6. Application state and services
+    const storage = new IndexedDbAdapter();
+    const remote = new SupabaseAdapter();
+    const state = {
+      route: (location.hash || '#dashboard').slice(1),
+      config: { supabaseUrl: APP_INFO.supabaseProjectUrl, supabaseKey: '', cloudinaryCloud: '', cloudinaryPreset: '', canonicalVersion: 0, lastSyncAt: null, ...ConfigAdapter.load() },
+      business: null,
+      site: null,
+      accounts: [],
+      transactions: [],
+      counterparties: [],
+      journals: [],
+      journalLines: [],
+      auditLogs: [],
+      closings: [],
+      queue: [],
+      session: null,
+      allowedUser: null,
+      online: navigator.onLine,
+      syncStatus: 'idle',
+      syncError: null,
+      formType: 'expense',
+      filters: { query: '', type: 'all', year: 'all' },
+      ready: false
+    };
+
+    const AppService = Object.freeze({
+      async reload() {
+        const [businesses, sites, accounts, transactions, counterparties, journals, journalLines, auditLogs, closings, queue] = await Promise.all([
+          storage.getAll('businesses'), storage.getAll('business_sites'), storage.getAll('accounts'), storage.getAll('source_transactions'),
+          storage.getAll('counterparties'), storage.getAll('journal_entries'), storage.getAll('journal_entry_lines'), storage.getAll('audit_logs'),
+          storage.getAll('period_closings'), storage.getAll('sync_queue')
+        ]);
+        state.business = businesses.find(row => !row.deleted_at) || null;
+        state.site = sites.find(row => !row.deleted_at && (!state.business || row.business_id === state.business.id)) || null;
+        state.accounts = accounts;
+        state.transactions = transactions.sort((a,b) => String(b.transaction_date).localeCompare(String(a.transaction_date)) || String(b.updated_at).localeCompare(String(a.updated_at)));
+        state.counterparties = counterparties;
+        state.journals = journals;
+        state.journalLines = journalLines;
+        state.auditLogs = auditLogs;
+        state.closings = closings;
+        state.queue = queue.filter(row => row.status === 'pending' && !row.deleted_at);
+      },
+
+      async setupBusiness(input) {
+        const now = Utils.now();
+        const businessId = state.business?.id || Utils.uuid();
+        const siteId = state.site?.id || Utils.uuid();
+        const business = {
+          id: businessId,
+          owner_user_id: state.session?.user?.id || null,
+          business_type: input.businessType,
+          name: input.businessName.trim(),
+          registration_number: input.registrationNumber.replace(/\D/g, '') || null,
+          representative_name: input.representativeName.trim() || null,
+          tax_profile_status: input.vatPayerType === 'unconfirmed' ? 'draft' : 'confirmed',
+          created_at: state.business?.created_at || now,
+          updated_at: now,
+          deleted_at: null
+        };
+        const site = {
+          id: siteId,
+          business_id: businessId,
+          site_name: input.siteName.trim() || input.businessName.trim(),
+          address: input.address.trim() || null,
+          main_industry_code: input.industryCode.trim() || null,
+          main_industry_name: input.industryName.trim() || null,
+          opened_on: input.openedOn || null,
+          closed_on: null,
+          is_primary: true,
+          created_at: state.site?.created_at || now,
+          updated_at: now,
+          deleted_at: null
+        };
+        const period = {
+          id: state.business ? ((await storage.getAll('ledger_period_settings')).find(row => row.business_id === businessId)?.id || Utils.uuid()) : Utils.uuid(),
+          business_id: businessId,
+          ledger_start_year: Number(input.ledgerStartYear),
+          ledger_start_date: `${input.ledgerStartYear}-01-01`,
+          first_import_year: null,
+          opening_balance_date: null,
+          retroactive_import_enabled: true,
+          created_at: now,
+          updated_at: now,
+          deleted_at: null
+        };
+        const existingAccounts = state.accounts.filter(row => row.business_id === businessId && !row.deleted_at);
+        const accounts = [...existingAccounts];
+        for (const template of ACCOUNT_TEMPLATES) {
+          const found = accounts.find(row => row.account_code === template.account_code);
+          if (found) {
+            found.local_key = template.key;
+            found.local_explanation = template.explanation;
+            continue;
+          }
+          accounts.push({
+            id: Utils.uuid(), business_id: businessId, standard_account_id: null, account_code: template.account_code,
+            account_name: template.account_name, account_type: template.account_type, is_active: true,
+            local_key: template.key, local_explanation: template.explanation,
+            created_at: now, updated_at: now, deleted_at: null
+          });
+        }
+        const audit = this.audit('business', businessId, state.business ? 'update' : 'create', state.business, business, '사업자 설정 저장');
+        const changedAccounts = accounts.filter(row => !existingAccounts.some(existing => existing.id === row.id));
+        const queueRows = [this.queue('businesses', business), this.queue('business_sites', site), this.queue('ledger_period_settings', period), ...changedAccounts.map(row => this.queue('accounts', this.remoteSafeAccount(row)))];
+        await storage.putMany({ businesses: [business], business_sites: [site], ledger_period_settings: [period], accounts, audit_logs: [audit], sync_queue: queueRows });
+        state.config.vatPayerType = input.vatPayerType;
+        state.config.broadIndustry = input.broadIndustry;
+        ConfigAdapter.save(state.config);
+        await this.reload();
+      },
+
+      remoteSafeAccount(account) {
+        const { local_key, local_explanation, ...safe } = account;
+        return safe;
+      },
+
+      accountMap() {
+        const map = {};
+        for (const template of ACCOUNT_TEMPLATES) {
+          const account = state.accounts.find(row => row.local_key === template.key) || state.accounts.find(row => row.account_code === template.account_code);
+          if (account) map[template.key] = account;
+        }
+        return map;
+      },
+
+      async saveTransaction(input) {
+        if (!state.business) throw new Error('BUSINESS_REQUIRED');
+        const errors = AccountingDomain.validateTransaction(input);
+        if (Object.keys(errors).length) return { ok: false, errors };
+        const now = Utils.now();
+        const amounts = AccountingDomain.calculateAmounts(input.totalAmount, input.vatType);
+        let counterparty = state.counterparties.find(row => !row.deleted_at && row.name.trim().toLowerCase() === input.counterpartyName.trim().toLowerCase());
+        if (!counterparty && input.counterpartyName.trim()) {
+          counterparty = { id: Utils.uuid(), business_id: state.business.id, name: input.counterpartyName.trim(), registration_number: null, contact: null, memo: null, created_at: now, updated_at: now, deleted_at: null };
+        }
+        const reviewReasons = [];
+        const vatProfile = state.config.vatPayerType || 'unconfirmed';
+        if (!input.hasEvidence) reviewReasons.push('missing_evidence');
+        if (vatProfile === 'unconfirmed' && input.vatType === 'taxable') reviewReasons.push('tax_profile_unconfirmed');
+        if (input.vatType === 'taxable' && input.transactionType !== 'income') reviewReasons.push('vat_deduction_review');
+        if (input.vatType === 'taxable' && ['simplified', 'exempt', 'mixed'].includes(vatProfile)) reviewReasons.push('tax_profile_conflict');
+        const transaction = {
+          id: Utils.uuid(), business_id: state.business.id, business_site_id: state.site?.id || null,
+          transaction_date: input.transactionDate, recognition_date: input.transactionDate,
+          transaction_type: input.transactionType, description: input.description.trim(),
+          counterparty_id: counterparty?.id || null, account_id: input.accountId,
+          supply_amount: amounts.supplyAmount, vat_amount: amounts.vatAmount, total_amount: amounts.totalAmount,
+          vat_type: input.vatType, evidence_status: input.hasEvidence ? 'attached' : 'not_attached',
+          payment_status: input.paymentStatus, review_status: reviewReasons.length ? 'requires_review' : 'normal',
+          source_channel: 'manual', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion,
+          created_at: now, updated_at: now, deleted_at: null
+        };
+        const journal = {
+          id: Utils.uuid(), business_id: state.business.id, source_transaction_id: transaction.id,
+          entry_date: transaction.transaction_date, status: 'generated', generated_from: 'source_transaction',
+          posting_rule_version: APP_INFO.postingRuleVersion, memo: transaction.description,
+          created_at: now, updated_at: now, deleted_at: null
+        };
+        const lines = AccountingDomain.buildPosting(transaction, this.accountMap()).map(line => ({ ...line, journal_entry_id: journal.id }));
+        const validation = AccountingDomain.validateJournal(lines);
+        if (validation.status !== 'pass') throw new Error(`JOURNAL_UNBALANCED:${validation.difference}`);
+        const audit = this.audit('source_transaction', transaction.id, 'create', null, transaction, '직접 입력');
+        const queueRows = [
+          ...(counterparty && !state.counterparties.some(row => row.id === counterparty.id) ? [this.queue('counterparties', counterparty)] : []),
+          this.queue('source_transactions', transaction), this.queue('journal_entries', journal),
+          ...lines.map(row => this.queue('journal_entry_lines', row)), this.queue('audit_logs', audit)
+        ];
+        await storage.putMany({
+          ...(counterparty ? { counterparties: [counterparty] } : {}),
+          source_transactions: [transaction], journal_entries: [journal], journal_entry_lines: lines,
+          audit_logs: [audit], sync_queue: queueRows
+        });
+        await this.reload();
+        return { ok: true, transaction, journal, lines, validation };
+      },
+
+      audit(entityType, entityId, action, beforeData, afterData, reason) {
+        return { id: Utils.uuid(), business_id: state.business?.id || afterData?.business_id || null, actor_user_id: state.session?.user?.id || null, entity_type: entityType, entity_id: entityId, action, before_data: beforeData, after_data: afterData, reason, created_at: Utils.now() };
+      },
+
+      queue(entityType, payload) {
+        const now = Utils.now();
+        return { id: Utils.uuid(), entity_type: entityType, entity_id: payload.id, operation: 'upsert', payload, status: 'pending', retry_count: 0, last_error: null, created_at: now, updated_at: now, deleted_at: null };
+      },
+
+      async exportBackup() {
+        const tables = await storage.snapshot();
+        return {
+          backupSchemaVersion: APP_INFO.backupSchemaVersion,
+          appVersion: APP_INFO.version,
+          schemaVersion: APP_INFO.schemaVersion,
+          createdAt: Utils.now(),
+          deviceId: this.deviceId(),
+          canonicalVersion: Number(state.config.canonicalVersion || 0),
+          tables,
+          warnings: ['이 파일에는 거래처와 세무자료가 포함될 수 있습니다. 공개 저장소나 공유 폴더에 올리지 마세요.']
+        };
+      },
+
+      async restoreBackup(backup) {
+        if (!backup || backup.backupSchemaVersion !== APP_INFO.backupSchemaVersion || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
+        const recordsByStore = {};
+        for (const store of LOCAL_STORES) {
+          const rows = backup.tables[store];
+          if (rows !== undefined && !Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
+          recordsByStore[store] = rows || [];
+        }
+        for (const store of LOCAL_STORES) await storage.replaceStore(store, recordsByStore[store]);
+        state.config.canonicalVersion = Number(backup.canonicalVersion || 0);
+        ConfigAdapter.save(state.config);
+        await this.reload();
+      },
+
+      deviceId() {
+        if (!state.config.deviceId) {
+          state.config.deviceId = Utils.uuid();
+          ConfigAdapter.save(state.config);
+        }
+        return state.config.deviceId;
+      }
+    });
+
+    const SyncService = Object.freeze({
+      async initializeAuth() {
+        if (!remote.isConfigured()) return;
+        try {
+          state.session = await remote.session();
+          if (state.session) state.allowedUser = await remote.checkAllowed(state.session);
+        } catch (error) {
+          state.syncError = error.message;
+          if (error.message === 'AUTH_EMAIL_NOT_ALLOWED') {
+            try { await remote.signOut(); } catch { /* keep original denial */ }
+            state.session = null;
+            state.allowedUser = null;
+          }
+        }
+      },
+
+      async connectAndSync() {
+        if (!remote.isConfigured()) throw new Error('SUPABASE_NOT_CONFIGURED');
+        state.syncStatus = 'syncing'; renderShellStatus();
+        state.session = await remote.session();
+        if (!state.session) throw new Error('AUTH_REQUIRED');
+        state.allowedUser = await remote.checkAllowed(state.session);
+        await this.syncNow();
+      },
+
+      async syncNow() {
+        if (!state.session) throw new Error('AUTH_REQUIRED');
+        state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
+        try {
+          const meta = await remote.syncMeta();
+          const cloudCanonical = Number(meta.canonical_version?.value || 0);
+          const localCanonical = Number(state.config.canonicalVersion || 0);
+          if (cloudCanonical > localCanonical) {
+            for (const table of SYNC_TABLE_ORDER) await storage.replaceStore(table, await remote.pullTable(table));
+            const pending = await storage.getAll('sync_queue');
+            const completedAt = Utils.now();
+            await storage.replaceStore('sync_queue', pending.map(row => ({ ...row, status: 'superseded_by_canonical', updated_at: completedAt })));
+            state.config.canonicalVersion = cloudCanonical;
+          } else {
+            const queue = (await storage.getAll('sync_queue')).filter(row => row.status === 'pending' && !row.deleted_at);
+            queue.sort((a,b) => SYNC_TABLE_ORDER.indexOf(a.entity_type) - SYNC_TABLE_ORDER.indexOf(b.entity_type));
+            for (const item of queue) {
+              try {
+                const payload = item.entity_type === 'accounts' ? AppService.remoteSafeAccount(item.payload) : item.payload;
+                await remote.upsert(item.entity_type, payload);
+                await storage.put('sync_queue', { ...item, status: 'complete', updated_at: Utils.now(), last_error: null });
+              } catch (error) {
+                await storage.put('sync_queue', { ...item, retry_count: Number(item.retry_count || 0) + 1, last_error: error.message, updated_at: Utils.now() });
+                throw error;
+              }
+            }
+            for (const table of SYNC_TABLE_ORDER) {
+              const [localRows, cloudRows] = await Promise.all([storage.getAll(table), remote.pullTable(table)]);
+              const merged = new Map(localRows.map(row => [row.id, row]));
+              for (const remoteRow of cloudRows) merged.set(remoteRow.id, Utils.latestByUpdatedAt(merged.get(remoteRow.id), remoteRow));
+              await storage.replaceStore(table, [...merged.values()]);
+            }
+          }
+          state.config.lastSyncAt = Utils.now();
+          state.config.canonicalVersion = cloudCanonical;
+          ConfigAdapter.save(state.config);
+          state.syncStatus = 'complete';
+          await AppService.reload();
+        } catch (error) {
+          state.syncStatus = 'error'; state.syncError = error.message; throw error;
+        } finally {
+          renderShellStatus();
+        }
+      }
+    });
+
+    // 7. View formatters and renderers
+    const el = id => document.getElementById(id);
+    const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+    const term = name => `<button type="button" class="term-button" data-term="${Utils.escape(name)}">${Utils.escape(name)}</button>`;
+    const badge = (text, kind = '') => `<span class="badge ${kind}">${Utils.escape(text)}</span>`;
+    const currentYear = new Date().getFullYear();
+
+    function refreshIcons() { try { window.lucide?.createIcons({ attrs: { 'stroke-width': 1.8 } }); } catch { /* labels remain visible */ } }
+    function routeTo(route) { location.hash = route; }
+    function activeTransactions() { return state.transactions.filter(row => !row.deleted_at); }
+    function counterpartyName(id) { return state.counterparties.find(row => row.id === id)?.name || '-'; }
+    function accountName(id) { return state.accounts.find(row => row.id === id)?.account_name || '미분류'; }
+    function transactionLabel(type) { return ({ income:'수입', expense:'비용', asset_purchase:'자산구입' }[type] || type); }
+    function errorMessage(error) {
+      const code = String(error?.message || error);
+      if (code.includes('SUPABASE_NOT_CONFIGURED')) return 'Supabase URL과 publishable key를 먼저 설정해 주세요.';
+      if (code.includes('AUTH_REQUIRED')) return 'Google 로그인이 필요합니다.';
+      if (code.includes('AUTH_EMAIL_NOT_ALLOWED')) return '허용되지 않은 Google 계정입니다. owner가 허용 목록에 추가해야 합니다.';
+      if (code.includes('SECRET_KEY_NOT_ALLOWED')) return '비밀키 또는 service role 형태의 키는 이 앱에 저장할 수 없습니다.';
+      if (code.includes('BUSINESS_REQUIRED')) return '사업자 정보를 먼저 설정해 주세요.';
+      if (code.includes('JOURNAL_UNBALANCED')) return '차변과 대변이 맞지 않아 거래를 저장하지 않았습니다.';
+      if (code.includes('BACKUP_')) return '백업 파일 구조를 확인할 수 없어 복원하지 않았습니다.';
+      return '작업을 완료하지 못했습니다. 개발 기록의 진단 정보를 확인해 주세요.';
+    }
+
+    function renderNav() {
+      let lastGroup = '';
+      el('mainNav').innerHTML = NAV_ITEMS.map(item => {
+        const group = item.group !== lastGroup ? `<div class="nav-group-label">${item.group}</div>` : '';
+        lastGroup = item.group;
+        return `${group}<button type="button" class="nav-button ${state.route === item.id ? 'active' : ''}" data-route="${item.id}">${icon(item.icon)}<span>${item.label}</span></button>`;
+      }).join('');
+      el('sidebarVersion').textContent = `v${APP_INFO.version}`;
+      refreshIcons();
+    }
+
+    function renderShellStatus() {
+      const configured = remote.isConfigured();
+      const connected = Boolean(state.session && state.allowedUser);
+      const pending = state.queue.length;
+      let label = !state.online ? '오프라인 · 로컬 저장' : !configured ? '로컬 전용' : !connected ? '로그인 필요' : state.syncStatus === 'syncing' ? '동기화 중' : pending ? `대기 ${pending}건` : '동기화 완료';
+      let kind = !state.online ? 'offline' : state.syncStatus === 'error' ? 'error' : connected ? 'online' : '';
+      el('syncLabel').textContent = label;
+      el('syncDot').className = `status-dot ${kind}`;
+      el('sidebarStatusText').textContent = state.ready ? `IndexedDB 저장 · 대기 ${pending}건` : '로컬 저장 준비 중';
+      el('sidebarStatusDot').className = `status-dot ${state.ready ? (state.online ? 'online' : 'offline') : ''}`;
+      el('topbarContext').textContent = state.business ? `${state.business.name} · ${state.site?.main_industry_name || '업종 미확인'}` : '사업자 설정을 확인하세요';
+    }
+
+    function pageHeader(title, subtitle, actions = '') {
+      return `<div class="page-header"><div><h1 class="page-title">${title}</h1><p class="page-subtitle">${subtitle}</p></div>${actions ? `<div class="inline-actions">${actions}</div>` : ''}</div>`;
+    }
+
+    function renderDashboard() {
+      const rows = activeTransactions();
+      const month = Utils.today().slice(0,7);
+      const monthly = rows.filter(row => row.transaction_date.startsWith(month));
+      const summary = AccountingDomain.summarize(monthly);
+      const allSummary = AccountingDomain.summarize(rows);
+      const recent = rows.slice(0, 6);
+      const tasks = [
+        !state.business && ['사업자 정보를 등록하세요', '장부 시작연도와 업종을 먼저 설정합니다.', 'settings', '필수'],
+        allSummary.missingEvidence > 0 && [`증빙 미첨부 ${allSummary.missingEvidence}건`, '이미지·PDF 업로드는 Cloudinary 설정 후 연결됩니다.', 'evidence', '확인'],
+        state.queue.length > 0 && [`동기화 대기 ${state.queue.length}건`, state.session ? '지금 동기화할 수 있습니다.' : 'Google 로그인 후 클라우드에 반영됩니다.', 'settings', '대기'],
+        !state.config.lastBackupAt && ['첫 JSON 백업을 만드세요', '로컬 데이터의 별도 복구 파일을 준비합니다.', 'settings', '권장'],
+        !state.config.vatPayerType || state.config.vatPayerType === 'unconfirmed' ? ['과세유형 확인이 필요합니다', '현재 VAT 계산은 검토 후보로 표시됩니다.', 'settings', '세무'] : null
+      ].filter(Boolean);
+      return `
+        ${pageHeader('대시보드', '입력, 증빙, 검토, 동기화 상태를 한눈에 확인합니다.', `<button class="button primary" type="button" data-route="transactions">${icon('plus')}새 거래</button>`)}
+        ${!state.online ? `<div class="notice">${icon('wifi-off')}<div><strong>오프라인입니다.</strong><br>거래는 이 기기에 계속 저장되며, 인터넷 연결 후 동기화할 수 있습니다.</div></div>` : ''}
+        <div class="metric-grid">
+          <div class="metric-card"><div class="metric-head"><span class="metric-label">이번 달 수입</span><span class="metric-icon">${icon('trending-up')}</span></div><div class="metric-value">${Utils.won(summary.income)}</div><div class="metric-foot">${monthly.filter(r=>r.transaction_type==='income').length}건 입력</div></div>
+          <div class="metric-card"><div class="metric-head"><span class="metric-label">이번 달 비용</span><span class="metric-icon warm">${icon('trending-down')}</span></div><div class="metric-value">${Utils.won(summary.expense)}</div><div class="metric-foot">${monthly.filter(r=>r.transaction_type==='expense').length}건 입력</div></div>
+          <div class="metric-card"><div class="metric-head"><span class="metric-label">미첨부 증빙</span><span class="metric-icon warm">${icon('paperclip')}</span></div><div class="metric-value">${allSummary.missingEvidence}건</div><div class="metric-foot">전체 거래 기준</div></div>
+          <div class="metric-card"><div class="metric-head"><span class="metric-label">동기화 대기</span><span class="metric-icon">${icon('refresh-cw')}</span></div><div class="metric-value">${state.queue.length}건</div><div class="metric-foot">canonical v${Number(state.config.canonicalVersion || 0)}</div></div>
+        </div>
+        <div class="layout-two">
+          <section class="panel card-panel">
+            <div class="panel-head"><div><h2 class="section-title">최근 거래</h2><p class="section-help">원천거래 기준으로 표시합니다.</p></div><button class="button small" type="button" data-route="ledger">장부 보기</button></div>
+            ${recent.length ? `<div class="activity-list">${recent.map(row => `<div class="activity-row"><span class="metric-icon ${row.transaction_type==='income'?'':'warm'}">${icon(row.transaction_type==='income'?'arrow-down-left':'arrow-up-right')}</span><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))} · ${Utils.escape(accountName(row.account_id))}</div></div><div class="${row.transaction_type==='income'?'amount-positive':'amount-negative'}">${row.transaction_type==='income'?'+':'-'}${Utils.won(row.total_amount)}</div></div>`).join('')}</div>` : emptyState('receipt-text','아직 입력한 거래가 없습니다','첫 거래를 입력하면 원천거래와 복식 전표가 함께 만들어집니다.')}
+          </section>
+          <section class="panel card-panel">
+            <div class="panel-head"><div><h2 class="section-title">지금 확인할 일</h2><p class="section-help">신고 전까지 남은 작업을 숨기지 않습니다.</p></div></div>
+            ${tasks.length ? `<div class="task-list">${tasks.map(task => `<div class="task-row"><div class="task-main"><div class="task-title">${Utils.escape(task[0])}</div><div class="task-note">${Utils.escape(task[1])}</div></div>${badge(task[3], task[3]==='필수'?'danger':'warning')}<button class="icon-button" type="button" data-route="${task[2]}" title="이동" aria-label="${Utils.escape(task[0])}로 이동">${icon('chevron-right')}</button></div>`).join('')}</div>` : `<div class="notice info">${icon('circle-check')}<div>현재 즉시 확인할 항목이 없습니다.</div></div>`}
+          </section>
+        </div>`;
+    }
+
+    function renderTransactionForm() {
+      if (!state.business) return `${pageHeader('거래 입력','먼저 사업자 정보를 설정해야 원천거래와 전표를 연결할 수 있습니다.')}<div class="notice">${icon('triangle-alert')}<div>사업자 설정이 필요합니다.</div></div><button class="button primary" type="button" data-route="settings">사업자 설정 열기</button>`;
+      const choices = AccountingDomain.accountChoices(state.accounts, state.formType);
+      return `
+        ${pageHeader('거래 입력', `쉽게 입력한 한 건을 ${term('원천거래')}와 ${term('복식부기')} 전표로 함께 저장합니다.`)}
+        <form id="transactionForm" class="panel card-panel" novalidate>
+          <div class="field full"><span class="field-label required">거래 유형</span><div class="segmented" role="group" aria-label="거래 유형">${[['income','수입'],['expense','비용'],['asset_purchase','자산구입']].map(([value,label])=>`<button class="segment ${state.formType===value?'active':''}" type="button" data-transaction-type="${value}" aria-pressed="${state.formType===value}">${label}</button>`).join('')}</div></div>
+          <div class="form-grid" style="margin-top:16px">
+            <div class="field third"><label class="required" for="transactionDate">거래일</label><input class="input" id="transactionDate" name="transactionDate" type="date" min="2025-01-01" value="${Utils.today()}"><div class="field-error" data-error="transactionDate"></div></div>
+            <div class="field third"><label for="counterpartyName">거래처</label><input class="input" id="counterpartyName" name="counterpartyName" maxlength="80" autocomplete="organization" placeholder="예: 한빛문구"></div>
+            <div class="field third"><label class="required" for="accountId">${term('계정과목')}</label><select class="select" id="accountId" name="accountId"><option value="">선택하세요</option>${choices.map(row=>`<option value="${row.id}">${Utils.escape(row.account_name)}</option>`).join('')}</select><div class="field-error" data-error="accountId"></div></div>
+            <div class="field full"><label class="required" for="description">거래 내용</label><input class="input" id="description" name="description" maxlength="160" placeholder="무엇을 사고팔았는지 적어주세요"><div class="field-error" data-error="description"></div></div>
+            <div class="field third"><label class="required" for="totalAmount">총 금액</label><div class="money-wrap"><input class="input" id="totalAmount" name="totalAmount" inputmode="numeric" autocomplete="off" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-error="totalAmount"></div></div>
+            <div class="field third"><label for="vatType">부가세 처리 후보</label><select class="select" id="vatType" name="vatType"><option value="taxable">과세(총액에서 분리)</option><option value="exempt">면세</option><option value="none">부가세 없음/검토</option></select><div class="field-help">증빙에 세액이 따로 적혀 있다면 그 금액이 우선합니다.</div></div>
+            <div class="field third"><label for="paymentStatus">결제 상태</label><select class="select" id="paymentStatus" name="paymentStatus"><option value="paid">받음/지급 완료</option><option value="unpaid">외상·미지급</option></select></div>
+            <div class="field full"><label class="checkbox-row"><input type="checkbox" id="hasEvidence" name="hasEvidence"><span>증빙을 이미 보관하고 있습니다.<br><span class="field-help">파일 첨부 연결은 Cloudinary 설정 후 제공됩니다. 지금은 보관 여부만 기록합니다.</span></span></label></div>
+          </div>
+          <div class="calc-strip" aria-live="polite"><div class="calc-item"><div class="calc-label">${term('공급가액')}</div><div class="calc-value" id="supplyPreview">0원</div></div><div class="calc-item"><div class="calc-label">${term('부가세')}</div><div class="calc-value" id="vatPreview">0원</div></div><div class="calc-item"><div class="calc-label">합계</div><div class="calc-value" id="totalPreview">0원</div></div></div>
+          <div class="form-actions"><button class="button" type="reset">초기화</button><button class="button primary" type="submit">${icon('save')}거래와 전표 저장</button></div>
+        </form>`;
+    }
+
+    function filteredTransactions() {
+      const query = state.filters.query.toLowerCase();
+      return activeTransactions().filter(row => {
+        const matchesType = state.filters.type === 'all' || row.transaction_type === state.filters.type;
+        const matchesYear = state.filters.year === 'all' || row.transaction_date.startsWith(state.filters.year);
+        const matchesQuery = !query || row.description.toLowerCase().includes(query) || counterpartyName(row.counterparty_id).toLowerCase().includes(query) || accountName(row.account_id).toLowerCase().includes(query);
+        return matchesType && matchesYear && matchesQuery;
+      });
+    }
+
+    function renderLedger() {
+      const rows = filteredTransactions();
+      const years = [...new Set(activeTransactions().map(row => row.transaction_date.slice(0,4)))].sort().reverse();
+      return `
+        ${pageHeader('장부', `국세청 간편장부 열 구조로 보는 원천거래입니다. 내부 기준은 ${term('복식부기')} 원장입니다.`, `<button class="button primary" type="button" data-route="transactions">${icon('plus')}거래 입력</button>`)}
+        <div class="filter-bar"><input class="input" id="ledgerQuery" type="search" placeholder="내용·거래처 검색" value="${Utils.escape(state.filters.query)}"><select class="select" id="ledgerType"><option value="all">전체 유형</option><option value="income" ${state.filters.type==='income'?'selected':''}>수입</option><option value="expense" ${state.filters.type==='expense'?'selected':''}>비용</option><option value="asset_purchase" ${state.filters.type==='asset_purchase'?'selected':''}>자산</option></select><select class="select" id="ledgerYear"><option value="all">전체 연도</option>${years.map(year=>`<option value="${year}" ${state.filters.year===year?'selected':''}>${year}년</option>`).join('')}</select></div>
+        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${rows.length?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>`;
+    }
+
+    function renderJournals() {
+      const rows = state.journals.filter(row => !row.deleted_at).sort((a,b)=>String(b.entry_date).localeCompare(String(a.entry_date)));
+      return `
+        ${pageHeader('전표 검토', `${term('차변')}과 ${term('대변')}이 같은지 확인합니다.`)}
+        ${rows.length ? rows.map(journal => {
+          const lines = state.journalLines.filter(line => line.journal_entry_id === journal.id && !line.deleted_at).sort((a,b)=>a.sort_order-b.sort_order);
+          const result = AccountingDomain.validateJournal(lines);
+          return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">${journal.entry_date} · ${Utils.escape(journal.memo || '전표')}</h2><p class="section-help">규칙 ${Utils.escape(journal.posting_rule_version)} · 원천거래 ${journal.source_transaction_id.slice(0,8)}</p></div>${result.status==='pass'?badge('차대변 일치','success'):badge(`차액 ${Utils.won(result.difference)}`,'danger')}</div><div class="table-wrap"><table style="min-width:620px"><thead><tr><th>계정과목</th><th>설명</th><th class="number">차변</th><th class="number">대변</th></tr></thead><tbody>${lines.map(line=>`<tr><td>${Utils.escape(accountName(line.account_id))}</td><td>${Utils.escape(line.line_memo || '')}</td><td class="number">${line.debit_amount?Utils.won(line.debit_amount):''}</td><td class="number">${line.credit_amount?Utils.won(line.credit_amount):''}</td></tr>`).join('')}</tbody><tfoot><tr><th colspan="2">합계</th><th class="number">${Utils.won(result.debit)}</th><th class="number">${Utils.won(result.credit)}</th></tr></tfoot></table></div></section>`;
+        }).join('') : emptyState('scale','검토할 전표가 없습니다','거래를 저장하면 자동으로 복식 전표가 만들어집니다.')}`;
+    }
+
+    function renderEvidence() {
+      const missing = activeTransactions().filter(row => row.evidence_status !== 'attached');
+      return `${pageHeader('증빙','이미지와 PDF 원본은 Cloudinary에, 파일 메타는 장부와 Supabase에 연결할 예정입니다.')}
+        <div class="notice info">${icon('info')}<div><strong>0.01에서는 증빙 보관 여부와 누락 목록을 먼저 제공합니다.</strong><br>실제 파일 업로드는 Cloudinary cloud name과 제한된 unsigned preset 검증을 마친 다음 활성화됩니다.</div></div>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">증빙이 필요한 거래</h2><p class="section-help">파일이 없다고 거래를 삭제하지 않고 검토 항목으로 남깁니다.</p></div>${badge(`${missing.length}건`, missing.length?'warning':'success')}</div>${missing.length?`<div class="activity-list">${missing.map(row=>`<div class="activity-row"><span class="metric-icon warm">${icon('paperclip')}</span><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))}</div></div><strong>${Utils.won(row.total_amount)}</strong></div>`).join('')}</div>`:emptyState('circle-check','미첨부 거래가 없습니다','현재 입력된 거래의 증빙 보관 여부가 모두 확인되었습니다.')}</section>`;
+    }
+
+    function renderImports() {
+      return `${pageHeader('가져오기','국세청 간편장부 Excel을 내부 복식 원장으로 옮기는 작업 공간입니다.')}
+        <div class="notice">${icon('construction')}<div><strong>구조 검증 단계입니다.</strong><br>원본 파일 보존, 행별 미리보기, 중복 탐지, 사용자 확인 없이 전표를 확정하지 않는 흐름으로 구현됩니다.</div></div>
+        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">국세청 간편장부 Excel</span>${badge('다음 단계','info')}</div><div class="status-item-body"><code>장부</code> 시트 4행부터 A:L 열을 읽고 수입·비용·자산 후보를 나눕니다.</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">은행·카드·PG 자료</span>${badge('보류')}</div><div class="status-item-body">자동 연동은 V1 후속 범위입니다. 메뉴와 데이터 계약만 열어둡니다.</div></div></div>`;
+    }
+
+    function renderReports() {
+      const summary = AccountingDomain.summarize(activeTransactions());
+      const legalReady = false;
+      return `${pageHeader('리포트','검토용 집계와 법정 신고서식 출력을 명확히 구분합니다.')}
+        <div class="metric-grid"><div class="metric-card"><div class="metric-label">누적 수입</div><div class="metric-value">${Utils.won(summary.income)}</div></div><div class="metric-card"><div class="metric-label">누적 비용</div><div class="metric-value">${Utils.won(summary.expense)}</div></div><div class="metric-card"><div class="metric-label">사업용 자산</div><div class="metric-value">${Utils.won(summary.assets)}</div></div><div class="metric-card"><div class="metric-label">검토 필요</div><div class="metric-value">${summary.review}건</div></div></div>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">법정 신고서식</h2><p class="section-help">국가법령정보센터의 최신 서식 스냅샷과 필드 매핑이 있어야 확정 출력할 수 있습니다.</p></div>${badge(legalReady?'출력 가능':'출력 차단',legalReady?'success':'danger')}</div><div class="notice danger">${icon('shield-alert')}<div>현재 앱에는 검증된 <code>form_snapshot_id</code>가 연결되지 않았습니다. 간편장부소득금액계산서와 필요경비명세서는 확정 신고서식으로 출력하지 않습니다.</div></div><button class="button" type="button" disabled>${icon('download')}법정서식 내보내기</button></section>`;
+    }
+
+    function renderClosing() {
+      const year = Utils.today().slice(0,4);
+      const closed = state.closings.filter(row=>!row.deleted_at);
+      return `${pageHeader('마감','기간을 잠그기 전에 전표, 증빙, VAT 검토 항목을 확인합니다.')}
+        <div class="notice">${icon('lock-keyhole')}<div><strong>0.01은 마감 준비 상태를 표시합니다.</strong><br>마감 후 수정 통제와 재개방 감사로그가 완성되기 전에는 실제 잠금 버튼을 활성화하지 않습니다.</div></div>
+        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">${year}년 장부</span>${badge(closed.some(row=>row.period_start.startsWith(year))?'마감 기록 있음':'열림','info')}</div><div class="status-item-body">거래 ${activeTransactions().filter(row=>row.transaction_date.startsWith(year)).length}건 · 검토 필요 ${AccountingDomain.summarize(activeTransactions().filter(row=>row.transaction_date.startsWith(year))).review}건</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">신고 준비</span>${badge('검토 필요','warning')}</div><div class="status-item-body">법정서식 스냅샷과 증빙 누락을 먼저 확인해야 합니다.</div></div></div>`;
+    }
+
+    function renderSettings() {
+      const b = state.business || {};
+      const s = state.site || {};
+      return `${pageHeader('설정','사업자 정보, 과세유형 후보, 클라우드 연결, 백업을 관리합니다.')}
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">사업자 기본정보</h2><p class="section-help">큰 업종에서 시작해 공식 업종코드와 세부 조건으로 좁혀갑니다.</p></div></div>
+          <form id="businessForm" class="form-grid" novalidate>
+            <div class="field third"><label class="required" for="businessType">사업자 주체</label><select class="select" id="businessType"><option value="individual" ${b.business_type==='individual'?'selected':''}>개인사업자</option><option value="freelancer" ${b.business_type==='freelancer'?'selected':''}>프리랜서형 개인</option><option value="corporation" ${b.business_type==='corporation'?'selected':''}>법인사업자(확장 준비)</option></select></div>
+            <div class="field third"><label class="required" for="businessName">상호 또는 장부 이름</label><input class="input" id="businessName" value="${Utils.escape(b.name || '')}" placeholder="예: 부건 자문"></div>
+            <div class="field third"><label for="representativeName">대표자명</label><input class="input" id="representativeName" value="${Utils.escape(b.representative_name || '')}"></div>
+            <div class="field third"><label for="registrationNumber">사업자등록번호</label><input class="input" id="registrationNumber" inputmode="numeric" maxlength="12" value="${Utils.escape(b.registration_number || '')}" placeholder="숫자 10자리"></div>
+            <div class="field third"><label for="siteName">사업장 이름</label><input class="input" id="siteName" value="${Utils.escape(s.site_name || '')}"></div>
+            <div class="field third"><label for="openedOn">개업일</label><input class="input" id="openedOn" type="date" value="${Utils.escape(s.opened_on || '')}"></div>
+            <div class="field third"><label for="broadIndustry">큰 업종</label><select class="select" id="broadIndustry"><option value="">선택하세요</option>${['의료','자문·전문직','프리랜서','농업·임업·어업','크리에이터','도소매','제조','부동산','교육·강의','기타 서비스'].map(value=>`<option value="${value}" ${state.config.broadIndustry===value?'selected':''}>${value}</option>`).join('')}</select></div>
+            <div class="field third"><label for="industryCode">국세청 업종코드</label><input class="input" id="industryCode" inputmode="numeric" maxlength="6" value="${Utils.escape(s.main_industry_code || '')}" placeholder="공식 6자리 코드"><div class="field-help">연도별 공식 코드 확인 전에는 후보로 저장됩니다.</div></div>
+            <div class="field third"><label for="industryName">업종명</label><input class="input" id="industryName" value="${Utils.escape(s.main_industry_name || '')}" placeholder="예: 경영 컨설팅업"></div>
+            <div class="field third"><label for="vatPayerType">과세유형 확인값</label><select class="select" id="vatPayerType"><option value="unconfirmed">미확인</option><option value="general" ${state.config.vatPayerType==='general'?'selected':''}>일반과세</option><option value="simplified" ${state.config.vatPayerType==='simplified'?'selected':''}>간이과세</option><option value="exempt" ${state.config.vatPayerType==='exempt'?'selected':''}>면세사업</option><option value="mixed" ${state.config.vatPayerType==='mixed'?'selected':''}>과세·면세 겸영</option></select></div>
+            <div class="field third"><label for="ledgerStartYear">장부 시작연도</label><select class="select" id="ledgerStartYear"><option value="2025">2025년</option><option value="2026" ${state.config.ledgerStartYear==='2026'?'selected':''}>2026년</option></select></div>
+            <div class="field full"><label for="address">사업장 주소</label><input class="input" id="address" value="${Utils.escape(s.address || '')}"></div>
+            <div class="field full"><div class="form-actions"><button class="button primary" type="submit">${icon('save')}사업자 정보 저장</button></div></div>
+          </form>
+        </section>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">Supabase 및 Google 로그인</h2><p class="section-help">publishable key만 저장할 수 있습니다. RLS가 실제 데이터 접근을 통제합니다.</p></div>${state.session?badge(Utils.normalizeEmail(state.session.user.email),'success'):badge('로그아웃')}</div>
+          <form id="supabaseForm" class="form-grid"><div class="field"><label for="supabaseUrl">Project URL</label><input class="input" id="supabaseUrl" type="url" value="${Utils.escape(state.config.supabaseUrl)}"></div><div class="field"><label for="supabaseKey">Publishable key</label><input class="input" id="supabaseKey" type="password" autocomplete="off" value="${Utils.escape(state.config.supabaseKey || '')}" placeholder="sb_publishable_..."><div class="field-help">service role, secret key, OAuth client secret은 입력하지 마세요.</div></div><div class="field full"><div class="form-actions"><button class="button" id="saveSupabaseButton" type="submit">설정 저장</button>${state.session?`<button class="button danger" id="logoutButton" type="button">${icon('log-out')}로그아웃</button><button class="button primary" id="syncNowButton" type="button">${icon('refresh-cw')}지금 동기화</button>`:`<button class="button primary" id="googleLoginButton" type="button">${icon('log-in')}Google로 로그인</button>`}</div></div></form>
+        </section>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">백업과 복원</h2><p class="section-help">암호화되지 않은 JSON 파일이므로 안전한 위치에 보관하세요.</p></div>${state.config.lastBackupAt?badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'),'success'):badge('백업 없음','warning')}</div><div class="inline-actions"><button class="button" id="backupButton" type="button">${icon('download')}JSON 백업</button><button class="button" id="restoreButton" type="button">${icon('upload')}JSON 복원</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div></section>`;
+    }
+
+    function renderDeveloper() {
+      const statusText = { implemented:'구현', manual_only:'부분/수동', planned:'계획', blocked:'차단' };
+      const statusKind = { implemented:'success', manual_only:'warning', planned:'', blocked:'danger' };
+      const registry = [...DOMAIN_GUARDIANS, ...ARCH_GUARDIANS, ...GOVERNANCE_AGENTS];
+      return `${pageHeader('개발 기록','앱 버전, 저장소 계약, Guardian의 실제 구현 상태를 확인합니다.')}
+        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">앱 버전</span>${badge(`v${APP_INFO.version}`,'info')}</div><div class="status-item-body">DB schema ${APP_INFO.schemaVersion} · Backup ${APP_INFO.backupSchemaVersion} · Posting ${APP_INFO.postingRuleVersion}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">로컬 저장소</span>${badge(state.ready?'정상':'확인 필요',state.ready?'success':'danger')}</div><div class="status-item-body">IndexedDB <code>${storage.name}</code> · ${LOCAL_STORES.length} stores</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">동기화</span>${badge(state.syncStatus,state.syncStatus==='error'?'danger':'info')}</div><div class="status-item-body">canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건${state.syncError?`<br>진단: ${Utils.escape(state.syncError.slice(0,180))}`:''}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">릴리스 기록</span>${badge(UPDATE_HISTORY[0].label,'success')}</div><div class="status-item-body">${UPDATE_HISTORY[0].date} · ${Utils.escape(UPDATE_HISTORY[0].detail)}</div></div></div>
+        <section class="panel"><div class="panel-head"><div><h2 class="section-title">Guardian 레지스트리</h2><p class="section-help">설계 목록과 실제 구현 상태를 구분합니다. 표시 자체가 테스트 통과를 뜻하지는 않습니다.</p></div>${badge(`${registry.length}개`)}</div><div class="developer-grid">${registry.map(([id,name,status,role])=>`<article class="guardian-item"><div class="guardian-head"><div class="guardian-name">${Utils.escape(name)}</div>${badge(statusText[status],statusKind[status])}</div><div class="guardian-role">${Utils.escape(role)}<br><code>${id}</code></div></article>`).join('')}</div></section>`;
+    }
+
+    function emptyState(iconName, title, note) { return `<div class="empty-state">${icon(iconName)}<div class="empty-title">${title}</div><div class="empty-note">${note}</div></div>`; }
+
+    function render() {
+      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper };
+      if (!renderers[state.route]) state.route = 'dashboard';
+      const item = NAV_ITEMS.find(nav => nav.id === state.route);
+      el('topbarTitle').textContent = item?.label || '대시보드';
+      el('app').innerHTML = renderers[state.route]();
+      renderNav(); renderShellStatus(); bindViewEvents(); refreshIcons();
+      el('app').focus({ preventScroll: true });
+    }
+
+    // 8. UI event layer delegates to services and domain functions
+    function bindViewEvents() {
+      document.querySelectorAll('[data-route]').forEach(button => button.addEventListener('click', () => routeTo(button.dataset.route)));
+      document.querySelectorAll('[data-term]').forEach(button => button.addEventListener('click', event => showTerm(event.currentTarget.dataset.term, event.currentTarget)));
+      document.querySelectorAll('[data-account-id]').forEach(button => button.addEventListener('click', event => {
+        const account = state.accounts.find(row => row.id === event.currentTarget.dataset.accountId);
+        showTooltip(account?.local_explanation || '국세청 용어와 신고 항목을 기준으로 사용하는 계정과목입니다.', event.currentTarget);
+      }));
+
+      document.querySelectorAll('[data-transaction-type]').forEach(button => button.addEventListener('click', () => { state.formType = button.dataset.transactionType; render(); }));
+      const transactionForm = el('transactionForm');
+      if (transactionForm) {
+        const preview = () => {
+          const amounts = AccountingDomain.calculateAmounts(el('totalAmount').value, el('vatType').value);
+          el('supplyPreview').textContent = Utils.won(amounts.supplyAmount);
+          el('vatPreview').textContent = Utils.won(amounts.vatAmount);
+          el('totalPreview').textContent = Utils.won(amounts.totalAmount);
+        };
+        el('totalAmount').addEventListener('input', preview);
+        el('vatType').addEventListener('change', preview);
+        transactionForm.addEventListener('reset', () => setTimeout(preview));
+        transactionForm.addEventListener('submit', async event => {
+          event.preventDefault();
+          transactionForm.querySelectorAll('[data-error]').forEach(node => node.textContent = '');
+          try {
+            const result = await AppService.saveTransaction({
+              transactionDate: el('transactionDate').value, transactionType: state.formType,
+              description: el('description').value, counterpartyName: el('counterpartyName').value,
+              accountId: el('accountId').value, totalAmount: el('totalAmount').value,
+              vatType: el('vatType').value, paymentStatus: el('paymentStatus').value, hasEvidence: el('hasEvidence').checked
+            });
+            if (!result.ok) {
+              for (const [name, message] of Object.entries(result.errors)) transactionForm.querySelector(`[data-error="${name}"]`)?.replaceChildren(message);
+              toast('입력값을 확인해 주세요.', 'error'); return;
+            }
+            toast(`거래와 균형 전표를 저장했습니다. 차변·대변 ${Utils.won(result.validation.debit)}`, 'success');
+            routeTo('ledger');
+          } catch (error) { diagnostic(error); }
+        });
+      }
+
+      const ledgerQuery = el('ledgerQuery');
+      if (ledgerQuery) ledgerQuery.addEventListener('input', Utils.debounce(() => { state.filters.query = ledgerQuery.value; render(); }));
+      el('ledgerType')?.addEventListener('change', event => { state.filters.type = event.target.value; render(); });
+      el('ledgerYear')?.addEventListener('change', event => { state.filters.year = event.target.value; render(); });
+
+      el('businessForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!el('businessName').value.trim()) return toast('상호 또는 장부 이름을 입력해 주세요.', 'error');
+        const registration = el('registrationNumber').value.replace(/\D/g,'');
+        if (registration && registration.length !== 10) return toast('사업자등록번호는 숫자 10자리로 입력해 주세요.', 'error');
+        try {
+          await AppService.setupBusiness({ businessType:el('businessType').value, businessName:el('businessName').value, representativeName:el('representativeName').value, registrationNumber:registration, siteName:el('siteName').value, openedOn:el('openedOn').value, broadIndustry:el('broadIndustry').value, industryCode:el('industryCode').value, industryName:el('industryName').value, vatPayerType:el('vatPayerType').value, ledgerStartYear:el('ledgerStartYear').value, address:el('address').value });
+          state.config.ledgerStartYear = el('ledgerStartYear').value;
+          ConfigAdapter.save(state.config);
+          toast('사업자 정보를 이 기기에 저장했습니다.', 'success'); render();
+        } catch (error) { diagnostic(error); }
+      });
+
+      el('supabaseForm')?.addEventListener('submit', event => {
+        event.preventDefault();
+        try {
+          const key = el('supabaseKey').value.trim();
+          if (Utils.isSecretKey(key)) throw new Error('SECRET_KEY_NOT_ALLOWED');
+          state.config.supabaseUrl = el('supabaseUrl').value.trim().replace(/\/$/,'');
+          state.config.supabaseKey = key;
+          ConfigAdapter.save(state.config); remote.resetClient();
+          toast('Supabase 공개 연결 설정을 저장했습니다.', 'success'); renderShellStatus();
+        } catch (error) { diagnostic(error); }
+      });
+      el('googleLoginButton')?.addEventListener('click', async () => { try { await remote.signIn(); } catch (error) { diagnostic(error); } });
+      el('logoutButton')?.addEventListener('click', async () => { try { await remote.signOut(); state.session=null; state.allowedUser=null; toast('로그아웃했습니다. 로컬 데이터는 유지됩니다.','success'); render(); } catch(error){ diagnostic(error); } });
+      el('syncNowButton')?.addEventListener('click', async () => { try { await SyncService.connectAndSync(); toast('클라우드 동기화를 완료했습니다.','success'); render(); } catch(error){ diagnostic(error); } });
+      el('backupButton')?.addEventListener('click', async () => {
+        if (!confirm('백업 파일에는 거래처와 세무자료가 포함될 수 있습니다. 안전한 위치에 보관하시겠습니까?')) return;
+        try {
+          const backup = await AppService.exportBackup();
+          const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `accounting-ledger-backup-${Utils.today()}-v${APP_INFO.version}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+          state.config.lastBackupAt = Utils.now(); ConfigAdapter.save(state.config); toast('JSON 백업 파일을 만들었습니다.','success'); render();
+        } catch(error){ diagnostic(error); }
+      });
+      el('restoreButton')?.addEventListener('click', () => el('restoreFile').click());
+      el('restoreFile')?.addEventListener('change', async event => {
+        const file = event.target.files?.[0]; if (!file) return;
+        if (!confirm('현재 로컬 데이터를 백업 파일 내용으로 교체합니다. 계속하시겠습니까?')) return;
+        try { await AppService.restoreBackup(JSON.parse(await file.text())); toast('백업을 복원했습니다.','success'); render(); } catch(error){ diagnostic(error); }
+      });
+    }
+
+    function showTerm(name, anchor) { showTooltip(TERM_HELP[name] || '쉬운 설명을 준비 중인 회계용어입니다.', anchor); }
+    function showTooltip(text, anchor) {
+      const tooltip = el('termTooltip'); tooltip.textContent = text; tooltip.hidden = false;
+      const rect = anchor.getBoundingClientRect();
+      const left = Math.min(window.innerWidth - tooltip.offsetWidth - 14, Math.max(14, rect.left));
+      const top = rect.bottom + 8 + tooltip.offsetHeight > window.innerHeight ? rect.top - tooltip.offsetHeight - 8 : rect.bottom + 8;
+      tooltip.style.left = `${left}px`; tooltip.style.top = `${Math.max(8,top)}px`;
+    }
+    function toast(message, type = '') {
+      const node = document.createElement('div'); node.className = `toast ${type}`; node.innerHTML = `${icon(type==='error'?'circle-alert':type==='success'?'circle-check':'info')}<div>${Utils.escape(message)}</div>`;
+      el('toastRegion').appendChild(node); refreshIcons(); setTimeout(()=>node.remove(),4200);
+    }
+    function diagnostic(error) { console.error('[AccountingLedger]', error); state.syncError = String(error?.message || error); toast(errorMessage(error),'error'); renderShellStatus(); }
+
+    // 9. Shell lifecycle
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.term-button') && !event.target.closest('#termTooltip')) el('termTooltip').hidden = true;
+      if (window.innerWidth <= 780 && event.target.closest('[data-route]')) el('sidebar').classList.remove('open');
+    });
+    el('mobileMenuButton').addEventListener('click', () => el('sidebar').classList.toggle('open'));
+    el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
+    window.addEventListener('hashchange', () => { state.route = (location.hash || '#dashboard').slice(1); render(); });
+    window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 동기화할 수 있습니다.','success'); });
+    window.addEventListener('offline', () => { state.online=false; renderShellStatus(); toast('오프라인입니다. 거래는 이 기기에 계속 저장됩니다.'); });
+
+    async function init() {
+      try {
+        await storage.open();
+        AppService.deviceId();
+        await AppService.reload();
+        await SyncService.initializeAuth();
+        state.ready = true;
+        render();
+        if (!state.business) setTimeout(() => toast('사업자 정보를 설정하면 거래 입력을 시작할 수 있습니다.'), 500);
+      } catch (error) {
+        state.ready = false;
+        el('app').innerHTML = `<div class="notice danger">${icon('circle-alert')}<div><strong>앱 저장소를 열지 못했습니다.</strong><br>${Utils.escape(errorMessage(error))}</div></div>`;
+        diagnostic(error); refreshIcons();
+      }
+    }
+
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, AccountingDomain, Utils, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    init();
+  })();
+  </script>
+</body>
+</html>

@@ -190,7 +190,7 @@ addGate('git-diff-integrity', 'REQUIRED', () => {
   return { detail: 'unstaged and staged diffs have no whitespace errors' };
 });
 
-addGate('runtime-version-contract', 'BASELINE', () => {
+addGate('runtime-version-contract', 'REQUIRED', () => {
   const indexPath = absolute('index.html');
   if (!existsSync(indexPath)) {
     return { status: 'BASELINE', detail: 'index.html does not exist yet; version gate activates with the first runtime file' };
@@ -199,6 +199,14 @@ addGate('runtime-version-contract', 'BASELINE', () => {
   const currentHtml = readText('index.html');
   const currentVersion = parseAppVersion(currentHtml);
   hasRequiredText(currentHtml, 'UPDATE_HISTORY', 'index.html');
+  hasRequiredText(currentHtml, 'window.__ACCOUNTING_APP_TEST__', 'index.html');
+  hasRequiredText(currentHtml, 'class IndexedDbAdapter', 'index.html');
+  hasRequiredText(currentHtml, 'calculateAmounts(totalInput, vatType)', 'index.html');
+  hasRequiredText(currentHtml, 'validateJournal(lines)', 'index.html');
+  hasRequiredText(currentHtml, 'response.ok', 'index.html');
+  hasRequiredText(currentHtml, 'canonical_version', 'index.html');
+  hasRequiredText(currentHtml, '@supabase/supabase-js@2.110.2', 'index.html');
+  hasRequiredText(currentHtml, 'lucide@0.468.0', 'index.html');
   const currentVersionOccurrences = currentHtml.split(currentVersion).length - 1;
   if (currentVersionOccurrences < 2) {
     throw new Error('UPDATE_HISTORY must contain the current APP_INFO.version.');

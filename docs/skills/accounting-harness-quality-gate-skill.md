@@ -1,4 +1,4 @@
-> **Sub_harness-quality-gate_0.03** · 개정 2026-07-11
+> **Sub_harness-quality-gate_0.04** · 개정 2026-07-11
 
 # Accounting Ledger Harness Quality Gate Skill
 
@@ -31,10 +31,11 @@
 | migration-contract | 초기 migration 4개와 RLS·canonical sync 표식 |
 | tracked-scope-and-secrets | 참고 원본의 추적 여부와 자격증명 형태 값 |
 | git-diff-integrity | staged/unstaged diff 공백 오류 |
+| runtime-version-contract | 앱 버전·업데이트 이력·핵심 런타임 레이어·동기화 표식·고정 CDN 의존성 |
 
 ## 런타임 도입 후 규칙
 
-`index.html`이 생기면 하네스가 자동으로 다음을 검사한다.
+`index.html`이 존재하므로 하네스가 Required로 다음을 검사한다.
 
 1. `APP_INFO.version`은 두 자리 소수 버전이다.
 2. 첫 런타임 버전은 `0.01`이다.
