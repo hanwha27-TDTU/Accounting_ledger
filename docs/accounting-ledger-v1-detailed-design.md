@@ -218,7 +218,21 @@ V1 첫 화면은 랜딩페이지가 아니라 업무 대시보드다.
 11. 세무사 전달 패키지
 12. 마감/감사로그/대시보드 정리
 
-## 9. 참조 문서
+## 9. 개발 품질 게이트
+
+모든 기능 변경은 `docs/skills/accounting-development-governance-skill.md`의 역할 체계와 릴리스 게이트를 적용한다. 특히 다음 변경은 구현 전에 계약·보안·마이그레이션 검토를 완료한다.
+
+| 변경 | 추가 필수 게이트 |
+|---|---|
+| Supabase 스키마, RLS, Auth | Schema/Contract Guardian, Security Reviewer, Migration Agent |
+| IndexedDB, sync queue, canonical sync, JSON 백업 | Schema/Contract Guardian, Security Reviewer, Migration Agent |
+| 자동분개, VAT, 장부의무, 리포트 | Schema/Contract Guardian, UI/UX Reviewer |
+| Cloudinary 증빙 | Security Reviewer, Schema/Contract Guardian, UI/UX Reviewer |
+| GitHub Pages 배포 | Test Engineer, Reviewer, Release Manager |
+
+앱 버전은 `0.00`에서 시작하며, 사용자에게 제공하는 확정 변경은 `0.01`씩 증가한다. 변경된 스킬 문서는 개별 `Sub_` 버전을 함께 증가시키고, 연구노트에 실제 적용 역할과 검증 결과를 기록한다.
+
+## 10. 참조 문서
 
 | 문서 | 역할 |
 |---|---|
@@ -228,3 +242,4 @@ V1 첫 화면은 랜딩페이지가 아니라 업무 대시보드다.
 | `docs/skills/accounting-evidence-archive-skill.md` | 증빙 보관 |
 | `docs/skills/accounting-legal-forms-skill.md` | 법정 최신 서식 |
 | `docs/skills/accounting-mobile-apk-readiness-skill.md` | 모바일/APK 대비 |
+| `docs/skills/accounting-development-governance-skill.md` | 개발 운영, 품질 게이트, 릴리스 관리 |
