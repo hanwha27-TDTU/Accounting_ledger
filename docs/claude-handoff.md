@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.08`
-> 상태: 허용 사용자 관리(0.07)에 이어 canonical version 최종본 지정 배선과 다기기 수렴 자동 테스트(0.08)
+> 앱 버전: `0.09`
+> 상태: canonical 최종본 지정(0.08)에 이어 Cloudinary unsigned 증빙 업로드와 evidence_files 메타 동기화(0.09)
 
 ## 앱 목적 (미션)
 
@@ -51,7 +51,8 @@
 | 앱 0.06 | tombstone 기반 다기기 삭제 수렴. `SyncService.convergeTombstones`가 동기화 시 로컬 tombstone을 클라우드에 push(ignore-duplicates)하고 cloud tombstone을 pull해 모든 기기에 소프트삭제를 멱등 적용. RLS SELECT가 `deleted_at is null`로 삭제 행을 숨겨 pull로 전파되지 않던 삭제가 tombstone 채널로 수렴. `tombstones` 테이블·RLS는 기존 스키마 사용(마이그레이션 없음) |
 | 앱 0.07 | 소유자 전용 허용 사용자 관리. 설정에 `허용 사용자 관리(owner 전용)` 패널을 추가해 `app_allowed_users`를 조회·추가·차단(status blocked)·재허용(active)하고 변경을 `auth_access_logs`에 기록. bootstrap owner(`hanwha27@gmail.com`)에게만 노출, 소유자 자기 차단 방지 가드. role은 `owner/editor/viewer`, status는 `active/blocked/pending` CHECK 제약에 맞춤. 비허용 계정은 기존 `checkAllowed`가 `status='active'` 아니면 차단·로그아웃. 마이그레이션 없음 |
 | 앱 0.08 | canonical version 최종본 지정 배선. 데이터 관리 동기화 카드의 owner 전용 `이 기기를 최종본으로` 버튼이 `SyncService.designateCanonical`을 호출해 전체 로컬 행·tombstone을 클라우드에 업로드하고 `accounting_sync_meta.canonical_version`을 +1. 다른 기기는 기존 소비 경로(`cloudCanonical > localCanonical` → 전체 replace)에서 로컬 전용 변경을 버리고 수렴. `accounting_sync_meta` 쓰기는 bootstrap owner 전용(RLS). 다기기 자동 테스트 9/9 통과. 마이그레이션 없음 |
-| 최근 기준 커밋 | `a668402 feat: owner allowlist management and account blocking for app 0.07`. 앱 0.08 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
+| 앱 0.09 | Cloudinary 증빙 첨부. `CloudinaryAdapter`(unsigned preset 전용, secret 차단)로 증빙 화면에서 거래별 이미지·PDF 업로드, `AppService.attachEvidence`가 `evidence_files` 메타를 로컬 저장 + 동기화 큐 반영하고 거래를 `attached`로 표시. `evidence_files`를 IDB store(버전 1→2, 추가형)와 `SYNC_TABLE_ORDER`에 편입. 썸네일은 URL 변환으로 파생, 감사로그는 secure_url 대신 public_id만 보관. 설정에 Cloudinary cloud name·preset 입력 폼. `evidence_files` 테이블·RLS는 기존 스키마 사용(마이그레이션 없음) |
+| 최근 기준 커밋 | `ecb1ac8 feat: canonical version designation and multi-device convergence for app 0.08`. 앱 0.09 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
 
 ## 다음 구현 우선순위
 
@@ -60,7 +61,7 @@
 1. (완료 · 0.04) 인증 사용자 기준 `businesses` CRUD와 RLS 왕복 검증
 2. (완료 · 0.07) 비허용 Google 계정 차단과 owner 허용 사용자 관리 흐름 검증
 3. (완료 · 0.08) 일반 동기화와 canonical version 변경 수렴의 다기기 자동 테스트 (0.06 tombstone 삭제 수렴 + 0.08 canonical 최종본 지정 배선·자동 테스트 9/9. 실브라우저 2대 왕복은 수동 체크리스트로 남음)
-4. Cloudinary 이미지/PDF 업로드와 증빙 파일 메타·삭제 상태 연결
+4. (완료 · 0.09) Cloudinary 이미지/PDF 업로드와 증빙 파일 메타 연결 (첨부·조회·동기화 구현. 증빙 삭제/교체와 Cloudinary 원본 삭제(서명 필요)는 후속)
 5. 국세청 간편장부 Excel import 미리보기·원본 행 보존·확정 흐름
 6. 거래 수정·마감 후 변경 통제와 감사로그 고도화 (0.05에서 거래 부분 소프트삭제 구현)
 7. 법정서식 스냅샷과 리포트 필드 매핑
@@ -77,7 +78,9 @@
 
 0.08에서 canonical version 최종본 지정을 배선했다. 지금까지 cloud `canonical_version`을 아무도 올리지 않아 잠들어 있던 수렴 소비 경로가, owner의 `designateCanonical`(전체 로컬+tombstone 업로드 후 `accounting_sync_meta.canonical_version` +1)로 활성화됐다. `accounting_sync_meta`는 SELECT=allowed user, INSERT/UPDATE/DELETE=bootstrap owner 전용. 다기기 시뮬레이션 자동 테스트 9/9(일반 병합 수렴, tombstone 삭제 수렴·무재생성, canonical 지정 시 소비 기기가 로컬 전용 변경을 버리고 수렴, 지정 기기가 삭제를 되살리지 않음)와 owner canonical upsert DB 검증(롤백, 실제 canonical은 0 유지)을 통과했다.
 
-다음 단계로는 Cloudinary 증빙 업로드(#4)를 진행한다.
+0.09에서 Cloudinary 증빙 첨부를 구현했다. 하드룰(secret 금지)에 따라 브라우저에서 제한된 unsigned upload preset으로만 업로드한다(`https://api.cloudinary.com/v1_1/{cloud}/{image|auto}/upload` + `upload_preset`). `evidence_files`(24열)와 `evidence_documents`는 기존 스키마·RLS(business-scoped)를 그대로 사용해 마이그레이션이 없었고, IDB는 버전 1→2로 `evidence_files` store를 추가(추가형, 기존 데이터 보존)했다. 로직 테스트 15/15(썸네일 URL 변환, 업로드 요청 구성·resource_type, upload_preset 전송, secret 차단, 메타 구성·감사 public_id 보관), owner `evidence_files` insert/read DB 검증(롤백)을 통과했다. 실제 파일 업로드 왕복은 사용자의 Cloudinary cloud name·unsigned preset과 브라우저가 필요하므로 수동 체크리스트로 남는다. 남은 후속: 증빙 삭제·교체 UI, Cloudinary 원본 삭제(서명 API=secret 필요, 브라우저 직접 불가 → Edge Function 후보), evidence_documents 그룹핑, 파일 해시.
+
+다음 단계로는 국세청 간편장부 Excel import(#5)를 진행한다.
 
 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI는 만들지 않는다.
 

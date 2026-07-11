@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.19** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.20** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -462,3 +462,25 @@ advisor 잔여 항목:
 1. 실제 브라우저 2대에서의 최종본 지정→타기기 수렴 왕복은 수동 확인 대상이다.
 2. `designateCanonical`은 전체 로컬 행을 업로드한다(V1 개인 규모 적합). 대량화 시 청크 업로드·부분 실패 재시도 보강 여지.
 3. canonical 충돌(두 기기가 거의 동시에 지정)은 V1 단일 owner 가정에서 드물며, `max+1`로 단조 증가만 보장한다. 다중 동시 지정 조정은 후속 범위.
+
+## 2026-07-11 앱 0.09 Cloudinary 증빙 첨부와 evidence_files 메타 동기화
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.09` |
+| schema_version | `0.03` (Supabase 스키마·migration 변경 없음). IDB는 버전 1→2로 `evidence_files` store 추가(추가형) |
+| note_type | `feature_release`, `security_review`, `data_contract` |
+| 제목 | Cloudinary unsigned 증빙 업로드와 파일 메타 장부·Supabase 연결 |
+| 사용자 변화 | 증빙 화면에서 거래별 `파일 첨부`로 이미지·PDF 업로드, 썸네일·원본 링크 표시, 미첨부 배지. 설정에 Cloudinary cloud name·unsigned preset 입력 폼 |
+| 보안(하드룰) | 업로드는 브라우저에서 제한된 **unsigned upload preset**으로만(`https://api.cloudinary.com/v1_1/{cloud}/{image\|auto}/upload` + `upload_preset`). API secret·서명은 사용/저장하지 않으며 `isSecretKey`로 preset·cloud 입력을 차단. 감사로그는 secure_url 대신 `cloudinary_public_id`만 보관 |
+| 데이터 계약 | `evidence_files`(24열)를 `SYNC_TABLE_ORDER`(source_transactions 뒤)와 IDB store에 편입. IDB `version` 1→2, `onupgradeneeded`는 누락 store만 생성해 기존 데이터 보존. business_id·source_transaction_id 인덱스 추가. 백업/복원은 `LOCAL_STORES` 기반이라 자동 포함 |
+| 흐름 | `CloudinaryAdapter.upload` → `AppService.attachEvidence`가 `evidence_files` 로컬 저장 + `source_transactions` attached + 감사 + 동기화 큐. 첨부는 오프라인 가능, 로그인 시 동기화 |
+| 검증 | 로직 15/15(썸네일 URL 변환·image만 변환·null 안전, isConfigured, 업로드 URL·resource_type image/auto, upload_preset 전송, secret 차단, 메타 구성·tx attached·감사 public_id). owner `evidence_files` insert/read DB 검증(business-scoped RLS, 롤백, 잔존 0). 하네스 Required 0, 스크립트 파싱 OK |
+| 스킬 버전 | `Sub_evidence-archive_0.01`, `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.20` |
+
+남은 위험/미완:
+
+1. **실제 파일 업로드 왕복은 MANUAL**이다. 사용자의 Cloudinary cloud name·제한 unsigned preset과 브라우저가 있어야 하며, 이 환경에서는 E2E 업로드를 검증할 수 없다(로직·요청 구성·RLS만 검증). `docs/accounting-ledger-browser-checklist.md`로 확인.
+2. 증빙 삭제·교체 UI 없음. Cloudinary 원본 삭제는 서명 API(secret) 필요라 브라우저 직접 불가 → 후속 Edge Function 후보. 현재는 첨부·조회만.
+3. `evidence_documents` 그룹핑, 파일 해시(`file_hash`), 미리보기 상태 고도화는 후속.
+4. unsigned preset은 공개 업로드라 남용 방지를 위해 Cloudinary에서 허용 형식·폴더·최대 크기·모더레이션을 제한하도록 안내한다.

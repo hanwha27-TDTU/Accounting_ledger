@@ -305,6 +305,13 @@
     .data-card .data-actions .button { flex: 1; justify-content: center; }
     .data-card .select { margin-top: 4px; width: 100%; }
 
+    .evidence-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .evidence-row:last-child { border-bottom: 0; }
+    .evidence-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .evidence-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .evidence-thumb { display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+    .evidence-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
       position: fixed;
@@ -492,7 +499,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.08',
+      version: '0.09',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -507,7 +514,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.08', date: '2026-07-11', label: '최신 · 최종본 지정 동기화', detail: '소유자가 데이터 관리에서 이 기기를 클라우드 최종본으로 지정하면 canonical version이 올라가고, 다른 기기는 다음 동기화에서 로컬 전용 변경을 버리고 이 기기 기준으로 수렴합니다.' },
+      { version: '0.09', date: '2026-07-11', label: '최신 · Cloudinary 증빙 첨부', detail: '증빙 화면에서 거래별로 이미지·PDF를 Cloudinary 제한 unsigned preset으로 업로드하고, 파일 메타를 장부·Supabase(evidence_files)에 연결합니다. 썸네일과 원본 링크를 보여주며 첨부는 오프라인에서도 됩니다.' },
+      { version: '0.08', date: '2026-07-11', label: '최종본 지정 동기화', detail: '소유자가 데이터 관리에서 이 기기를 클라우드 최종본으로 지정하면 canonical version이 올라가고, 다른 기기는 다음 동기화에서 로컬 전용 변경을 버리고 이 기기 기준으로 수렴합니다.' },
       { version: '0.07', date: '2026-07-11', label: '허용 사용자 관리', detail: '소유자 전용으로 Google 로그인 허용 이메일을 추가·차단·재허용하는 관리 화면을 설정에 추가했습니다. 비허용 계정은 로그인해도 회계자료에 접근할 수 없고, 변경은 감사 로그에 남습니다.' },
       { version: '0.06', date: '2026-07-11', label: '다기기 삭제 수렴', detail: '삭제한 거래가 다른 기기에서 되살아나지 않도록 tombstone을 클라우드에 올리고 내려받아 모든 기기에 소프트 삭제를 적용합니다. RLS로 숨겨져 전파되지 않던 삭제가 동기화 시 수렴합니다.' },
       { version: '0.05', date: '2026-07-11', label: '데이터 관리 화면', detail: '관리 메뉴에 데이터 관리 화면을 추가해 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(소프트 삭제·감사·동기화 반영)와 이 기기 전체 삭제를 대칭 구조로 한 곳에서 처리합니다.' },
@@ -625,7 +633,7 @@
 
     const SYNC_TABLE_ORDER = Object.freeze([
       'businesses', 'business_sites', 'ledger_period_settings', 'accounts', 'counterparties',
-      'source_transactions', 'journal_entries', 'journal_entry_lines', 'audit_logs', 'period_closings'
+      'source_transactions', 'journal_entries', 'journal_entry_lines', 'evidence_files', 'audit_logs', 'period_closings'
     ]);
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
 
@@ -740,7 +748,7 @@
 
     // 4. IndexedDB persistence adapter
     class IndexedDbAdapter {
-      constructor() { this.db = null; this.name = 'accounting-ledger-v1'; this.version = 1; }
+      constructor() { this.db = null; this.name = 'accounting-ledger-v1'; this.version = 2; }
       async open() {
         if (this.db) return this.db;
         this.db = await new Promise((resolve, reject) => {
@@ -751,7 +759,8 @@
               if (!db.objectStoreNames.contains(storeName)) {
                 const store = db.createObjectStore(storeName, { keyPath: 'id' });
                 if (storeName !== 'sync_queue' && storeName !== 'tombstones') store.createIndex('updated_at', 'updated_at');
-                if (['source_transactions','journal_entries','journal_entry_lines','accounts','counterparties'].includes(storeName)) store.createIndex('business_id', 'business_id');
+                if (['source_transactions','journal_entries','journal_entry_lines','accounts','counterparties','evidence_files'].includes(storeName)) store.createIndex('business_id', 'business_id');
+                if (storeName === 'evidence_files') store.createIndex('source_transaction_id', 'source_transaction_id');
               }
             }
           };
@@ -832,6 +841,29 @@
         return clean;
       },
       clear() { localStorage.removeItem(this.key); }
+    });
+
+    // Cloudinary evidence storage via unsigned upload preset only. No API secret is ever used or stored.
+    const CloudinaryAdapter = Object.freeze({
+      isConfigured() { return Boolean(state.config.cloudinaryCloud && state.config.cloudinaryPreset); },
+      async upload(file) {
+        if (!this.isConfigured()) throw new Error('CLOUDINARY_NOT_CONFIGURED');
+        if (Utils.isSecretKey(state.config.cloudinaryPreset) || Utils.isSecretKey(state.config.cloudinaryCloud)) throw new Error('SECRET_KEY_NOT_ALLOWED');
+        const resourceType = file.type === 'application/pdf' ? 'auto' : 'image';
+        const form = new FormData();
+        form.append('file', file);
+        form.append('upload_preset', state.config.cloudinaryPreset);
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(state.config.cloudinaryCloud)}/${resourceType}/upload`, { method: 'POST', body: form });
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(`CLOUDINARY_${response.status}:${detail.slice(0, 200)}`);
+        }
+        return response.json();
+      },
+      thumbnailUrl(secureUrl, resourceType) {
+        if (resourceType !== 'image' || typeof secureUrl !== 'string' || !secureUrl.includes('/upload/')) return secureUrl || null;
+        return secureUrl.replace('/upload/', '/upload/c_thumb,w_240,h_240,g_auto,q_auto,f_auto/');
+      }
     });
 
     // 5. Remote adapter: Supabase Auth plus REST requests that always check response.ok
@@ -1042,6 +1074,8 @@
       counterparties: [],
       journals: [],
       journalLines: [],
+      evidenceFiles: [],
+      pendingEvidenceTx: null,
       auditLogs: [],
       closings: [],
       queue: [],
@@ -1093,10 +1127,10 @@
 
     const AppService = Object.freeze({
       async reload() {
-        const [businesses, sites, accounts, transactions, counterparties, journals, journalLines, auditLogs, closings, queue] = await Promise.all([
+        const [businesses, sites, accounts, transactions, counterparties, journals, journalLines, evidenceFiles, auditLogs, closings, queue] = await Promise.all([
           storage.getAll('businesses'), storage.getAll('business_sites'), storage.getAll('accounts'), storage.getAll('source_transactions'),
-          storage.getAll('counterparties'), storage.getAll('journal_entries'), storage.getAll('journal_entry_lines'), storage.getAll('audit_logs'),
-          storage.getAll('period_closings'), storage.getAll('sync_queue')
+          storage.getAll('counterparties'), storage.getAll('journal_entries'), storage.getAll('journal_entry_lines'), storage.getAll('evidence_files'),
+          storage.getAll('audit_logs'), storage.getAll('period_closings'), storage.getAll('sync_queue')
         ]);
         state.business = businesses.find(row => !row.deleted_at) || null;
         state.site = sites.find(row => !row.deleted_at && (!state.business || row.business_id === state.business.id)) || null;
@@ -1105,6 +1139,7 @@
         state.counterparties = counterparties;
         state.journals = journals;
         state.journalLines = journalLines;
+        state.evidenceFiles = evidenceFiles;
         state.auditLogs = auditLogs;
         state.closings = closings;
         state.queue = queue.filter(row => row.status === 'pending' && !row.deleted_at);
@@ -1301,6 +1336,33 @@
         state.config.lastSyncAt = null;
         ConfigAdapter.save(state.config);
         await this.reload();
+      },
+
+      // Store the metadata for an already-uploaded Cloudinary file and mark the transaction as attached.
+      // The audit trail keeps the public_id, not the full URL (Data Privacy Guardian).
+      async attachEvidence(transactionId, uploadResult, file) {
+        const transaction = state.transactions.find(row => row.id === transactionId && !row.deleted_at);
+        if (!transaction) throw new Error('TRANSACTION_NOT_FOUND');
+        const now = Utils.now();
+        const evidence = {
+          id: Utils.uuid(), business_id: transaction.business_id, evidence_document_id: null,
+          source_transaction_id: transaction.id, storage_provider: 'cloudinary',
+          cloudinary_public_id: uploadResult.public_id || null, resource_type: uploadResult.resource_type || null,
+          secure_url: uploadResult.secure_url || null,
+          thumbnail_url: CloudinaryAdapter.thumbnailUrl(uploadResult.secure_url, uploadResult.resource_type),
+          original_filename: file.name || null, mime_type: file.type || null,
+          file_size: uploadResult.bytes || file.size || null, file_hash: null,
+          page_count: uploadResult.pages || null, preview_status: 'ready',
+          future_ocr_text: null, manual_summary: null, future_ai_summary: null, future_ai_status: 'not_configured',
+          upload_status: 'uploaded', delete_status: null,
+          created_at: now, updated_at: now, deleted_at: null
+        };
+        const updatedTx = { ...transaction, evidence_status: 'attached', updated_at: now };
+        const audit = this.audit('evidence_file', evidence.id, 'create', null, { id: evidence.id, source_transaction_id: transaction.id, cloudinary_public_id: evidence.cloudinary_public_id }, '증빙 첨부');
+        const queueRows = [this.queue('evidence_files', evidence), this.queue('source_transactions', updatedTx), this.queue('audit_logs', audit)];
+        await storage.putMany({ evidence_files: [evidence], source_transactions: [updatedTx], audit_logs: [audit], sync_queue: queueRows });
+        await this.reload();
+        return evidence;
       },
 
       async exportBackup() {
@@ -1550,6 +1612,8 @@
       if (code.includes('ALLOWLIST_EMAIL_INVALID')) return '올바른 이메일 형식을 입력해 주세요.';
       if (code.includes('ALLOWLIST_OWNER_PROTECTED')) return '소유자 계정은 차단할 수 없습니다.';
       if (code.includes('CANONICAL_OWNER_ONLY')) return '최종본 지정은 소유자 계정만 할 수 있습니다.';
+      if (code.includes('CLOUDINARY_NOT_CONFIGURED')) return 'Cloudinary cloud name과 unsigned preset을 먼저 설정해 주세요.';
+      if (code.includes('CLOUDINARY_')) return '증빙 업로드에 실패했습니다. Cloudinary 설정과 unsigned preset 허용 형식을 확인해 주세요.';
       if (code.includes('REMOTE_409')) return '이미 허용 목록에 있는 이메일이거나 중복된 값입니다.';
       if (code.includes('JOURNAL_UNBALANCED')) return '차변과 대변이 맞지 않아 거래를 저장하지 않았습니다.';
       if (code.includes('BACKUP_')) return '백업 파일 구조를 확인할 수 없어 복원하지 않았습니다.';
@@ -1672,11 +1736,31 @@
         }).join('') : emptyState('scale','검토할 전표가 없습니다','거래를 저장하면 자동으로 복식 전표가 만들어집니다.')}`;
     }
 
+    function evidenceFor(transactionId) {
+      return state.evidenceFiles.filter(row => row.source_transaction_id === transactionId && !row.deleted_at);
+    }
+
+    function evidenceThumb(file) {
+      const url = Utils.escape(file.secure_url || '');
+      if (file.resource_type === 'image' && (file.thumbnail_url || file.secure_url)) {
+        return `<a class="evidence-thumb" href="${url}" target="_blank" rel="noopener" title="${Utils.escape(file.original_filename || '증빙')}"><img src="${Utils.escape(file.thumbnail_url || file.secure_url)}" alt="${Utils.escape(file.original_filename || '증빙')}" loading="lazy"></a>`;
+      }
+      return `<a class="button small" href="${url}" target="_blank" rel="noopener">${icon('file-text')}${Utils.escape(file.original_filename || 'PDF 증빙')}</a>`;
+    }
+
     function renderEvidence() {
-      const missing = activeTransactions().filter(row => row.evidence_status !== 'attached');
-      return `${pageHeader('증빙','이미지와 PDF 원본은 Cloudinary에, 파일 메타는 장부와 Supabase에 연결할 예정입니다.')}
-        <div class="notice info">${icon('info')}<div><strong>현재는 증빙 보관 여부와 누락 목록을 먼저 제공합니다.</strong><br>실제 파일 업로드는 Cloudinary cloud name과 제한된 unsigned preset 검증을 마친 다음 활성화됩니다.</div></div>
-        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">증빙이 필요한 거래</h2><p class="section-help">파일이 없다고 거래를 삭제하지 않고 검토 항목으로 남깁니다.</p></div>${badge(`${missing.length}건`, missing.length?'warning':'success')}</div>${missing.length?`<div class="activity-list">${missing.map(row=>`<div class="activity-row"><span class="metric-icon warm">${icon('paperclip')}</span><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))}</div></div><strong>${Utils.won(row.total_amount)}</strong></div>`).join('')}</div>`:emptyState('circle-check','미첨부 거래가 없습니다','현재 입력된 거래의 증빙 보관 여부가 모두 확인되었습니다.')}</section>`;
+      const configured = CloudinaryAdapter.isConfigured();
+      const rows = activeTransactions();
+      const missing = rows.filter(row => row.evidence_status !== 'attached');
+      return `${pageHeader('증빙','이미지·PDF 원본은 Cloudinary(unsigned)에, 파일 메타는 장부·Supabase에 연결합니다.')}
+        ${configured ? '' : `<div class="notice">${icon('cloud-off')}<div><strong>Cloudinary 증빙 저장소가 아직 설정되지 않았습니다.</strong><br>설정에서 cloud name과 제한된 unsigned upload preset을 입력하면 파일 첨부가 활성화됩니다. API secret은 입력하지 않습니다.</div><button class="button" type="button" data-route="settings">${icon('settings-2')}설정 열기</button></div>`}
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">거래별 증빙</h2><p class="section-help">파일이 없어도 거래는 유지하고 검토 항목으로 남깁니다. 첨부는 오프라인에서도 되고 로그인 시 클라우드에 동기화됩니다.</p></div>${badge(`미첨부 ${missing.length}건`, missing.length?'warning':'success')}</div>
+        ${rows.length ? `<div>${rows.map(row => {
+          const files = evidenceFor(row.id);
+          return `<div class="evidence-row"><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))} · ${Utils.won(row.total_amount)}</div>${files.length?`<div class="evidence-files">${files.map(evidenceThumb).join('')}</div>`:''}</div><div class="evidence-actions">${files.length?badge(`${files.length}개 첨부`,'success'):badge('미첨부','warning')}<button class="button small" type="button" data-attach-tx="${row.id}" ${configured?'':'disabled'}>${icon('upload')}파일 첨부</button></div></div>`;
+        }).join('')}</div>` : emptyState('paperclip','거래가 없습니다','거래를 입력하면 여기에서 증빙을 첨부할 수 있습니다.')}
+        </section>
+        <input id="evidenceFileInput" type="file" accept="image/*,application/pdf" hidden>`;
     }
 
     function renderImports() {
@@ -1796,6 +1880,13 @@
             <div class="task-row"><div class="task-main"><div class="task-title">Google OAuth</div><div class="task-note">Supabase provider 활성 상태</div></div>${badge(providerReady ? '사용 가능' : diagnostic.googleProvider === 'disabled' ? '설정 필요' : '미확인', providerReady ? 'success' : diagnostic.googleProvider === 'disabled' ? 'danger' : '')}</div>
           </div>
           <form id="supabaseForm" class="form-grid"><div class="field"><label for="supabaseUrl">Project URL</label><input class="input" id="supabaseUrl" type="url" value="${Utils.escape(state.config.supabaseUrl)}"></div><div class="field"><label for="supabaseKey">Publishable key</label><input class="input" id="supabaseKey" type="password" autocomplete="off" value="${Utils.escape(state.config.supabaseKey || '')}" placeholder="sb_publishable_..."><div class="field-help">service role, secret key, OAuth client secret은 입력하지 마세요.</div></div><div class="field full"><div class="form-actions"><button class="button" id="saveSupabaseButton" type="submit">설정 저장</button><button class="button" id="connectionDiagnosticButton" type="button" ${diagnostic.status === 'checking' ? 'disabled' : ''}>${icon('activity')}연결 진단</button>${diagnostic.googleProvider === 'disabled' ? `<a class="button" href="https://supabase.com/dashboard/project/ihxiywffzmvrwmqvatzt/auth/providers" target="_blank" rel="noopener">${icon('external-link')}Supabase에서 설정</a>` : ''}${state.session?`<button class="button danger" id="logoutButton" type="button">${icon('log-out')}로그아웃</button><button class="button primary" id="syncNowButton" type="button">${icon('refresh-cw')}지금 동기화</button>`:`<button class="button primary" id="googleLoginButton" type="button" ${providerReady ? '' : 'disabled'}>${icon('log-in')}Google로 로그인</button>`}</div></div></form>
+        </section>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">Cloudinary 증빙 저장소</h2><p class="section-help">이미지·PDF 원본을 보관합니다. 반드시 제한된 unsigned upload preset만 입력하고, API secret은 입력하지 않습니다.</p></div>${CloudinaryAdapter.isConfigured()?badge('설정됨','success'):badge('미설정','warning')}</div>
+          <form id="cloudinaryForm" class="form-grid">
+            <div class="field"><label for="cloudinaryCloud">Cloud name</label><input class="input" id="cloudinaryCloud" value="${Utils.escape(state.config.cloudinaryCloud || '')}" placeholder="예: my-cloud" autocomplete="off"></div>
+            <div class="field"><label for="cloudinaryPreset">Unsigned upload preset</label><input class="input" id="cloudinaryPreset" value="${Utils.escape(state.config.cloudinaryPreset || '')}" placeholder="예: accounting_evidence" autocomplete="off"><div class="field-help">Cloudinary Settings → Upload → Add upload preset에서 Signing Mode를 Unsigned로 만들고, 허용 형식(jpg·png·pdf)·폴더·최대 크기를 제한하세요.</div></div>
+            <div class="field full"><div class="form-actions"><button class="button" id="saveCloudinaryButton" type="submit">설정 저장</button></div></div>
+          </form>
         </section>
         ${renderBusinessRoundtrip()}
         ${renderAllowlist()}`;
@@ -1983,6 +2074,36 @@
         } catch (error) { diagnostic(error); }
       });
 
+      el('cloudinaryForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        try {
+          const cloud = el('cloudinaryCloud').value.trim();
+          const preset = el('cloudinaryPreset').value.trim();
+          if (Utils.isSecretKey(cloud) || Utils.isSecretKey(preset)) throw new Error('SECRET_KEY_NOT_ALLOWED');
+          state.config.cloudinaryCloud = cloud;
+          state.config.cloudinaryPreset = preset;
+          ConfigAdapter.save(state.config);
+          toast('Cloudinary 설정을 저장했습니다.', 'success'); render();
+        } catch (error) { diagnostic(error); }
+      });
+      document.querySelectorAll('[data-attach-tx]').forEach(button => button.addEventListener('click', () => {
+        state.pendingEvidenceTx = button.dataset.attachTx;
+        el('evidenceFileInput')?.click();
+      }));
+      el('evidenceFileInput')?.addEventListener('change', async event => {
+        const file = event.target.files?.[0];
+        const txId = state.pendingEvidenceTx;
+        event.target.value = '';
+        if (!file || !txId) return;
+        if (file.size > 15 * 1024 * 1024) return toast('15MB 이하의 파일만 첨부할 수 있습니다.', 'error');
+        try {
+          toast('증빙을 업로드하는 중입니다...');
+          const result = await CloudinaryAdapter.upload(file);
+          await AppService.attachEvidence(txId, result, file);
+          state.pendingEvidenceTx = null;
+          toast('증빙을 첨부했습니다. 로그인 시 클라우드에 동기화됩니다.', 'success'); render();
+        } catch (error) { diagnostic(error); }
+      });
       el('supabaseForm')?.addEventListener('submit', async event => {
         event.preventDefault();
         try {
