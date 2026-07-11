@@ -54,7 +54,7 @@
 3. 수정 후 실패를 재현한 뒤 최소 수정으로 해결한다.
 4. `npm run harness:check`를 실행한다. Required 게이트가 모두 통과해야 한다.
 5. `git diff --check`로 공백 오류가 없는지 확인하고 변경 파일을 검토한다.
-6. `index.html`을 바꿨다면 브라우저 라운드트립(하네스의 MANUAL 항목)을 실제 브라우저에서 확인하거나, 확인 불가 시 수동 확인 필요로 보고한다.
+6. `index.html`을 바꿨다면 브라우저 라운드트립(하네스의 MANUAL 항목)을 `docs/accounting-ledger-browser-checklist.md`에 따라 실제 브라우저에서 확인하거나, 확인 불가 시 수동 확인 필요로 보고한다.
 
 검사 자체가 잘못되었다는 근거가 없으면 validator·기대값·CI를 약화하지 않는다.
 
