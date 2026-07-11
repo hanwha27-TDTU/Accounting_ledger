@@ -363,6 +363,11 @@
     .term-card-kid > :first-child { flex: 0 0 auto; color: var(--accent); }
     .term-card-law { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
     .term-card-law strong { color: var(--brand-strong); }
+    .import-preview { margin-top: 12px; max-height: 460px; overflow: auto; }
+    .import-preview table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .import-preview th, .import-preview td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    .import-preview th { position: sticky; top: 0; background: var(--surface); }
+    .import-preview td.number, .import-preview th.number { text-align: right; font-variant-numeric: tabular-nums; }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -551,7 +556,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.23',
+      version: '0.24',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -566,7 +571,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.23', date: '2026-07-11', label: '최신 · 용어 대장 강제 + 툴팁 단일화', detail: '세법 용어사전을 단일 출처로 삼아 거래 화면 용어 툴팁도 같은 정의를 쓰도록 통합했습니다(중복 제거). 또한 용어가 늘어날 때마다 법적 근거와 대장 등록을 하네스가 강제하고(용어 대장), 기장의무·경비율 기준금액이 코드와 법령 문서에서 일치하는지 자동 검증하는 게이트를 추가했습니다.' },
+      { version: '0.24', date: '2026-07-11', label: '최신 · 간편장부 Excel 미리보기(가져오기)', detail: '국세청 간편장부(.xlsx)를 외부 라이브러리 없이 브라우저에서 직접 읽어 미리보기합니다. 「장부」 시트의 월·일·계정과목·거래내용·거래처·수입/비용/자산 금액을 원본 그대로 표로 보여주고, 계정과목이 분류표에 있는지 확인합니다. 아직 장부에 반영하지 않는 안전한 미리보기 단계입니다.' },
+      { version: '0.23', date: '2026-07-11', label: '용어 대장 강제 + 툴팁 단일화', detail: '세법 용어사전을 단일 출처로 삼아 거래 화면 용어 툴팁도 같은 정의를 쓰도록 통합했습니다(중복 제거). 또한 용어가 늘어날 때마다 법적 근거와 대장 등록을 하네스가 강제하고(용어 대장), 기장의무·경비율 기준금액이 코드와 법령 문서에서 일치하는지 자동 검증하는 게이트를 추가했습니다.' },
       { version: '0.22', date: '2026-07-11', label: '세법 용어사전 + 대시보드 검색', detail: '가이드에 주요 세법 용어사전(28개)을 추가했습니다. 복식부기·필요경비·과세표준·경비율·원천징수 등 용어마다 법적 정의(근거 조문)와 초등학생 눈높이 설명을 함께 담았고, 대시보드 검색창에서 바로 찾아볼 수 있습니다.' },
       { version: '0.21', date: '2026-07-11', label: '법령 가이드 눈높이 설명', detail: '가이드의 기장의무·부가가치세 면세·추계 경비율 설명에 "왜 이렇게 정했을까요?" 눈높이 설명을 추가했습니다. 각 제도의 목적과 취지를 중학생도 이해하기 쉬운 말로 풀어, 기준과 근거뿐 아니라 이유까지 알 수 있게 했습니다.' },
       { version: '0.20', date: '2026-07-11', label: '계산기 자동판정 + 법령 가이드', detail: '추계소득 계산기에 직전연도 수입금액을 넣으면 기장의무(복식/간편)와 적용 경비율(단순/기준)이 자동 판정됩니다. 또한 가이드에 기장의무·부가가치세 면세·추계신고 경비율을 쉬운 설명과 근거 조문(소득세법 §160·시행령 §208⑤·§143, 부가가치세법 §26)으로 안내하는 버튼을 추가했습니다.' },
@@ -795,6 +801,119 @@
       all() { return this.GROUPS.flatMap(g => g.items.map(it => ({ name: it.name, desc: it.desc, group: g.key, groupLabel: g.label, column: g.column }))); },
       find(name) { const q = String(name || '').trim(); return this.all().find(a => a.name === q) || null; },
       columnOf(name) { const hit = this.find(name); return hit ? hit.column : null; }
+    });
+
+    // 간편장부 Excel(.xlsx) 리더 — 하드룰(무 CDN)에 따라 브라우저 내장 API만 사용한다.
+    // ZIP 중앙디렉터리 파싱 + DecompressionStream('deflate-raw')로 압축 해제. 외부 라이브러리 없음.
+    const XlsxReader = Object.freeze({
+      async read(buffer) {
+        const dv = new DataView(buffer);
+        const bytes = new Uint8Array(buffer);
+        let eocd = -1;
+        const min = Math.max(0, buffer.byteLength - 22 - 65536);
+        for (let i = buffer.byteLength - 22; i >= min; i--) { if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; } }
+        if (eocd < 0) throw new Error('올바른 xlsx(zip) 파일이 아닙니다.');
+        const count = dv.getUint16(eocd + 10, true);
+        let p = dv.getUint32(eocd + 16, true);
+        const entries = {};
+        const dec = new TextDecoder();
+        for (let n = 0; n < count; n++) {
+          if (dv.getUint32(p, true) !== 0x02014b50) break;
+          const method = dv.getUint16(p + 10, true);
+          const compSize = dv.getUint32(p + 20, true);
+          const fnLen = dv.getUint16(p + 28, true);
+          const extraLen = dv.getUint16(p + 30, true);
+          const commentLen = dv.getUint16(p + 32, true);
+          const localOff = dv.getUint32(p + 42, true);
+          const name = dec.decode(bytes.subarray(p + 46, p + 46 + fnLen));
+          entries[name] = { method, compSize, localOff };
+          p += 46 + fnLen + extraLen + commentLen;
+        }
+        return { dv, bytes, entries };
+      },
+      async text(ctx, name) {
+        const e = ctx.entries[name];
+        if (!e) return null;
+        const { dv, bytes } = ctx;
+        const lo = e.localOff;
+        if (dv.getUint32(lo, true) !== 0x04034b50) throw new Error('zip 로컬 헤더 오류');
+        const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
+        const comp = bytes.subarray(start, start + e.compSize);
+        if (e.method === 0) return new TextDecoder().decode(comp);
+        if (e.method === 8) {
+          const stream = new Response(comp).body.pipeThrough(new DecompressionStream('deflate-raw'));
+          return new TextDecoder().decode(new Uint8Array(await new Response(stream).arrayBuffer()));
+        }
+        throw new Error('지원하지 않는 압축 방식(zip method ' + e.method + ')입니다.');
+      }
+    });
+
+    // 간편장부 「장부」 시트 파서 — 원본 행을 그대로 읽어 미리보기 후보를 만든다. 자동 전기(장부 반영)는 하지 않는다.
+    // 컬럼: A=월 B=일 C=계정과목 D=거래내용 E=거래처 F/G=수입 금액/부가세 H/I=비용 J/K=자산 L=비고 (M열 이후 사용자 보조열은 무시).
+    const SB_IMPORT_COL = Object.freeze({ month: 1, day: 2, account: 3, description: 4, counterparty: 5, incomeAmount: 6, incomeVat: 7, expenseAmount: 8, expenseVat: 9, assetAmount: 10, assetVat: 11, note: 12 });
+    const SimpleBookImport = Object.freeze({
+      SHEET: '장부',
+      DATA_START_ROW: 4,
+      COL: SB_IMPORT_COL,
+      buildDate(year, month, day) {
+        const m = parseInt(month, 10), d = parseInt(day, 10);
+        if (year && m >= 1 && m <= 12 && d >= 1 && d <= 31) return `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        return [month, day].filter(v => v != null && v !== '').join('/');
+      },
+      classify(income, expense, asset) { return income ? 'income' : expense ? 'expense' : asset ? 'asset' : 'unknown'; },
+      normalizeRow(cells, year) {
+        const g = k => cells[this.COL[k]];
+        const num = v => Utils.number(v);
+        const income = num(g('incomeAmount')), expense = num(g('expenseAmount')), asset = num(g('assetAmount'));
+        const account = String(g('account') || '').trim(), description = String(g('description') || '').trim();
+        if (!account && !description && !income && !expense && !asset) return null;
+        return {
+          date: this.buildDate(year, g('month'), g('day')), account, description,
+          counterparty: String(g('counterparty') || '').trim(),
+          income, incomeVat: num(g('incomeVat')), expense, expenseVat: num(g('expenseVat')),
+          asset, assetVat: num(g('assetVat')), note: String(g('note') || '').trim(),
+          kind: this.classify(income, expense, asset), knownAccount: !!SimpleBookAccounts.find(account)
+        };
+      },
+      colLetter(ref) { const m = /^([A-Z]+)/.exec(ref || ''); if (!m) return 0; let n = 0; for (const c of m[1]) n = n * 26 + (c.charCodeAt(0) - 64); return n; },
+      async parse(buffer) {
+        const ctx = await XlsxReader.read(buffer);
+        const parser = new DOMParser();
+        const shared = [];
+        const ss = await XlsxReader.text(ctx, 'xl/sharedStrings.xml');
+        if (ss) { const doc = parser.parseFromString(ss, 'application/xml'); for (const si of doc.getElementsByTagName('si')) { let s = ''; for (const t of si.getElementsByTagName('t')) s += t.textContent; shared.push(s); } }
+        const wbDoc = parser.parseFromString(await XlsxReader.text(ctx, 'xl/workbook.xml'), 'application/xml');
+        let rid = null;
+        for (const sh of wbDoc.getElementsByTagName('sheet')) {
+          if (sh.getAttribute('name') === this.SHEET) { rid = sh.getAttribute('r:id'); if (!rid) for (const at of sh.attributes) if (at.localName === 'id') { rid = at.value; break; } break; }
+        }
+        if (!rid) throw new Error('“장부” 시트를 찾지 못했습니다. 국세청 간편장부 서식(.xlsx)인지 확인해 주세요.');
+        const relDoc = parser.parseFromString(await XlsxReader.text(ctx, 'xl/_rels/workbook.xml.rels'), 'application/xml');
+        let target = null;
+        for (const r of relDoc.getElementsByTagName('Relationship')) if (r.getAttribute('Id') === rid) { target = r.getAttribute('Target'); break; }
+        if (!target) throw new Error('장부 시트 경로를 찾지 못했습니다.');
+        const sheetXml = await XlsxReader.text(ctx, target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\/?/, ''));
+        if (!sheetXml) throw new Error('장부 시트를 읽지 못했습니다.');
+        const shDoc = parser.parseFromString(sheetXml, 'application/xml');
+        const year = (shared.join(' ').match(/(20\d{2})\s*년/) || [])[1] || '';
+        const rows = [];
+        for (const row of shDoc.getElementsByTagName('row')) {
+          if ((parseInt(row.getAttribute('r'), 10) || 0) < this.DATA_START_ROW) continue;
+          const cells = {};
+          for (const c of row.getElementsByTagName('c')) {
+            const col = this.colLetter(c.getAttribute('r')), t = c.getAttribute('t');
+            if (t === 'inlineStr') { const it = c.getElementsByTagName('t')[0]; cells[col] = it ? it.textContent : ''; continue; }
+            const v = c.getElementsByTagName('v')[0]; if (!v) continue;
+            cells[col] = (t === 's') ? (shared[parseInt(v.textContent, 10)] ?? '') : v.textContent;
+          }
+          const norm = this.normalizeRow(cells, year);
+          if (norm) rows.push(norm);
+        }
+        const totals = rows.reduce((a, r) => { a.income += r.income; a.expense += r.expense; a.asset += r.asset; return a; }, { income: 0, expense: 0, asset: 0 });
+        const counts = rows.reduce((a, r) => { a[r.kind] = (a[r.kind] || 0) + 1; return a; }, {});
+        const unknownAccounts = [...new Set(rows.filter(r => r.account && !r.knownAccount).map(r => r.account))];
+        return { year, rows, totals, counts, unknownAccounts };
+      }
     });
 
     // 앱 전용 용어 툴팁(세법 용어사전 TAX_TERMS에 없는 앱·회계 개념만 유지). 세법 용어의 SSOT는
@@ -2096,10 +2215,28 @@
     function renderImports() {
       return `${pageHeader('가져오기','국세청 간편장부 Excel을 내부 복식 원장으로 옮기는 작업 공간입니다.')}
         <div class="notice">${icon('construction')}<div><strong>구조 검증 단계입니다.</strong><br>원본 파일 보존, 행별 미리보기, 중복 탐지, 사용자 확인 없이 전표를 확정하지 않는 흐름으로 구현됩니다.</div></div>
-        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">국세청 간편장부 Excel</span>${badge('다음 단계','info')}</div><div class="status-item-body"><code>장부</code> 시트 4행부터 A:L 열을 읽고 수입·비용·자산 후보를 나눕니다.</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">은행·카드·PG 자료</span>${badge('보류')}</div><div class="status-item-body">자동 연동은 V1 후속 범위입니다. 메뉴와 데이터 계약만 열어둡니다.</div></div></div>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">간편장부 Excel 미리보기</h2><p class="section-help"><code>장부</code> 시트(A=월·B=일·C=계정과목·D=거래내용·E=거래처·F/G=수입·H/I=비용·J/K=자산·L=비고)를 읽습니다. <strong>원본 행을 그대로 보여줄 뿐, 아직 장부에 반영하지 않습니다.</strong></p></div>${badge('미리보기','info')}</div>
+          <input type="file" id="importFile" accept=".xlsx" class="input" aria-label="간편장부 Excel 선택">
+          <div id="importStatus"></div>
+          <div id="importPreview"></div>
+        </section>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">간편장부 계정과목 분류표</h2><p class="section-help">${Utils.escape(SimpleBookAccounts.source)}. 가져오기와 장부 입력 시 이 분류를 기준으로 수입·비용·자산 열에 대응합니다.</p></div>${badge('국세청 기준','info')}</div><div class="coa-ref">${simpleBookAccountsHtml()}</div></section>`;
     }
 
+    function importSummaryHtml(res) {
+      const c = res.counts || {};
+      const unknown = res.unknownAccounts || [];
+      const warn = unknown.length ? `<div class="notice">${icon('triangle-alert')}<div>분류표에 없는 계정과목 ${unknown.length}종: ${unknown.slice(0, 8).map(Utils.escape).join(', ')}${unknown.length > 8 ? ' 외' : ''}. 반영 단계에서 매핑을 확인하세요.</div></div>` : '';
+      return `<div class="notice info">${icon('circle-check')}<div><strong>${res.rows.length}건</strong> 읽음${res.year ? ` · ${Utils.escape(res.year)}년 귀속` : ''} · 수입 ${c.income || 0}건 / 비용 ${c.expense || 0}건 / 자산 ${c.asset || 0}건<br>합계 — 수입 <strong>${Utils.won(res.totals.income)}</strong> · 비용 <strong>${Utils.won(res.totals.expense)}</strong> · 자산 <strong>${Utils.won(res.totals.asset)}</strong></div></div>${warn}
+        <div class="form-actions"><button class="button" type="button" disabled title="다음 단계에서 구현">${icon('database')}장부에 반영(다음 단계)</button></div>`;
+    }
+    function importPreviewHtml(res) {
+      const cap = 200;
+      const shown = res.rows.slice(0, cap);
+      const rowHtml = shown.map(r => `<tr><td>${Utils.escape(r.date)}</td><td>${Utils.escape(r.account)}${r.knownAccount ? '' : ' <span class="major">(미분류)</span>'}</td><td>${Utils.escape(r.description)}</td><td>${Utils.escape(r.counterparty)}</td><td class="number">${r.income ? Utils.won(r.income) : ''}</td><td class="number">${r.expense ? Utils.won(r.expense) : ''}</td><td class="number">${r.asset ? Utils.won(r.asset) : ''}</td><td>${Utils.escape(r.note)}</td></tr>`).join('');
+      const more = res.rows.length > cap ? `<div class="section-help">…미리보기는 상위 ${cap}건만 표시합니다(전체 ${res.rows.length}건).</div>` : '';
+      return `<div class="table-wrap import-preview"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>비고</th></tr></thead><tbody>${rowHtml}</tbody></table></div>${more}`;
+    }
     function simpleBookAccountsHtml() {
       return SimpleBookAccounts.GROUPS.map(g => `<div class="coa-group"><div class="coa-group-head"><strong>${Utils.escape(g.label)}</strong> <span class="major">간편장부 ${Utils.escape(g.column)} 열</span></div><table class="coa-table"><tbody>${g.items.map(it => `<tr><th>${Utils.escape(it.name)}</th><td>${Utils.escape(it.desc)}</td></tr>`).join('')}</tbody></table></div>`).join('');
     }
@@ -2467,6 +2604,24 @@
         state.guideTopic = button.dataset.openGuideTopic;
         routeTo('guide');
       }));
+      const importFile = el('importFile');
+      if (importFile) {
+        importFile.addEventListener('change', async () => {
+          const file = importFile.files?.[0];
+          if (!file) return;
+          const status = el('importStatus'), preview = el('importPreview');
+          status.innerHTML = `<div class="notice">${icon('loader')}<div>${Utils.escape(file.name)} 읽는 중…</div></div>`;
+          preview.innerHTML = '';
+          try {
+            const res = await SimpleBookImport.parse(await file.arrayBuffer());
+            if (!res.rows.length) { status.innerHTML = `<div class="notice">${icon('info')}<div>「장부」 시트에서 읽을 거래 행을 찾지 못했습니다(4행부터 확인).</div></div>`; return; }
+            status.innerHTML = importSummaryHtml(res);
+            preview.innerHTML = importPreviewHtml(res);
+          } catch (error) {
+            status.innerHTML = `<div class="notice danger">${icon('shield-alert')}<div>${Utils.escape(error.message || '파일을 읽지 못했습니다.')}</div></div>`;
+          }
+        });
+      }
       const termSearch = el('termSearch');
       if (termSearch) {
         const box = el('termSearchResults');
@@ -2756,7 +2911,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, TermService, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

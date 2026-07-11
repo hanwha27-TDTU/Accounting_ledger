@@ -50,7 +50,17 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, TermService, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, APP_INFO } = api;
+
+  // 간편장부 import 파서 순수 헬퍼 (A=월/B=일 날짜, 금액열 분류)
+  ok(SimpleBookImport.buildDate('2025', '1', '1') === '2025-01-01', 'SimpleBookImport buildDate 월/일 -> ISO');
+  ok(SimpleBookImport.buildDate('', '1', '1') === '1/1', 'SimpleBookImport buildDate 연도 없으면 원본형 폴백');
+  ok(SimpleBookImport.classify(40000000, 0, 0) === 'income' && SimpleBookImport.classify(0, 1450, 0) === 'expense' && SimpleBookImport.classify(0, 0, 500) === 'asset', 'SimpleBookImport classify by amount column');
+  const C = SimpleBookImport.COL;
+  const cell = {}; cell[C.month] = '1'; cell[C.day] = '5'; cell[C.account] = '여비교통비'; cell[C.description] = '버스요금'; cell[C.counterparty] = '경기버스'; cell[C.expenseAmount] = '1450';
+  const nr = SimpleBookImport.normalizeRow(cell, '2025');
+  ok(nr && nr.date === '2025-01-05' && nr.kind === 'expense' && nr.expense === 1450 && nr.knownAccount === true, 'SimpleBookImport normalizeRow -> 여비교통비 비용 1450, 분류표에 존재');
+  ok(SimpleBookImport.normalizeRow({}, '2025') === null, 'SimpleBookImport normalizeRow empty -> null');
 
   // 세법 용어사전 — 법적 정의(근거 조문) + 초딩 설명, 대시보드 검색용
   ok(TermService.all().length === 28, 'TermService has 28 terms');

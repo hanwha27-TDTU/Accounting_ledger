@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.35** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.36** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -791,3 +791,25 @@ advisor 잔여 항목:
 | 하네스 보강 | `legal-ssot-contract`에 **추계 배율 잠금** 추가: `EstimatedIncome`의 `isDoubleEntry ? 0.5 : 1`(기준경비율 ½)와 `isDoubleEntry ? 3.4 : 2.8`(비교배율) 리터럴을 코드에서 확인하고, legal-basis 문서의 `3.4배`·`2.8배`·`½` 표기와 대조. 배율 변경 시 게이트가 막음(3.4→3.9 실험 시 FAIL, 복구 PASS로 양방향 검증) |
 | 관찰(비버그) | `simple_book_rows` 테이블이 스키마·마이그레이션에 존재하나 index.html 런타임 참조 0 — 간편장부 import(#5)의 예정 대상(이번 세션 산출물 아님). `TERM_HELP`(툴팁)와 `TAX_TERMS`(사전)의 용도 분리 유지. `legal-ssot` 기대값은 게이트에 하드코딩(법 개정 시 3중 갱신 강제, 의도) |
 | 스킬 버전 | `Sub_app-research-notes_0.35` |
+
+## 2026-07-11 앱 0.24 간편장부 Excel 미리보기 (#5 파싱+미리보기, 실데이터 검증)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.24` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `import` |
+| 제목 | 국세청 간편장부(.xlsx)를 무 CDN 브라우저 파싱으로 미리보기 |
+| 배경(사용자 자료) | 사용자가 실제 입력한 간편장부 샘플(`a4968fab-…2025…xlsx`, 172KB, 945행) 제공 → 실테스트 요청 |
+| 실데이터 발견 | 시트 구성: 장부/통계/보조/계정과목/Sheet1. **날짜가 A=월·B=일로 분리**(빈 양식의 A=일자 단일 가정과 다름), M열 이후 사용자 보조열(공제여부·부가세검증·차이·조치필요)은 무시 대상. 계정과목은 전부 `SimpleBookAccounts` 분류표 명칭과 일치(기타(비용)·기업업무추진비·여비교통비·소모품비·매출 등) |
+| 구현 | `XlsxReader`(ZIP EOCD→중앙디렉터리→로컬헤더 파싱 + `DecompressionStream('deflate-raw')`로 method 8 해제, TextDecoder). `SimpleBookImport`: 순수 헬퍼(`buildDate` 월/일→ISO·연도 없으면 폴백, `classify` 금액열→종류, `normalizeRow` 빈행 skip·`knownAccount` 표시) + async `parse`(sharedStrings·workbook·rels로 「장부」 시트 경로 해석 후 4행부터 A:L 추출, 연도는 제목 `(YYYY년)`에서). `renderImports`에 파일입력+`importSummaryHtml`+`importPreviewHtml`(상위 200건, 원본 보존, 전기 버튼 비활성). `.import-preview` sticky-header 스크롤표 |
+| 검증(정직·실데이터) | 헤드리스 Chromium에서 실제 파일을 `setInputFiles`로 인앱 파서에 투입: **945건·2025년·수입 8/비용 937/자산 0·합계 수입 40,000,000·비용 38,625,037**(Python 프로토타입과 정확 일치), 첫 행 `2025-01-01 여비교통비 버스요금 경기버스 1,450 카드`. 앱 JS 에러 0. 순수 헬퍼 로직 테스트 +5(총 61). DecompressionStream은 Node VM에 없어 파싱은 헤드리스로만 검증(순수 헬퍼는 VM 테스트). 원본 xlsx 미커밋(참고자료 하드룰) |
+| 정확성(North Star) | **미리보기 전용, 자동 전기 없음**(장부 반영 버튼 비활성). 원본 행 보존, 계정과목 미분류 표기. 확정 아님 |
+| 스킬 버전 | `Sub_import-export_0.02`, `Sub_app-research-notes_0.36` |
+
+남은 위험/미완:
+
+1. 확정→원장 전기(중복 탐지·복식 전표 생성·`simple_book_rows` 저장)는 다음 단계. 현재는 읽기·표시만.
+2. 날짜가 월/일 분리가 아니라 단일 일자열(또는 엑셀 date serial)인 다른 양식은 `buildDate` 폴백만 동작 — 서식 변형 추가 대응 필요.
+3. 미리보기 200건 상한(대용량 DOM 방지). 전체 반영은 전기 단계에서 처리.
+4. ZIP64·암호화 xlsx는 미지원(명확한 오류). 일반 Excel/Hancom 출력은 정상.
