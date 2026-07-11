@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.16** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.17** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -396,5 +396,27 @@ advisor 잔여 항목:
 
 남은 위험/미완:
 
-1. 다기기 삭제 수렴을 위한 `tombstones` pull 처리는 미구현이다. 현재는 삭제 기기의 소프트삭제 행을 `sync_queue` upsert로 클라우드에 반영하는 수준이다.
+1. 다기기 삭제 수렴을 위한 `tombstones` pull 처리는 미구현이다. 현재는 삭제 기기의 소프트삭제 행을 `sync_queue` upsert로 클라우드에 반영하는 수준이다. → **0.06에서 구현 완료.**
 2. 실제 브라우저에서 부분/일괄 삭제 후 IndexedDB 상태와 동기화 큐, 복원 왕복은 수동 확인이 필요하다.
+
+## 2026-07-11 앱 0.06 tombstone 기반 다기기 삭제 수렴 (좀비 데이터 방지)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.06` |
+| schema_version | `0.03` (DB 스키마·migration 변경 없음, 기존 `tombstones` 테이블 사용) |
+| note_type | `feature_release`, `sync_review`, `security_review` |
+| 제목 | 삭제한 데이터가 다른 기기에서 되살아나지 않도록 tombstone 동기화 수렴 |
+| 배경 | 삭제 후 RLS SELECT(`deleted_at is null`)가 삭제 행을 숨겨 pull로는 삭제가 다른 기기로 전파되지 않았다. `tombstones` 스토어는 기록만 하고 읽지 않는 죽은 코드였다. |
+| 구현 | `SupabaseAdapter.pullTombstones`/`pushTombstones`(append-only, `resolution=ignore-duplicates`)와 `SyncService.convergeTombstones`. 동기화 정상·canonical 경로 모두에서 cloud tombstone pull → 로컬에 없던 것 push → 모든 tombstone을 대상 store 로컬 행에 멱등 소프트삭제 적용. |
+| 좀비 방지 근거 | (a) 삭제 행은 `updated_at` 최신값 승리 병합에서 활성 복사본에 덮이지 않음. (b) 동기화는 `sync_queue` pending만 업로드해 비-큐 로컬 행을 재업로드하지 않음. (c) 삭제 전파는 tombstone 채널로만. 삭제한 기기·클라우드에서 자기복구되는 경로 없음. |
+| RLS 확인 | `tombstones` 컬럼 8개. SELECT·INSERT = `(business_id is null and accounting_is_allowed_user()) or accounting_can_access_business(business_id)`, UPDATE/DELETE 정책 없음(append-only). owner uid `c9ff5188-...`로 인증 세션 시뮬레이션(롤백)에서 tombstone INSERT·SELECT 통과. 잔존 행 0(businesses 0, tombstones 0) 재확인. |
+| 테스트 | 수렴 알고리즘 로직 테스트 7/7: 다기기 수렴(B가 A의 삭제 학습), 멱등성, 삭제 기기 무재생성, untombstoned 행 유지, 미지 store 안전. |
+| 스킬 버전 | `Sub_domain-guardians_0.04`, `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.17` |
+
+남은 위험/미완:
+
+1. **잠재 좀비 트랩**: 향후 거래 수정(update) 기능을 추가하면, 다른 기기에서 이미 삭제됐지만 tombstone을 못 받은 행을 편집·재업로드해 되살릴 수 있다. 수정 기능 구현 시 upsert 전에 `tombstones`/`deleted_at` 확인 가드 필수. 현재는 수정 UI가 없어 트리거되지 않는다.
+2. canonical version 강제 최종본 지정은 아직 UI/코드로 배선되지 않았다(어디서도 cloud canonical을 증가시키지 않음).
+3. 실제 브라우저 2대에서의 삭제→동기화→타기기 소멸 왕복은 수동 확인 대상이다.
+4. 매 동기화에서 cloud에 없는 로컬 tombstone을 push할 때 전체를 훑는다(V1 개인 규모에서 문제없음). 대량화 시 업로드 완료 표식 최적화 여지.

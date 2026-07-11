@@ -492,7 +492,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.05',
+      version: '0.06',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -507,7 +507,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.05', date: '2026-07-11', label: '최신 · 데이터 관리 화면', detail: '관리 메뉴에 데이터 관리 화면을 추가해 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(소프트 삭제·감사·동기화 반영)와 이 기기 전체 삭제를 대칭 구조로 한 곳에서 처리합니다.' },
+      { version: '0.06', date: '2026-07-11', label: '최신 · 다기기 삭제 수렴', detail: '삭제한 거래가 다른 기기에서 되살아나지 않도록 tombstone을 클라우드에 올리고 내려받아 모든 기기에 소프트 삭제를 적용합니다. RLS로 숨겨져 전파되지 않던 삭제가 동기화 시 수렴합니다.' },
+      { version: '0.05', date: '2026-07-11', label: '데이터 관리 화면', detail: '관리 메뉴에 데이터 관리 화면을 추가해 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(소프트 삭제·감사·동기화 반영)와 이 기기 전체 삭제를 대칭 구조로 한 곳에서 처리합니다.' },
       { version: '0.04', date: '2026-07-11', label: '사업자 CRUD·RLS 왕복 검증', detail: '로그인한 소유자 권한으로 businesses 테이블에 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 왕복 검증하고 결과를 설정과 개발 기록에 표시합니다.' },
       { version: '0.03', date: '2026-07-11', label: '연결 가이드와 실로그인', detail: 'Google OAuth 실로그인을 검증하고 앱 설정값과 진단 상태에 자동 연동되는 연결 가이드를 추가했습니다.' },
       { version: '0.02', date: '2026-07-11', label: 'Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
@@ -940,6 +941,14 @@
       async syncMeta() {
         const rows = await this.raw('accounting_sync_meta?select=key,value,updated_at');
         return Object.fromEntries((rows || []).map(row => [row.key, row]));
+      }
+      async pullTombstones() {
+        return this.raw('tombstones?select=*&order=created_at.desc');
+      }
+      // Append-only insert. ignore-duplicates avoids an UPDATE path (tombstones have no update policy).
+      async pushTombstones(rows) {
+        if (!rows.length) return null;
+        return this.raw('tombstones?on_conflict=id', { method: 'POST', body: rows, prefer: 'resolution=ignore-duplicates,return=minimal' });
       }
       // Authenticated round-trip that proves businesses CRUD and RLS with the owner's own session.
       // Uses an isolated probe row (never stored locally) and always cleans it up.
@@ -1376,6 +1385,7 @@
               await storage.replaceStore(table, [...merged.values()]);
             }
           }
+          await this.convergeTombstones();
           state.config.lastSyncAt = Utils.now();
           state.config.canonicalVersion = cloudCanonical;
           ConfigAdapter.save(state.config);
@@ -1386,6 +1396,28 @@
         } finally {
           renderShellStatus();
         }
+      },
+
+      // Delete convergence: upload local tombstones the cloud lacks, pull cloud tombstones,
+      // and apply every tombstone as a local soft-delete so a delete on one device reaches all devices.
+      // RLS hides soft-deleted rows from pullTable, so tombstones are the only cross-device delete signal.
+      async convergeTombstones() {
+        const cloud = (await remote.pullTombstones()) || [];
+        const cloudIds = new Set(cloud.map(row => row.id));
+        const local = await storage.getAll('tombstones');
+        const localIds = new Set(local.map(row => row.id));
+        const toPush = local.filter(row => !cloudIds.has(row.id));
+        if (toPush.length) await remote.pushTombstones(toPush);
+        const newFromCloud = cloud.filter(row => !localIds.has(row.id));
+        const updatesByStore = {};
+        for (const stone of [...local, ...newFromCloud]) {
+          if (!SYNC_TABLE_ORDER.includes(stone.entity_type)) continue;
+          const row = await storage.get(stone.entity_type, stone.entity_id);
+          if (row && !row.deleted_at) (updatesByStore[stone.entity_type] ||= []).push({ ...row, deleted_at: stone.deleted_at, updated_at: stone.deleted_at });
+        }
+        const payload = { ...updatesByStore };
+        if (newFromCloud.length) payload.tombstones = newFromCloud;
+        if (Object.keys(payload).length) await storage.putMany(payload);
       },
 
       async runBusinessRoundtrip() {

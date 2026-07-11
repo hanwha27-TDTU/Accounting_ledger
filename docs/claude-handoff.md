@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.05`
-> 상태: 인증 owner 기준 `businesses` CRUD·RLS 왕복 자가검증(0.04)에 이어 `데이터 관리` 화면(저장·백업·복원·동기화·부분/일괄 삭제) 추가(0.05)
+> 앱 버전: `0.06`
+> 상태: `데이터 관리` 화면(0.05)에 이어 tombstone 기반 다기기 삭제 수렴 구현(0.06). 삭제가 다른 기기에서 되살아나지 않고 동기화 시 모든 기기로 전파됨
 
 ## 앱 목적 (미션)
 
@@ -48,7 +48,8 @@
 | 앱 0.03 | Google OAuth owner 실로그인과 Google identity·active owner allowlist 확인, 앱 설정·진단 state에 연동되는 단계별 연결 가이드와 복사 기능 구현 |
 | 앱 0.04 | 로그인한 owner 권한으로 `businesses`에 격리된 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 실제 RLS로 왕복 검증하는 설정 자가검증과 개발 기록 상태 표시 구현. 임시 행은 로컬 장부에 저장하지 않고 검증 종료 시 삭제 |
 | 앱 0.05 | `관리 → 데이터 관리` 화면 추가. 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(전표·라인 동반 소프트삭제 + tombstone + 감사로그 + 동기화 큐), 이 기기 전체 삭제를 2열 대칭 그리드로 통합. 백업·복원은 설정에서 데이터 관리로 이동 |
-| 최근 기준 커밋 | `5c34f62 feat: add businesses CRUD/RLS round-trip self-check for app 0.04`. 앱 0.05 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
+| 앱 0.06 | tombstone 기반 다기기 삭제 수렴. `SyncService.convergeTombstones`가 동기화 시 로컬 tombstone을 클라우드에 push(ignore-duplicates)하고 cloud tombstone을 pull해 모든 기기에 소프트삭제를 멱등 적용. RLS SELECT가 `deleted_at is null`로 삭제 행을 숨겨 pull로 전파되지 않던 삭제가 tombstone 채널로 수렴. `tombstones` 테이블·RLS는 기존 스키마 사용(마이그레이션 없음) |
+| 최근 기준 커밋 | `ff88595 docs: make CLAUDE.md self-sufficient for cheaper models`. 앱 0.06 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
 
 ## 다음 구현 우선순위
 
@@ -56,7 +57,7 @@
 
 1. (완료 · 0.04) 인증 사용자 기준 `businesses` CRUD와 RLS 왕복 검증
 2. 비허용 Google 계정 차단과 owner 허용 사용자 관리 흐름 검증
-3. 일반 동기화와 canonical version 변경 수렴의 다기기 자동 테스트 (0.05에서 삭제 tombstone 로컬 생성까지 구현, 다기기 tombstone pull 수렴은 미완)
+3. 일반 동기화와 canonical version 변경 수렴의 다기기 자동 테스트 (0.06에서 tombstone push/pull/apply 삭제 수렴 구현. canonical version 강제 최종본 배선과 실브라우저 다기기 테스트는 미완)
 4. Cloudinary 이미지/PDF 업로드와 증빙 파일 메타·삭제 상태 연결
 5. 국세청 간편장부 Excel import 미리보기·원본 행 보존·확정 흐름
 6. 거래 수정·마감 후 변경 통제와 감사로그 고도화 (0.05에서 거래 부분 소프트삭제 구현)
@@ -64,7 +65,11 @@
 
 0.04에서 로그인한 owner 세션의 access token으로 `businesses` INSERT·SELECT·UPDATE·soft delete·DELETE를 실제 REST로 왕복하는 자가검증을 구현했다. Supabase `businesses` 정책은 SELECT `owner_user_id = auth.uid() and deleted_at is null`, INSERT `owner_user_id = auth.uid() and accounting_is_allowed_user()`, UPDATE·DELETE `owner_user_id = auth.uid()`로 확인했고(RLS 4/4), owner allowlist는 `hanwha27@gmail.com:owner:active`, canonical_version은 `0`이다. owner uid `c9ff5188-51a7-4c01-b653-b6e1d73d0790`로 시뮬레이션한 인증 세션에서 create·read·update 왕복이 통과했으며, soft delete 격리와 정리는 확인된 SELECT/DELETE 정책의 직접 결과다. 실제 브라우저 owner 로그인 왕복은 수동 체크리스트로 남는다. Cloudinary, Excel, 법정서식 출력은 아직 완료 기능이 아니다.
 
-0.05에서 `데이터 관리` 화면을 추가해 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제, 이 기기 전체 삭제를 2열 대칭 그리드로 통합했다. 거래 부분 삭제는 원천거래와 그 전표·전표라인을 함께 `deleted_at` 소프트삭제하고 `tombstones`·`audit_logs`·`sync_queue`에 반영한다. 일괄 삭제는 IndexedDB store만 비우고 localStorage의 Supabase 연결 설정·기기 식별자는 유지한다. 다기기 삭제 수렴을 위한 tombstone pull 처리는 아직 미구현이다.
+0.05에서 `데이터 관리` 화면을 추가해 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제, 이 기기 전체 삭제를 2열 대칭 그리드로 통합했다. 거래 부분 삭제는 원천거래와 그 전표·전표라인을 함께 `deleted_at` 소프트삭제하고 `tombstones`·`audit_logs`·`sync_queue`에 반영한다. 일괄 삭제는 IndexedDB store만 비우고 localStorage의 Supabase 연결 설정·기기 식별자는 유지한다.
+
+0.06에서 다기기 삭제 수렴을 구현했다. `SyncService.convergeTombstones`가 매 동기화에서 cloud tombstone을 pull, cloud에 없는 로컬 tombstone을 push(`resolution=ignore-duplicates`로 append-only 안전), 모든 tombstone을 해당 store의 로컬 행에 멱등 소프트삭제로 적용한다. `businesses` 등 SELECT RLS가 `deleted_at is null`로 삭제 행을 숨겨 pull로는 전파되지 않던 삭제가 tombstone 채널로 모든 기기에 수렴한다. `tombstones` 테이블은 이미 존재(컬럼 8개, RLS SELECT/INSERT = `(business_id is null and accounting_is_allowed_user()) or accounting_can_access_business(business_id)`, UPDATE/DELETE 정책 없음=append-only)해 마이그레이션이 없었다. 좀비 데이터 방지 근거: (a) 삭제 행은 `updated_at` 최신값 승리 병합에서 활성 복사본에 덮이지 않고, (b) 동기화는 `sync_queue` 항목만 업로드해 비-큐 로컬 행을 재업로드하지 않으며, (c) 삭제 전파는 tombstone으로만 이뤄진다. 로직 테스트 7/7(다기기 수렴·멱등성·재생성 없음·미지 store 안전), owner 인증 tombstone INSERT/SELECT DB 검증(롤백)을 통과했다.
+
+남은 잠재 좀비 트랩: 향후 거래 **수정(update)** 기능을 추가하면, 다른 기기에서 이미 삭제됐지만 아직 tombstone을 못 받은 행을 편집·재업로드해 되살릴 수 있다. 수정 기능 구현 시 upsert 전에 `tombstones`/`deleted_at`를 확인해 tombstoned id는 되살리지 않도록 가드해야 한다. 현재는 거래 수정 UI가 없어 트리거되지 않는다.
 
 다음 단계로는 비허용 계정 차단과 owner allowlist 관리 흐름(#2)을 진행한다.
 
