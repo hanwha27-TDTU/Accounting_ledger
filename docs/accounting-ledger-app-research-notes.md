@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.29** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.30** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -671,3 +671,23 @@ advisor 잔여 항목:
 2. 단순경비율 일반율↔초과율 전환(당해 수입 임계)과 단순경비율 배제 전 업종 기준표는 자료 수령 후 후보로 구현 예정.
 3. 가산세·총수입 산입 항목은 분석만 기록, 엔진 미포함.
 4. 실브라우저에서 리포트 카드 표시는 수동 확인 대상.
+
+## 2026-07-11 앱 0.19 기준경비율 추계소득 계산기 UI (②그룹 #5 완성)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.19` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `ui` |
+| 제목 | 0.18 `EstimatedIncome` 엔진 위에 리포트 화면 추계소득 계산기 추가 |
+| 구현 | `estimatorPanelHtml(summary)`: 입력(총수입=수입 집계 프리필, 매입·임차·인건비, 기장의무 select, 기준·단순경비율=활성 사업자 업종코드에서 자동 채움·수정 가능) + 출력(주요경비, ①기준소득, ②비교소득, 소득금액 min, 필요경비). `bindViewEvents`에서 input/change → `EstimatedIncome.byStandardRate()` 실시간 호출(재렌더 없이 textContent 갱신, 거래폼 preview 패턴과 대칭). `.estimator*` 반응형 CSS(auto-fit grid, `--brand` 강조) |
+| 검증(정직) | **헤드리스 Chromium 왕복 검증**(playwright-core, executablePath=/opt/pw-browsers/chromium-1194): 리포트로 이동 → 작성사례 값 입력 → 출력 확인. 복식부기: 주요경비 92,960,000·①21,220,000·②42,024,000·소득 21,220,000·필요경비 98,780,000(작성사례·서식 ⑩과 일치). 간편장부: ②34,608,000·소득 15,400,000. 앱 JS 콘솔 에러 0(외부 CDN lucide/supabase 차단은 오프라인 샌드박스 특성). 순수 로직 불변으로 logic-tests 44 유지. 하네스 Required 0 |
+| 정확성(North Star) | 확정 신고값 아님(`검토용` 배지). 경비율은 후보(0.15)이고 사용자가 수정 가능. 복식부기의무자 추계 가산세 경고 유지 |
+| 스킬 버전 | `Sub_income-tax-reporting_0.03`, `Sub_tax-vat-classification_0.04`, `Sub_app-research-notes_0.30` |
+
+남은 위험/미완:
+
+1. 계산기는 검토용. 기장의무 select 기본값은 복식부기의무자(보수적)이며 직전연도 수입 기반 자동 판정은 미연동(직전 수입 미저장). 향후 직전연도 수입 입력 시 `BookkeepingDuty.assess`로 자동 선택 가능.
+2. 주요경비는 매입+임차+인건 단순 합. 정규증빙 검증·항목별 한도는 미반영(안내 문구로만 고지).
+3. 단순경비율 초과율/배제 임계표는 여전히 자료 대기(0.18 노트 참조).
+4. 브라우저 검증은 계산 경로 한정. 시각·레이아웃(모바일 overflow 등)은 수동 확인 대상.

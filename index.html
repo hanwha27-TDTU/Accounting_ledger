@@ -336,6 +336,17 @@
     .coa-table th { text-align: left; white-space: nowrap; vertical-align: top; padding: 4px 12px 4px 0; font-weight: 600; width: 1%; }
     .coa-table td { vertical-align: top; padding: 4px 0; color: var(--muted); border-bottom: 1px solid rgba(0,0,0,.05); }
     .coa-table th { border-bottom: 1px solid rgba(0,0,0,.05); }
+    .estimator { margin: 12px 0; }
+    .estimator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .est-field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+    .est-field input, .est-field select { text-align: right; }
+    .est-field select { text-align: left; }
+    .est-note { margin: 8px 0 12px; }
+    .est-out { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; background: rgba(0,0,0,.02); }
+    .est-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13.5px; }
+    .est-row strong { font-variant-numeric: tabular-nums; }
+    .est-row.total { border-top: 1px solid rgba(0,0,0,.1); padding-top: 8px; margin-top: 2px; font-size: 15px; }
+    .est-row.total strong { color: var(--brand); }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -524,7 +535,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.18',
+      version: '0.19',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -539,7 +550,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.18', date: '2026-07-11', label: '최신 · 기준경비율 추계소득 계산 엔진·안내', detail: '국세청 추계신고(기준경비율) 작성사례의 공식 계산식을 검증된 엔진으로 구현했습니다. 소득금액 = min(기준소득금액, 비교소득금액)이며 복식부기의무자는 기준경비율 1/2·비교 3.4배, 간편장부대상자는 전체·2.8배를 적용합니다. 리포트 화면에 계산 방법과 복식부기의무자 추계 시 가산세 경고를 검토용으로 안내합니다.' },
+      { version: '0.19', date: '2026-07-11', label: '최신 · 기준경비율 추계소득 계산기', detail: '리포트 화면에 추계소득금액 계산기를 추가했습니다. 총수입·매입·임차·인건비를 넣고 기장의무를 고르면, 선택한 업종의 경비율(자동 채움·수정 가능)로 기준소득금액·비교소득금액·소득금액(둘 중 작은 값)·필요경비를 실시간으로 보여줍니다. 검토용 후보 계산입니다.' },
+      { version: '0.18', date: '2026-07-11', label: '기준경비율 추계소득 계산 엔진·안내', detail: '국세청 추계신고(기준경비율) 작성사례의 공식 계산식을 검증된 엔진으로 구현했습니다. 소득금액 = min(기준소득금액, 비교소득금액)이며 복식부기의무자는 기준경비율 1/2·비교 3.4배, 간편장부대상자는 전체·2.8배를 적용합니다. 리포트 화면에 계산 방법과 복식부기의무자 추계 시 가산세 경고를 검토용으로 안내합니다.' },
       { version: '0.17', date: '2026-07-11', label: '간편장부 계정과목 분류표', detail: '국세청 간편장부 작성요령의 계정과목 분류표(수입·비용·제조비용·자산 25개 계정과목과 공식 설명)를 앱에 담아, 가져오기 화면에서 간편장부 수입·비용·자산 열 대응 기준으로 보여줍니다. 이후 Excel 가져오기의 계정과목 매핑 기준이 됩니다.' },
       { version: '0.16', date: '2026-07-11', label: '기장의무·면세 근거 자동 표시', detail: '업종코드를 고르면 기장의무 기준(소득세법 시행령 §208⑤: 3억/1.5억/7,500만원)과 부가세 면세 가능성(부가가치세법 §26①)을 근거 조문과 함께 후보로 보여줍니다. 면세는 공급 성질로 판단하므로 개별 판단이 필요함을 명시합니다.' },
       { version: '0.15', date: '2026-07-11', label: '경비율 자동 표시', detail: '국세청 2025 귀속 단순·기준경비율 1,542개를 담아, 업종코드를 고르면 해당 경비율(단순·기준, 초과율 포함)이 자동으로 표시됩니다. 확정이 아니라 후보이며 귀속연도·출처를 함께 보여줍니다.' },
@@ -2006,12 +2018,43 @@
       return SimpleBookAccounts.GROUPS.map(g => `<div class="coa-group"><div class="coa-group-head"><strong>${Utils.escape(g.label)}</strong> <span class="major">간편장부 ${Utils.escape(g.column)} 열</span></div><table class="coa-table"><tbody>${g.items.map(it => `<tr><th>${Utils.escape(it.name)}</th><td>${Utils.escape(it.desc)}</td></tr>`).join('')}</tbody></table></div>`).join('');
     }
 
+    // 기준경비율 추계소득 계산기(검토용). 업종 경비율은 자동 채우되 사용자가 수정할 수 있고,
+    // EstimatedIncome 엔진으로 실시간 계산한다. 확정 신고값이 아니라 후보 계산이다.
+    function estimatorPanelHtml(summary) {
+      const code = state.business?.main_industry_code || '';
+      const rate = ExpenseRates.find(code);
+      const name = state.business?.main_industry_name || IndustryCodes.find(code)?.name || '';
+      const dutyThreshold = BookkeepingDuty.thresholdOf(code);
+      const rev = Math.max(0, Math.round(summary.income || 0));
+      const rateNote = rate ? `업종 ${Utils.escape(code)} ${Utils.escape(name)} 경비율 자동 채움 · 필요시 수정` : '업종코드를 설정하면 경비율이 자동으로 채워집니다. 값을 직접 입력할 수도 있습니다.';
+      const dutyNote = dutyThreshold != null ? ` · 이 업종 복식부기 기준: 직전연도 수입 ${Utils.won(dutyThreshold)} 이상` : '';
+      return `<div class="estimator">
+        <div class="estimator-grid">
+          <label class="est-field"><span>총수입금액</span><input class="select" type="text" inputmode="numeric" id="estRevenue" value="${rev || ''}"></label>
+          <label class="est-field"><span>매입비용</span><input class="select" type="text" inputmode="numeric" id="estPurchase" value=""></label>
+          <label class="est-field"><span>임차료</span><input class="select" type="text" inputmode="numeric" id="estRent" value=""></label>
+          <label class="est-field"><span>인건비</span><input class="select" type="text" inputmode="numeric" id="estLabor" value=""></label>
+          <label class="est-field"><span>기장의무</span><select class="select" id="estDuty"><option value="double">복식부기의무자</option><option value="simple">간편장부대상자</option></select></label>
+          <label class="est-field"><span>기준경비율(%)</span><input class="select" type="text" inputmode="decimal" id="estStdRate" value="${rate ? rate.standardGeneral : ''}"></label>
+          <label class="est-field"><span>단순경비율(%)</span><input class="select" type="text" inputmode="decimal" id="estSimpleRate" value="${rate ? rate.simpleGeneral : ''}"></label>
+        </div>
+        <p class="est-note major">${Utils.escape(rateNote)}${dutyNote}</p>
+        <div class="est-out">
+          <div class="est-row"><span>주요경비(매입+임차+인건)</span><strong id="estMainCosts">0원</strong></div>
+          <div class="est-row"><span>① 기준소득금액</span><strong id="estPrimary">0원</strong></div>
+          <div class="est-row"><span>② 비교소득금액</span><strong id="estComparison">0원</strong></div>
+          <div class="est-row total"><span>소득금액 = min(①, ②)</span><strong id="estIncome">0원</strong></div>
+          <div class="est-row"><span>필요경비(수입 − 소득)</span><strong id="estNecessary">0원</strong></div>
+        </div>
+      </div>`;
+    }
+
     function renderReports() {
       const summary = AccountingDomain.summarize(activeTransactions());
       const legalReady = false;
       return `${pageHeader('리포트','검토용 집계와 법정 신고서식 출력을 명확히 구분합니다.')}
         <div class="metric-grid"><div class="metric-card"><div class="metric-label">누적 수입</div><div class="metric-value">${Utils.won(summary.income)}</div></div><div class="metric-card"><div class="metric-label">누적 비용</div><div class="metric-value">${Utils.won(summary.expense)}</div></div><div class="metric-card"><div class="metric-label">사업용 자산</div><div class="metric-value">${Utils.won(summary.assets)}</div></div><div class="metric-card"><div class="metric-label">검토 필요</div><div class="metric-value">${summary.review}건</div></div></div>
-        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">추계소득금액 계산 방법(기준경비율)</h2><p class="section-help">장부 없이 추계신고할 때 소득금액을 정하는 방법입니다. 국세청 추계신고 작성사례 기준 · 검토용 안내.</p></div>${badge('검토용','info')}</div><div class="notice">${icon('info')}<div>소득금액 = <strong>min(①, ②)</strong><br>① 기준소득금액 = 수입금액 − 주요경비(매입·임차·인건) − (수입금액 × 기준경비율 × <strong>복식부기 ½</strong>)<br>② 비교소득금액 = 수입금액 × (1 − 단순경비율) × <strong>복식부기 3.4배 / 간편장부 2.8배</strong><br><span class="major">주요경비는 정규증빙(세금계산서·계산서·신용카드·현금영수증)을 갖춰야 인정됩니다.</span></div></div><div class="notice danger">${icon('shield-alert')}<div><strong>복식부기의무자</strong>가 장부 없이 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 <strong>큰 금액</strong>이 부과됩니다. 추계는 최후 수단이며 장부 기장이 원칙입니다.</div></div></section>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">추계소득금액 계산 방법(기준경비율)</h2><p class="section-help">장부 없이 추계신고할 때 소득금액을 정하는 방법입니다. 국세청 추계신고 작성사례 기준 · 검토용 안내.</p></div>${badge('검토용','info')}</div><div class="notice">${icon('info')}<div>소득금액 = <strong>min(①, ②)</strong><br>① 기준소득금액 = 수입금액 − 주요경비(매입·임차·인건) − (수입금액 × 기준경비율 × <strong>복식부기 ½</strong>)<br>② 비교소득금액 = 수입금액 × (1 − 단순경비율) × <strong>복식부기 3.4배 / 간편장부 2.8배</strong><br><span class="major">주요경비는 정규증빙(세금계산서·계산서·신용카드·현금영수증)을 갖춰야 인정됩니다.</span></div></div>${estimatorPanelHtml(summary)}<div class="notice danger">${icon('shield-alert')}<div><strong>복식부기의무자</strong>가 장부 없이 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 <strong>큰 금액</strong>이 부과됩니다. 추계는 최후 수단이며 장부 기장이 원칙입니다.</div></div></section>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">법정 신고서식</h2><p class="section-help">국가법령정보센터의 최신 서식 스냅샷과 필드 매핑이 있어야 확정 출력할 수 있습니다.</p></div>${badge(legalReady?'출력 가능':'출력 차단',legalReady?'success':'danger')}</div><div class="notice danger">${icon('shield-alert')}<div>현재 앱에는 검증된 <code>form_snapshot_id</code>가 연결되지 않았습니다. 간편장부소득금액계산서와 필요경비명세서는 확정 신고서식으로 출력하지 않습니다.</div></div><button class="button" type="button" disabled>${icon('download')}법정서식 내보내기</button></section>`;
     }
 
@@ -2329,6 +2372,25 @@
             routeTo('ledger');
           } catch (error) { diagnostic(error); }
         });
+      }
+
+      if (el('estRevenue')) {
+        const estRecalc = () => {
+          const mainCosts = Utils.number(el('estPurchase').value) + Utils.number(el('estRent').value) + Utils.number(el('estLabor').value);
+          const res = EstimatedIncome.byStandardRate({
+            revenue: Utils.number(el('estRevenue').value), mainCosts,
+            stdRate: Utils.number(el('estStdRate').value), simpleRate: Utils.number(el('estSimpleRate').value),
+            isDoubleEntry: el('estDuty').value === 'double'
+          });
+          el('estMainCosts').textContent = Utils.won(mainCosts);
+          el('estPrimary').textContent = Utils.won(res.primary);
+          el('estComparison').textContent = Utils.won(res.comparison);
+          el('estIncome').textContent = Utils.won(res.income);
+          el('estNecessary').textContent = Utils.won(res.necessaryExpense);
+        };
+        ['estRevenue', 'estPurchase', 'estRent', 'estLabor', 'estStdRate', 'estSimpleRate'].forEach(id => el(id).addEventListener('input', estRecalc));
+        el('estDuty').addEventListener('change', estRecalc);
+        estRecalc();
       }
 
       const ledgerQuery = el('ledgerQuery');
