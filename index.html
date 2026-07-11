@@ -492,7 +492,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.07',
+      version: '0.08',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -507,7 +507,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.07', date: '2026-07-11', label: '최신 · 허용 사용자 관리', detail: '소유자 전용으로 Google 로그인 허용 이메일을 추가·차단·재허용하는 관리 화면을 설정에 추가했습니다. 비허용 계정은 로그인해도 회계자료에 접근할 수 없고, 변경은 감사 로그에 남습니다.' },
+      { version: '0.08', date: '2026-07-11', label: '최신 · 최종본 지정 동기화', detail: '소유자가 데이터 관리에서 이 기기를 클라우드 최종본으로 지정하면 canonical version이 올라가고, 다른 기기는 다음 동기화에서 로컬 전용 변경을 버리고 이 기기 기준으로 수렴합니다.' },
+      { version: '0.07', date: '2026-07-11', label: '허용 사용자 관리', detail: '소유자 전용으로 Google 로그인 허용 이메일을 추가·차단·재허용하는 관리 화면을 설정에 추가했습니다. 비허용 계정은 로그인해도 회계자료에 접근할 수 없고, 변경은 감사 로그에 남습니다.' },
       { version: '0.06', date: '2026-07-11', label: '다기기 삭제 수렴', detail: '삭제한 거래가 다른 기기에서 되살아나지 않도록 tombstone을 클라우드에 올리고 내려받아 모든 기기에 소프트 삭제를 적용합니다. RLS로 숨겨져 전파되지 않던 삭제가 동기화 시 수렴합니다.' },
       { version: '0.05', date: '2026-07-11', label: '데이터 관리 화면', detail: '관리 메뉴에 데이터 관리 화면을 추가해 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(소프트 삭제·감사·동기화 반영)와 이 기기 전체 삭제를 대칭 구조로 한 곳에서 처리합니다.' },
       { version: '0.04', date: '2026-07-11', label: '사업자 CRUD·RLS 왕복 검증', detail: '로그인한 소유자 권한으로 businesses 테이블에 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 왕복 검증하고 결과를 설정과 개발 기록에 표시합니다.' },
@@ -939,9 +940,19 @@
         const body = table === 'businesses' && state.session?.user?.id ? { ...payload, owner_user_id: state.session.user.id } : payload;
         return this.raw(`${table}?on_conflict=id`, { method: 'POST', body: [body], prefer: 'resolution=merge-duplicates,return=minimal' });
       }
+      // Batch upsert used by canonical designation (this device becomes the cloud source of truth).
+      async upsertMany(table, rows) {
+        if (!rows.length) return null;
+        const body = table === 'businesses' && state.session?.user?.id ? rows.map(row => ({ ...row, owner_user_id: state.session.user.id })) : rows;
+        return this.raw(`${table}?on_conflict=id`, { method: 'POST', body, prefer: 'resolution=merge-duplicates,return=minimal' });
+      }
       async syncMeta() {
         const rows = await this.raw('accounting_sync_meta?select=key,value,updated_at');
         return Object.fromEntries((rows || []).map(row => [row.key, row]));
+      }
+      // Only the bootstrap owner can write accounting_sync_meta (RLS). Used to bump canonical_version.
+      async setSyncMeta(key, value) {
+        return this.raw('accounting_sync_meta?on_conflict=key', { method: 'POST', body: [{ key, value: String(value), updated_at: Utils.now() }], prefer: 'resolution=merge-duplicates,return=minimal' });
       }
       async pullTombstones() {
         return this.raw('tombstones?select=*&order=created_at.desc');
@@ -1476,6 +1487,39 @@
         await remote.updateAllowedUser(id, { status, updated_at: Utils.now() });
         await remote.logAccessEvent(this.accessEvent(status === 'active' ? 'allowlist_reactivate' : 'allowlist_revoke', target?.email, 'success'));
         await this.loadAllowedUsers();
+      },
+
+      // Designate THIS device as the cloud source of truth: upload all local rows + tombstones,
+      // then bump accounting_sync_meta.canonical_version. Other devices detect the higher canonical
+      // on their next sync and replace local with cloud, discarding local-only changes (AGENTS 동기화 6-9).
+      async designateCanonical() {
+        if (!state.session) throw new Error('AUTH_REQUIRED');
+        if (!isBootstrapOwner()) throw new Error('CANONICAL_OWNER_ONLY');
+        state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
+        try {
+          for (const table of SYNC_TABLE_ORDER) {
+            const rows = await storage.getAll(table);
+            const safe = table === 'accounts' ? rows.map(row => AppService.remoteSafeAccount(row)) : rows;
+            await remote.upsertMany(table, safe);
+          }
+          await remote.pushTombstones(await storage.getAll('tombstones'));
+          const meta = await remote.syncMeta();
+          const nextCanonical = Math.max(Number(meta.canonical_version?.value || 0), Number(state.config.canonicalVersion || 0)) + 1;
+          await remote.setSyncMeta('canonical_version', nextCanonical);
+          const now = Utils.now();
+          const pending = await storage.getAll('sync_queue');
+          await storage.replaceStore('sync_queue', pending.map(row => ({ ...row, status: 'superseded_by_canonical', updated_at: now })));
+          state.config.canonicalVersion = nextCanonical;
+          state.config.lastSyncAt = now;
+          ConfigAdapter.save(state.config);
+          state.syncStatus = 'complete';
+          await AppService.reload();
+          return nextCanonical;
+        } catch (error) {
+          state.syncStatus = 'error'; state.syncError = error.message; throw error;
+        } finally {
+          renderShellStatus();
+        }
       }
     });
 
@@ -1505,6 +1549,7 @@
       if (code.includes('TRANSACTION_NOT_FOUND')) return '삭제할 거래를 찾지 못했습니다. 목록을 새로고침해 주세요.';
       if (code.includes('ALLOWLIST_EMAIL_INVALID')) return '올바른 이메일 형식을 입력해 주세요.';
       if (code.includes('ALLOWLIST_OWNER_PROTECTED')) return '소유자 계정은 차단할 수 없습니다.';
+      if (code.includes('CANONICAL_OWNER_ONLY')) return '최종본 지정은 소유자 계정만 할 수 있습니다.';
       if (code.includes('REMOTE_409')) return '이미 허용 목록에 있는 이메일이거나 중복된 값입니다.';
       if (code.includes('JOURNAL_UNBALANCED')) return '차변과 대변이 맞지 않아 거래를 저장하지 않았습니다.';
       if (code.includes('BACKUP_')) return '백업 파일 구조를 확인할 수 없어 복원하지 않았습니다.';
@@ -1759,6 +1804,7 @@
     function renderData() {
       const activeCount = activeTransactions().length;
       const connected = Boolean(state.session && state.allowedUser);
+      const owner = isBootstrapOwner();
       const lastSync = state.config.lastSyncAt ? new Date(state.config.lastSyncAt).toLocaleString('ko-KR') : '없음';
       const deleteOptions = activeTransactions().slice(0, 300)
         .map(row => `<option value="${row.id}">${row.transaction_date} · ${Utils.escape(row.description)} · ${Utils.won(row.total_amount)}</option>`)
@@ -1774,8 +1820,8 @@
             `<button class="button" id="dataReloadButton" type="button">${icon('refresh-cw')}저장 상태 새로고침</button>`)}
           ${dataCard('클라우드 동기화', '로그인한 소유자만 Supabase와 동기화합니다.',
             badge(connected ? '연결됨' : '로그인 필요', connected ? 'success' : 'warning'),
-            `마지막 동기화 ${lastSync}<br>${connected ? '지금 로컬 변경을 클라우드에 반영할 수 있습니다.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}`,
-            `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button>`)}
+            `마지막 동기화 ${lastSync} · canonical v${Number(state.config.canonicalVersion || 0)}<br>${connected ? '지금 로컬 변경을 클라우드에 반영할 수 있습니다.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}${owner ? '<br><strong>최종본 지정</strong>은 다른 기기의 로컬 전용 변경을 이 기기 기준으로 덮어씁니다.' : ''}`,
+            `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button>${owner ? `<button class="button danger" id="dataCanonicalButton" type="button" ${connected ? '' : 'disabled'}>${icon('crown')}이 기기를 최종본으로</button>` : ''}`)}
           ${dataCard('JSON 백업', '암호화되지 않은 파일이므로 안전한 위치에 보관하세요.',
             state.config.lastBackupAt ? badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'), 'success') : badge('백업 없음', 'warning'),
             '전체 로컬 데이터를 하나의 JSON 파일로 내려받습니다. 거래처와 세무자료가 포함될 수 있습니다.',
@@ -1984,6 +2030,10 @@
       });
       el('dataReloadButton')?.addEventListener('click', async () => { try { await AppService.reload(); toast('저장 상태를 새로고침했습니다.','success'); render(); } catch(error){ diagnostic(error); } });
       el('dataSyncButton')?.addEventListener('click', async () => { try { await SyncService.connectAndSync(); toast('클라우드 동기화를 완료했습니다.','success'); render(); } catch(error){ diagnostic(error); } });
+      el('dataCanonicalButton')?.addEventListener('click', async () => {
+        if (!confirm('이 기기의 데이터를 클라우드 최종본으로 지정합니다. 다른 기기는 다음 동기화에서 로컬 전용 변경을 버리고 이 기기 기준으로 맞춰집니다. 계속하시겠습니까?')) return;
+        try { const v = await SyncService.designateCanonical(); toast(`이 기기를 최종본(canonical v${v})으로 지정했습니다.`,'success'); render(); } catch(error){ diagnostic(error); }
+      });
       el('dataBackupButton')?.addEventListener('click', async () => {
         if (!confirm('백업 파일에는 거래처와 세무자료가 포함될 수 있습니다. 안전한 위치에 보관하시겠습니까?')) return;
         try {

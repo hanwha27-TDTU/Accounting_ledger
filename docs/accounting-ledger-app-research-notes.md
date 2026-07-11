@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.18** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.19** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -441,3 +441,24 @@ advisor 잔여 항목:
 
 1. V1은 단일 owner 모델이라 추가 허용 사용자는 앱 로그인만 가능하고 owner의 `businesses`(owner_user_id 기준 RLS)에는 접근하지 못한다. 다중 사용자 공유는 후속 범위다.
 2. 실제 브라우저에서 비허용 계정 로그인 차단·owner 패널 노출·추가/차단 왕복은 수동 확인 대상이다(`docs/accounting-ledger-browser-checklist.md`).
+
+## 2026-07-11 앱 0.08 canonical version 최종본 지정과 다기기 수렴 자동 테스트
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.08` |
+| schema_version | `0.03` (DB 스키마·migration 변경 없음) |
+| note_type | `feature_release`, `sync_review` |
+| 제목 | canonical version 최종본 지정 배선과 다기기 수렴 자동 테스트 |
+| 배경 | 소비 경로(`cloudCanonical > localCanonical` → 전체 replace)는 0.01부터 있었으나, cloud `canonical_version`을 올리는 생산 경로가 없어 잠들어 있었다(AGENTS 동기화 6-9의 최종본 지정 미배선). |
+| 구현 | `SupabaseAdapter.upsertMany`/`setSyncMeta`, `SyncService.designateCanonical`. owner가 데이터 관리 동기화 카드의 `이 기기를 최종본으로` 실행 → 전체 로컬 행(accounts는 remoteSafe)·tombstone 업로드 → `accounting_sync_meta.canonical_version = max(cloud, local)+1` → 로컬 canonical 채택, 대기 큐 superseded. owner 전용(`CANONICAL_OWNER_ONLY` 가드 + RLS). |
+| RLS | `accounting_sync_meta`: SELECT=`accounting_is_allowed_user()`, INSERT/UPDATE/DELETE=`accounting_is_bootstrap_owner()`. owner canonical upsert DB 검증(롤백) 통과, 실제 canonical 0 유지. |
+| 자동 테스트 | 두 기기+가짜 클라우드 시뮬레이션(syncNow/convergeTombstones/designateCanonical 로직 복제) 9/9: 일반 병합 수렴, 삭제 수렴·무재생성, canonical 지정 시 소비 기기가 로컬 전용 미동기화 행을 버리고 수렴·canonical 채택, 지정 기기가 삭제를 되살리지 않음. |
+| 안전 | 최종본 지정은 다른 기기의 로컬 전용 변경을 덮으므로 강한 확인창 + owner 전용. canonical이 바뀐 소비 기기는 병합 결과를 재업로드하지 않는다(AGENTS #9). |
+| 스킬 버전 | `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.19` |
+
+남은 위험/미완:
+
+1. 실제 브라우저 2대에서의 최종본 지정→타기기 수렴 왕복은 수동 확인 대상이다.
+2. `designateCanonical`은 전체 로컬 행을 업로드한다(V1 개인 규모 적합). 대량화 시 청크 업로드·부분 실패 재시도 보강 여지.
+3. canonical 충돌(두 기기가 거의 동시에 지정)은 V1 단일 owner 가정에서 드물며, `max+1`로 단조 증가만 보장한다. 다중 동시 지정 조정은 후속 범위.
