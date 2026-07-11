@@ -352,6 +352,9 @@
     .est-tag:empty { display: none; }
     .legal-basis { display: flex; gap: 10px; margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.6; }
     .legal-basis strong { color: var(--brand-strong); }
+    .guide-why { display: flex; gap: 10px; margin-top: 12px; padding: 13px 15px; border-radius: 12px; background: var(--surface-warm); border: 1px solid var(--warning-soft); font-size: 13.5px; line-height: 1.75; }
+    .guide-why strong { color: var(--warning); }
+    .guide-why > :first-child { flex: 0 0 auto; color: var(--warning); }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -540,7 +543,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.20',
+      version: '0.21',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -555,7 +558,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.20', date: '2026-07-11', label: '최신 · 계산기 자동판정 + 법령 가이드', detail: '추계소득 계산기에 직전연도 수입금액을 넣으면 기장의무(복식/간편)와 적용 경비율(단순/기준)이 자동 판정됩니다. 또한 가이드에 기장의무·부가가치세 면세·추계신고 경비율을 쉬운 설명과 근거 조문(소득세법 §160·시행령 §208⑤·§143, 부가가치세법 §26)으로 안내하는 버튼을 추가했습니다.' },
+      { version: '0.21', date: '2026-07-11', label: '최신 · 법령 가이드 눈높이 설명', detail: '가이드의 기장의무·부가가치세 면세·추계 경비율 설명에 "왜 이렇게 정했을까요?" 눈높이 설명을 추가했습니다. 각 제도의 목적과 취지를 중학생도 이해하기 쉬운 말로 풀어, 기준과 근거뿐 아니라 이유까지 알 수 있게 했습니다.' },
+      { version: '0.20', date: '2026-07-11', label: '계산기 자동판정 + 법령 가이드', detail: '추계소득 계산기에 직전연도 수입금액을 넣으면 기장의무(복식/간편)와 적용 경비율(단순/기준)이 자동 판정됩니다. 또한 가이드에 기장의무·부가가치세 면세·추계신고 경비율을 쉬운 설명과 근거 조문(소득세법 §160·시행령 §208⑤·§143, 부가가치세법 §26)으로 안내하는 버튼을 추가했습니다.' },
       { version: '0.19', date: '2026-07-11', label: '기준경비율 추계소득 계산기', detail: '리포트 화면에 추계소득금액 계산기를 추가했습니다. 총수입·매입·임차·인건비를 넣고 기장의무를 고르면, 선택한 업종의 경비율(자동 채움·수정 가능)로 기준소득금액·비교소득금액·소득금액(둘 중 작은 값)·필요경비를 실시간으로 보여줍니다. 검토용 후보 계산입니다.' },
       { version: '0.18', date: '2026-07-11', label: '기준경비율 추계소득 계산 엔진·안내', detail: '국세청 추계신고(기준경비율) 작성사례의 공식 계산식을 검증된 엔진으로 구현했습니다. 소득금액 = min(기준소득금액, 비교소득금액)이며 복식부기의무자는 기준경비율 1/2·비교 3.4배, 간편장부대상자는 전체·2.8배를 적용합니다. 리포트 화면에 계산 방법과 복식부기의무자 추계 시 가산세 경고를 검토용으로 안내합니다.' },
       { version: '0.17', date: '2026-07-11', label: '간편장부 계정과목 분류표', detail: '국세청 간편장부 작성요령의 계정과목 분류표(수입·비용·제조비용·자산 25개 계정과목과 공식 설명)를 앱에 담아, 가져오기 화면에서 간편장부 수입·비용·자산 열 대응 기준으로 보여줍니다. 이후 Excel 가져오기의 계정과목 매핑 기준이 됩니다.' },
@@ -2341,6 +2345,7 @@
           <div class="notice info">${icon('book-open-check')}<div><strong>장부는 두 종류입니다.</strong><br><strong>간편장부</strong>는 가계부처럼 날짜·내용·금액을 적는 쉬운 장부이고, <strong>복식부기</strong>는 한 거래를 차변·대변 양쪽에 이중으로 적는 정식 장부입니다.</div></div>
           <div class="notice">${icon('scale')}<div><strong>누가 복식부기의무자인가?</strong><br>직전 과세기간(작년) 수입금액이 업종별 기준 <strong>이상</strong>이면 복식부기의무자, <strong>미만</strong>이면 간편장부대상자입니다. 그 해에 <strong>새로 시작한 사업자</strong>는 간편장부대상자입니다.</div></div>
           <div class="guide-values">${guideValue('가목 · 농림어업, 광업, 도소매, 부동산매매 등', '3억원')}${guideValue('나목 · 제조, 숙박·음식, 건설, 운수, 정보통신, 금융·보험 등', '1억 5천만원')}${guideValue('다목 · 부동산임대, 전문·과학·기술, 교육, 보건, 예술, 개인서비스 등', '7천 5백만원')}</div>
+          <div class="guide-why">${icon('lightbulb')}<div><strong>왜 둘로 나눌까요? (눈높이 설명)</strong><br>나라가 세금을 매기려면 '이 사업이 얼마를 벌었는지'를 알아야 해요. 큰 가게는 사고파는 일이 많고 복잡해서, 돈이 들어오고 나간 것을 양쪽으로 꼼꼼히 적는 <strong>복식부기</strong>라야 정확합니다. 반대로 작은 가게까지 그렇게 시키면 너무 힘들겠죠. 그래서 규모가 작으면 가계부 같은 <strong>간편장부</strong>만으로도 되게 배려한 거예요. 핵심 취지는 <strong>‘규모에 맞게, 하지만 정확하게’</strong>랍니다.</div></div>
           <div class="legal-basis">${icon('gavel')}<div><strong>근거</strong> · 소득세법 제160조(장부의 비치ㆍ기록) 제1항~제3항, 소득세법 시행령 제208조 제5항 제2호. 직전 수입금액이 위 금액 미만이면 간편장부대상자, 이상이면 복식부기의무자입니다.</div></div>
           <div class="form-actions"><button class="button" type="button" data-route="settings">${icon('settings-2')}설정에서 업종코드 고르기</button></div>
           <p class="section-help">설정에서 업종코드를 고르면 이 기준이 자동으로 표시됩니다. 리포트 계산기에서는 직전연도 수입금액을 넣으면 기장의무가 자동 판정됩니다.</p></section>`;
@@ -2350,6 +2355,7 @@
           <div class="notice info">${icon('badge-percent')}<div><strong>면세는 '업종'이 아니라 '무엇을 공급하는가'로 판단합니다.</strong><br>부가가치세는 과세 거래에 붙지만, 법이 정한 재화·용역은 면세입니다. 같은 업종이라도 개별 공급에 따라 과세될 수 있습니다.</div></div>
           <div class="guide-values">${guideValue('제1호 · 가공되지 않은 식료품', '면세')}${guideValue('제5호 · 의료보건 용역', '면세 (미용·성형 등 일부 과세)')}${guideValue('제6호 · 교육 용역', '면세 (무도·자동차운전 학원 등 일부 과세)')}${guideValue('제8호 · 도서·신문·잡지', '면세 (광고 제외)')}${guideValue('제11호 · 금융·보험 용역', '면세')}${guideValue('제12호 · 주택과 부수 토지의 임대', '면세')}${guideValue('제14호 · 토지', '면세')}${guideValue('제15호 · 직업상 인적용역', '면세 (시행령이 정한 것)')}</div>
           <div class="notice">${icon('triangle-alert')}<div>면세 대상은 위가 전부가 아니라 모두 <strong>20개 호</strong>이며, 각 호마다 '대통령령으로 정하는 것' 조건이 붙습니다. 실제 면세 여부는 개별 공급 단위로 확인하세요.</div></div>
+          <div class="guide-why">${icon('lightbulb')}<div><strong>왜 어떤 것은 부가세를 안 붙일까요? (눈높이 설명)</strong><br>부가세는 물건을 살 때 <strong>최종 소비자</strong>가 내는 세금이에요. 그런데 쌀·채소 같은 먹거리, 병원 진료, 학교 교육, 사는 집 월세처럼 <strong>‘살아가는 데 꼭 필요한 것’</strong>에까지 세금을 붙이면 형편이 어려운 사람일수록 더 부담이 됩니다. 그래서 이런 필수·공익 성격의 공급은 세금을 빼주는 거예요(면세). 취지는 <strong>‘꼭 필요한 것과 공익은 지킨다’</strong>는 뜻이죠.</div></div>
           <div class="legal-basis">${icon('gavel')}<div><strong>근거</strong> · 부가가치세법 제26조(재화 또는 용역의 공급에 대한 면세) 제1항.</div></div>
           <p class="section-help">설정에서 업종코드를 고르면 면세 가능성을 후보로 표시합니다.</p></section>`;
       }
@@ -2359,6 +2365,7 @@
         <div class="guide-values">${guideValue('가목 업종 (도소매 등)', '6천만원')}${guideValue('나목 업종 (제조·음식·인적용역 등)', '3천 6백만원')}${guideValue('다목 업종 (전문서비스·교육·보건 등)', '2천 4백만원')}</div>
         <div class="notice">${icon('sigma')}<div><strong>기준경비율 소득금액 = min(①, ②)</strong><br>① 수입금액 − 주요경비(매입·임차·인건) − (수입금액 × 기준경비율 × <strong>복식부기 ½</strong>)<br>② 수입금액 × (1 − 단순경비율) × <strong>복식부기 3.4배 / 간편장부 2.8배</strong></div></div>
         <div class="notice danger">${icon('shield-alert')}<div><strong>복식부기의무자</strong>가 장부 없이 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 <strong>큰 금액</strong>이 부과됩니다.</div></div>
+        <div class="guide-why">${icon('lightbulb')}<div><strong>왜 경비율로 대충 계산할까요? (눈높이 설명)</strong><br>세금은 <strong>‘번 돈(수입) − 쓴 돈(경비)’</strong>인 소득에 매겨요. 장부가 있으면 실제 경비를 알 수 있지만, 장부가 없으면 알 수가 없죠. 그래서 나라가 업종마다 ‘보통 이 정도는 경비로 쓴다’는 비율(경비율)을 정해두고 소득을 추정합니다. 다만 이건 어디까지나 <strong>‘장부가 없을 때의 비상수단’</strong>이라, 원칙은 장부를 쓰는 거예요. 그래서 복식부기의무자가 장부 없이 추계로 신고하면 가산세를 물려 <strong>‘되도록 장부를 쓰라’</strong>고 유도하는 거랍니다.</div></div>
         <div class="legal-basis">${icon('gavel')}<div><strong>근거</strong> · 소득세법 제80조 제3항, 소득세법 시행령 제143조 제3항(계산방법)·제4항 제2호(단순·기준 구분 기준금액). 비교소득금액 배율은 같은 항 제1호 단서와 소득세법 시행규칙에 따릅니다.</div></div>
         <div class="form-actions"><button class="button" type="button" data-route="reports">${icon('chart-column')}리포트에서 계산기 열기</button></div></section>`;
     }

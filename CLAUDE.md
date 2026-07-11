@@ -37,6 +37,7 @@
 
 ## 먼저 적용할 도메인·코드 스킬
 
+- 세무 법적 기준(기장의무, 단순·기준경비율 적용, 추계 소득 계산, 부가세 면세)의 **값·조문·출처는 `docs/skills/accounting-legal-basis-reference-skill.md`를 SSOT**로 본다. 같은 숫자를 코드·문서에 중복 정의하지 않는다.
 - 거래, 분개, 계정과목, 세무 매핑, 마감, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 먼저 적용한다.
 - 단일 HTML 구조, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 먼저 적용한다.
 

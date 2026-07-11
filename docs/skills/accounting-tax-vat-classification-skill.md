@@ -1,8 +1,10 @@
-> **📌 Sub_tax-vat-classification_0.04** · 개정 2026-07-09
+> **📌 Sub_tax-vat-classification_0.05** · 개정 2026-07-11
 
 # Accounting Ledger Tax/VAT Classification Skill
 
 이 문서는 회계장부 앱의 사업자 유형 판정, 과세유형 판정, VAT 엔진, 법령 출처 확인을 다룰 때 적용하는 별도 스킬 문서다. 사업자 정보 입력, 간이/일반/면세/겸영 판정, VAT 자동계산, 세무 기준 업데이트, 법령 MCP 확인, 국세청 출처 저장을 만질 때 이 문서를 먼저 본다.
+
+> **부가세 면세 조문·목록의 SSOT는 `docs/skills/accounting-legal-basis-reference-skill.md`** 다. 부가가치세법 제26조 제1항 20개 호(의료보건 5·교육 6·금융보험 11·인적용역 15 등)와 "면세는 공급의 성질로 판단·개별 확인" 원칙은 그 문서에서 읽는다. 앱 구현: `VatExemption`(대분류·94접두→면세 후보 호). 조문은 법령 MCP 원문 대조로 확인한다.
 
 ## 핵심 결정
 
