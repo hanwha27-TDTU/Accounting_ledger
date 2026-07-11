@@ -50,7 +50,7 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, APP_INFO } = api;
 
   // Expense rates (official NTS 2025 data) — display-only candidates
   const consultingRate = ExpenseRates.find('741400');
@@ -58,6 +58,20 @@ if (api) {
   const personalRate = ExpenseRates.find('940903');
   ok(personalRate && personalRate.simpleExcess === 46.4, 'ExpenseRates 940903 has 초과율 46.4');
   ok(ExpenseRates.find('000000') === null && ExpenseRates.taxYear === '2025', 'ExpenseRates missing -> null, taxYear 2025');
+
+  // 기장의무 (소득세법 시행령 §208⑤2호) — thresholds by NTS 대분류 group
+  ok(BookkeepingDuty.thresholdOf('851201') === 75000000, 'BookkeepingDuty 851201 의료 -> 다목 7,500만');
+  ok(BookkeepingDuty.thresholdOf('501101') === 300000000, 'BookkeepingDuty 501101 도소매 -> 가목 3억');
+  ok(BookkeepingDuty.thresholdOf('151101') === 150000000, 'BookkeepingDuty 151101 제조 -> 나목 1.5억');
+  ok(BookkeepingDuty.assess('851201', 80000000, false).obligation === '복식부기의무자', 'BookkeepingDuty 수입 >= 기준 -> 복식부기의무자');
+  ok(BookkeepingDuty.assess('851201', 70000000, false).obligation === '간편장부대상자', 'BookkeepingDuty 수입 < 기준 -> 간편장부대상자');
+  ok(BookkeepingDuty.assess('851201', 999999999, true).obligation === '간편장부대상자', 'BookkeepingDuty 신규개시자 -> 간편장부대상자');
+  ok(BookkeepingDuty.thresholdOf('000000') === null, 'BookkeepingDuty unknown code -> null');
+
+  // 부가세 면세 후보 (부가가치세법 §26①) — candidate only, individual judgment required
+  ok(VatExemption.assess('851201')?.ho === '5', 'VatExemption 851201 의료 -> §26①5호');
+  ok(VatExemption.assess('940600')?.ho === '15', 'VatExemption 940600 인적용역 -> §26①15호');
+  ok(VatExemption.assess('741400') === null, 'VatExemption 741400 컨설팅 -> 과세(면세 후보 없음)');
 
   // Accounting domain — the double-entry core (a North Star invariant)
   const amt = AccountingDomain.calculateAmounts('11000', 'taxable');

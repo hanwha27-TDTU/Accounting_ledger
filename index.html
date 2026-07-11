@@ -327,6 +327,9 @@
     .personal-service-hint { color: var(--warning); font-weight: 700; }
     .expense-rate { margin-top: 6px; font-size: 13px; }
     .expense-rate-tag { display: inline-block; padding: 1px 7px; border-radius: 10px; background: rgba(0,0,0,.06); font-size: 11px; color: var(--muted); margin-right: 4px; }
+    .law-line { margin-top: 5px; font-size: 13px; }
+    .law-tag { display: inline-block; padding: 1px 7px; border-radius: 10px; background: rgba(0,0,0,.06); font-size: 11px; color: var(--muted); margin-right: 4px; }
+    .law-tag.warn { background: rgba(180,120,0,.14); color: var(--warning); }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -515,7 +518,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.15',
+      version: '0.16',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -530,7 +533,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.15', date: '2026-07-11', label: '최신 · 경비율 자동 표시', detail: '국세청 2025 귀속 단순·기준경비율 1,542개를 담아, 업종코드를 고르면 해당 경비율(단순·기준, 초과율 포함)이 자동으로 표시됩니다. 확정이 아니라 후보이며 귀속연도·출처를 함께 보여줍니다.' },
+      { version: '0.16', date: '2026-07-11', label: '최신 · 기장의무·면세 근거 자동 표시', detail: '업종코드를 고르면 기장의무 기준(소득세법 시행령 §208⑤: 3억/1.5억/7,500만원)과 부가세 면세 가능성(부가가치세법 §26①)을 근거 조문과 함께 후보로 보여줍니다. 면세는 공급 성질로 판단하므로 개별 판단이 필요함을 명시합니다.' },
+      { version: '0.15', date: '2026-07-11', label: '경비율 자동 표시', detail: '국세청 2025 귀속 단순·기준경비율 1,542개를 담아, 업종코드를 고르면 해당 경비율(단순·기준, 초과율 포함)이 자동으로 표시됩니다. 확정이 아니라 후보이며 귀속연도·출처를 함께 보여줍니다.' },
       { version: '0.14', date: '2026-07-11', label: '입력 자동화(휴먼에러 방지)', detail: '사업자등록번호를 검증(체크섬)해 오타를 막고, 대표자명은 Google 이름으로 자동 채우며, 업종코드를 고르면 큰 업종이 자동 설정됩니다. 추가 자료 없이 되는 자동화부터 적용했습니다.' },
       { version: '0.13', date: '2026-07-11', label: '인적용역 지원과 회귀 게이트', detail: '사업자등록번호를 선택 입력으로 명확히 하고 인적용역(94로 시작하는 업종)은 없을 수 있음을 안내합니다. 복식부기·검색·동기화 로직 회귀 테스트를 하네스 게이트로 잠갔습니다.' },
       { version: '0.12', date: '2026-07-11', label: '증빙 제거', detail: '첨부한 증빙을 제거할 수 있습니다. 링크를 소프트 삭제하고 tombstone으로 다른 기기까지 반영하며, 그 거래에 다른 증빙이 없으면 미첨부로 되돌립니다. Cloudinary 원본 파일 자체는 남습니다.' },
@@ -620,6 +624,49 @@
         const r = NTS_EXPENSE_RATES.rows[code];
         if (!r) return null;
         return { taxYear: NTS_EXPENSE_RATES.taxYear, simpleGeneral: r[0], simpleExcess: r[1], standardGeneral: r[2] };
+      }
+    });
+
+    // 기장의무 판정 — 소득세법 시행령 제208조 제5항. 직전 과세기간 수입금액이 업종별 기준금액
+    // 이상이면 복식부기의무자, 미만이면 간편장부대상자. 신규개시자는 간편장부대상자(같은 항 제1호).
+    // 판정은 후보이며 겸업·업종 세부(부동산매매/임대 등)는 개별 확인이 필요하다.
+    const BookkeepingDuty = Object.freeze({
+      basis: '소득세법 시행령 제208조 제5항',
+      THRESHOLDS: Object.freeze({ '가': 300000000, '나': 150000000, '다': 75000000 }),
+      // NTS 대분류 index -> 시행령 제208조5항2호 가/나/다 그룹 (NTS_INDUSTRY_CODES.majors 순서)
+      GROUP_BY_MAJOR: Object.freeze(['가', '가', '나', '나', '나', '나', '가', '나', '나', '나', '나', '다', '다', '다', '가', '다', '다', '다', '다', '다', '다', '다', '가']),
+      groupOf(code) {
+        const row = NTS_INDUSTRY_CODES.rows.find(e => e[0] === code);
+        return row ? (this.GROUP_BY_MAJOR[row[2]] || '가') : null;
+      },
+      thresholdOf(code) {
+        const g = this.groupOf(code);
+        return g ? this.THRESHOLDS[g] : null;
+      },
+      assess(code, priorRevenue, isNew) {
+        const threshold = this.thresholdOf(code);
+        if (threshold == null) return null;
+        let obligation = null;
+        if (isNew) obligation = '간편장부대상자';
+        else if (Number.isFinite(Number(priorRevenue))) obligation = Number(priorRevenue) >= threshold ? '복식부기의무자' : '간편장부대상자';
+        return { basis: this.basis, threshold, obligation };
+      }
+    });
+
+    // 부가가치세 면세 후보 — 부가가치세법 제26조 제1항. 면세는 공급 재화·용역의 성질로 판단하므로
+    // 업종코드만으로 확정되지 않는다. 업종과 자주 연결되는 면세 호를 후보로만 표시하며, 실제 면세
+    // 여부는 개별 공급 단위로 판단한다(미용 목적 의료 등 예외 존재).
+    const VatExemption = Object.freeze({
+      basis: '부가가치세법 제26조 제1항',
+      BY_MAJOR: Object.freeze({
+        10: { ho: '11', label: '금융·보험 용역', caveat: '' },
+        15: { ho: '6', label: '교육 용역', caveat: '무도·자동차운전 학원 등 일부는 과세' },
+        16: { ho: '5', label: '의료보건 용역', caveat: '미용·성형 등 일부는 과세' }
+      }),
+      assess(code) {
+        if (String(code || '').startsWith('94')) return { ho: '15', label: '직업상 인적용역', caveat: '부가가치세법 시행령이 정한 인적용역만 면세' };
+        const row = NTS_INDUSTRY_CODES.rows.find(e => e[0] === code);
+        return (row && this.BY_MAJOR[row[2]]) || null;
       }
     });
 
@@ -1907,7 +1954,11 @@
       const personal = String(code).startsWith('94') ? ' · <span class="personal-service-hint">인적용역 · 사업자등록번호 없을 수 있음</span>' : '';
       const rate = ExpenseRates.find(code);
       const rateHtml = rate ? `<div class="expense-rate">경비율 <span class="expense-rate-tag">${rate.taxYear} 귀속 · 후보</span> 단순 <strong>${rate.simpleGeneral}%</strong>${rate.simpleExcess ? ` <span class="major">(초과율 ${rate.simpleExcess}%)</span>` : ''} · 기준 <strong>${rate.standardGeneral}%</strong></div>` : '';
-      return `선택됨: <strong>${Utils.escape(code)}</strong> · ${Utils.escape(name || '')}${personal}${rateHtml}`;
+      const dutyThreshold = BookkeepingDuty.thresholdOf(code);
+      const dutyHtml = dutyThreshold != null ? `<div class="law-line">기장의무 <span class="law-tag">후보</span> 직전연도 수입 <strong>${Utils.won(dutyThreshold)}</strong> 이상이면 복식부기, 미만이면 간편장부 <span class="major">(소득세법 시행령 §208⑤)</span></div>` : '';
+      const exempt = VatExemption.assess(code);
+      const exemptHtml = exempt ? `<div class="law-line">부가세 <span class="law-tag warn">면세 가능성</span> ${Utils.escape(exempt.label)} <span class="major">(부가가치세법 §26①${exempt.ho}호)</span> · ${exempt.caveat ? Utils.escape(exempt.caveat) + ' · ' : ''}개별 판단</div>` : '';
+      return `선택됨: <strong>${Utils.escape(code)}</strong> · ${Utils.escape(name || '')}${personal}${rateHtml}${dutyHtml}${exemptHtml}`;
     }
 
     function ownerDisplayName() {
@@ -2400,7 +2451,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>
