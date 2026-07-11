@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.20** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.21** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -484,3 +484,25 @@ advisor 잔여 항목:
 2. 증빙 삭제·교체 UI 없음. Cloudinary 원본 삭제는 서명 API(secret) 필요라 브라우저 직접 불가 → 후속 Edge Function 후보. 현재는 첨부·조회만.
 3. `evidence_documents` 그룹핑, 파일 해시(`file_hash`), 미리보기 상태 고도화는 후속.
 4. unsigned preset은 공개 업로드라 남용 방지를 위해 Cloudinary에서 허용 형식·폴더·최대 크기·모더레이션을 제한하도록 안내한다.
+
+## 2026-07-11 앱 0.10 동기화 무손실 하드닝 (다른 앱 교훈 6건 반영)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.10` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `bugfix`, `architecture`, `product_direction` |
+| 제목 | 다른 앱에서 얻은 교훈 6건을 우리 앱에 대조·반영 |
+| 교훈 대조 | ① SSOT 자동생성 ② 도메인×생명주기 매트릭스 ③ 다기기 동기화(LWW·tombstone·빈클라우드 가드) ④ 저장·복원 무손실 ⑤ 백업·복원 대칭 봉합점 ⑥ North Star. ②③④⑤가 0.06~0.09에서 만든 동기화·백업·증빙 계층을 직접 겨냥 |
+| 크리티컬 버그 수정 | ③ 빈 클라우드 가드. `syncNow`의 canonical replace가 `pullTable`이 `[]`(RLS/인증 오류)를 주면 로컬 전체를 wipe하던 위험을 발견. 클라우드 businesses 0 + 로컬 활성 business 존재 → `EMPTY_CLOUD_GUARD`로 중단. 일반 merge 경로는 로컬 Map 유지로 이미 안전 |
+| 매트릭스 게이트 | ①② `docs/accounting-ledger-data-lifecycle-matrix.md` 신설(11 동기화 도메인 + infra × 로컬저장·로드·백업·복원·push·merge·최종본·삭제tombstone). 하네스 `data-lifecycle-matrix` Required 게이트가 SYNC_TABLE_ORDER 도메인이 매트릭스에 없으면 실패 → 새 동기화 테이블 추가 시 생명주기 검토 강제 |
+| North Star | ⑥ 설계지침 §0에 비타협 원칙(사실 정확성·데이터 무결성·정직한 완료·보안·권한)을 "목적의 일부"로 명문화. 모든 규칙·게이트가 이를 섬기는 수단임을 선언 |
+| 가시화된 gap | evidence_files 삭제→tombstone 미배선(중간), counterparties 삭제 없음(낮음), import 미리보기 부재(중간), 새 sync 테이블 추가 시 SYNC_TABLE_ORDER·IDB·reload 손편집 중복(SSOT 자동생성 후속) |
+| 검증 | 빈 클라우드 가드 로직 5/5(RLS 실패→중단·로컬 보존, 정상 canonical→replace, 신규 기기→adopt, soft-deleted만→미차단). 하네스 8게이트 Required 0, 신규 매트릭스 게이트 통과(11/11), 스크립트 파싱 OK |
+| 스킬 버전 | `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.21` |
+
+남은 위험/미완:
+
+1. SSOT 완전 자동생성(writer 스크립트로 `SYNC_TABLE_ORDER`→IDB·reload 파생)은 미구현. 현재는 매트릭스 게이트가 문서 누락만 강제한다.
+2. evidence_files·counterparties 삭제 흐름, import 미리보기(백업 5봉합점 대칭)는 매트릭스에 gap으로 기록, 후속 구현.
+3. 빈 클라우드 가드의 실브라우저 재현(권한 오류 시 wipe 안 됨)은 수동 확인 대상.

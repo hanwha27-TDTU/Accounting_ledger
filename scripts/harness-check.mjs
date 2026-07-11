@@ -118,6 +118,7 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/accounting-ledger-harness-baseline.md',
     'docs/claude-handoff.md',
     'docs/accounting-ledger-v1-detailed-design.md',
+    'docs/accounting-ledger-data-lifecycle-matrix.md',
     'docs/skills/accounting-domain-guardians-skill.md',
     'docs/skills/accounting-code-architecture-guardians-skill.md'
   ];
@@ -245,6 +246,28 @@ addGate('runtime-version-contract', 'REQUIRED', () => {
     throw new Error(`index.html changed from ${previousVersion}; expected version ${expectedVersion}, found ${currentVersion}`);
   }
   return { detail: `runtime version increment ${previousVersion} -> ${currentVersion} verified` };
+});
+
+addGate('data-lifecycle-matrix', 'REQUIRED', () => {
+  const indexPath = absolute('index.html');
+  if (!existsSync(indexPath)) {
+    return { status: 'BASELINE', detail: 'index.html not present yet; lifecycle matrix gate activates with the runtime file' };
+  }
+  const html = readText('index.html');
+  const match = html.match(/const SYNC_TABLE_ORDER\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/);
+  if (!match) {
+    throw new Error('index.html must define SYNC_TABLE_ORDER as a frozen array');
+  }
+  const domains = [...match[1].matchAll(/'([a-z_]+)'/g)].map((entry) => entry[1]);
+  if (domains.length === 0) {
+    throw new Error('SYNC_TABLE_ORDER lists no domains');
+  }
+  const matrix = readText('docs/accounting-ledger-data-lifecycle-matrix.md');
+  const missing = domains.filter((domain) => !matrix.includes(domain));
+  if (missing.length > 0) {
+    throw new Error(`synced domains missing from data lifecycle matrix: ${missing.join(', ')}`);
+  }
+  return { detail: `${domains.length} synced domains documented in the lifecycle matrix` };
 });
 
 addGate('browser-roundtrip', 'MANUAL', () => {

@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.09`
-> 상태: canonical 최종본 지정(0.08)에 이어 Cloudinary unsigned 증빙 업로드와 evidence_files 메타 동기화(0.09)
+> 앱 버전: `0.10`
+> 상태: Cloudinary 증빙(0.09)에 이어 동기화 무손실 하드닝 — 빈 클라우드 가드 버그 수정 + 데이터 도메인×생명주기 매트릭스·드리프트 게이트·North Star 강화(0.10)
 
 ## 앱 목적 (미션)
 
@@ -52,7 +52,8 @@
 | 앱 0.07 | 소유자 전용 허용 사용자 관리. 설정에 `허용 사용자 관리(owner 전용)` 패널을 추가해 `app_allowed_users`를 조회·추가·차단(status blocked)·재허용(active)하고 변경을 `auth_access_logs`에 기록. bootstrap owner(`hanwha27@gmail.com`)에게만 노출, 소유자 자기 차단 방지 가드. role은 `owner/editor/viewer`, status는 `active/blocked/pending` CHECK 제약에 맞춤. 비허용 계정은 기존 `checkAllowed`가 `status='active'` 아니면 차단·로그아웃. 마이그레이션 없음 |
 | 앱 0.08 | canonical version 최종본 지정 배선. 데이터 관리 동기화 카드의 owner 전용 `이 기기를 최종본으로` 버튼이 `SyncService.designateCanonical`을 호출해 전체 로컬 행·tombstone을 클라우드에 업로드하고 `accounting_sync_meta.canonical_version`을 +1. 다른 기기는 기존 소비 경로(`cloudCanonical > localCanonical` → 전체 replace)에서 로컬 전용 변경을 버리고 수렴. `accounting_sync_meta` 쓰기는 bootstrap owner 전용(RLS). 다기기 자동 테스트 9/9 통과. 마이그레이션 없음 |
 | 앱 0.09 | Cloudinary 증빙 첨부. `CloudinaryAdapter`(unsigned preset 전용, secret 차단)로 증빙 화면에서 거래별 이미지·PDF 업로드, `AppService.attachEvidence`가 `evidence_files` 메타를 로컬 저장 + 동기화 큐 반영하고 거래를 `attached`로 표시. `evidence_files`를 IDB store(버전 1→2, 추가형)와 `SYNC_TABLE_ORDER`에 편입. 썸네일은 URL 변환으로 파생, 감사로그는 secure_url 대신 public_id만 보관. 설정에 Cloudinary cloud name·preset 입력 폼. `evidence_files` 테이블·RLS는 기존 스키마 사용(마이그레이션 없음) |
-| 최근 기준 커밋 | `ecb1ac8 feat: canonical version designation and multi-device convergence for app 0.08`. 앱 0.09 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
+| 앱 0.10 | 동기화 무손실 하드닝(다른 앱 교훈 반영). ① 빈 클라우드 가드: canonical replace가 클라우드 businesses 0인데 로컬에 있으면 `EMPTY_CLOUD_GUARD`로 중단해 wipe 방지(데이터 소실 버그 수정). ② `docs/accounting-ledger-data-lifecycle-matrix.md` 신설(도메인×생명주기 배선표 + gap 심각도) + 하네스 `data-lifecycle-matrix` Required 게이트(SYNC_TABLE_ORDER 도메인이 매트릭스에 없으면 실패). ③ 설계지침 §0에 North Star 비타협 원칙(사실 정확성·데이터 무결성·정직한 완료·보안) 명문화. 코드 로직 5/5·게이트 통과 |
+| 최근 기준 커밋 | `31d7b22 feat: Cloudinary unsigned evidence upload for app 0.09`. 앱 0.10 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
 
 ## 다음 구현 우선순위
 
@@ -80,7 +81,9 @@
 
 0.09에서 Cloudinary 증빙 첨부를 구현했다. 하드룰(secret 금지)에 따라 브라우저에서 제한된 unsigned upload preset으로만 업로드한다(`https://api.cloudinary.com/v1_1/{cloud}/{image|auto}/upload` + `upload_preset`). `evidence_files`(24열)와 `evidence_documents`는 기존 스키마·RLS(business-scoped)를 그대로 사용해 마이그레이션이 없었고, IDB는 버전 1→2로 `evidence_files` store를 추가(추가형, 기존 데이터 보존)했다. 로직 테스트 15/15(썸네일 URL 변환, 업로드 요청 구성·resource_type, upload_preset 전송, secret 차단, 메타 구성·감사 public_id 보관), owner `evidence_files` insert/read DB 검증(롤백)을 통과했다. 실제 파일 업로드 왕복은 사용자의 Cloudinary cloud name·unsigned preset과 브라우저가 필요하므로 수동 체크리스트로 남는다. 남은 후속: 증빙 삭제·교체 UI, Cloudinary 원본 삭제(서명 API=secret 필요, 브라우저 직접 불가 → Edge Function 후보), evidence_documents 그룹핑, 파일 해시.
 
-다음 단계로는 국세청 간편장부 Excel import(#5)를 진행한다.
+0.10에서 다른 앱의 교훈 6건을 우리 앱에 대조·반영했다. 크리티컬 발견은 canonical replace 경로의 데이터 소실 위험(클라우드가 빈 응답을 주면 로컬 wipe)으로, 빈 클라우드 가드로 수정했다. 일반 merge 경로는 로컬을 Map 기반으로 유지해 이미 빈 응답에 안전하다. 도메인×생명주기 매트릭스로 gap을 가시화했고(가장 큰 gap: `evidence_files` 삭제→tombstone 미배선=증빙 제거 없음, `counterparties` 삭제 없음, import 미리보기 부재), SYNC_TABLE_ORDER 도메인이 매트릭스에 반드시 존재하도록 하네스 게이트를 추가했다. North Star 비타협 원칙을 설계지침 최상위에 명문화했다. SSOT 남은 손편집 중복: 새 동기화 테이블 추가 시 `SYNC_TABLE_ORDER`·IDB 인덱스·`reload()`를 각각 편집해야 함(매트릭스 게이트가 최소한 매트릭스 누락은 잡지만, 완전 자동생성은 후속 과제).
+
+다음 단계로는 국세청 간편장부 Excel import(#5, 백업 5봉합점 대칭 배선 포함)를 진행한다. import 구현 시 미리보기를 적용과 같은 규칙으로 계산한다.
 
 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI는 만들지 않는다.
 
