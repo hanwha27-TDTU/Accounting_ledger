@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.15** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.16** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -373,3 +373,28 @@ advisor 잔여 항목:
 1. 운영 URL에서 owner Google 로그인 후 왕복 검증 5단계가 모두 `통과`인지 확인한다.
 2. 검증 후 클라우드 `businesses`에 `__rls_probe__` 잔존 행이 없는지 확인한다.
 3. 비허용 계정·비로그인 상태에서는 버튼이 노출되지 않거나 `AUTH_REQUIRED`로 차단되는지 확인한다.
+
+## 2026-07-11 앱 0.05 데이터 관리 화면과 앱 목적 명문화
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.05` |
+| schema_version | `0.03` (DB 스키마·migration 변경 없음) |
+| note_type | `feature_release`, `product_direction` |
+| 제목 | `관리 → 데이터 관리` 화면 추가와 최상위 앱 목적(미션) 명문화 |
+| 사용자 변화 | `개발 기록` 아래 `데이터 관리` 메뉴 신설. 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제, 이 기기 전체 삭제를 2열 대칭 그리드로 통합 |
+| 삭제 설계 | 부분 삭제는 `AppService.deleteTransaction`가 원천거래·전표·전표라인을 함께 `deleted_at` 소프트삭제하고 `tombstones`·`audit_logs`·`sync_queue`에 반영. 일괄 삭제는 `clearLocalData`가 IndexedDB store만 비우고 Supabase 연결 설정·기기 식별자(localStorage)는 유지 |
+| 목적 명문화 | `accounting-ledger-design-directive-v2.md` `0. 최상위 결론`에 앱 목적(미션)을 추가하고 `AGENTS.md`·`CLAUDE.md`·핸드오프에 요약 반영. 초등학생 눈높이의 쉬움과 세무사 수준의 정확성을 동시에 지향하되, 법정 확정 출력은 최신 서식 스냅샷 검증 전에는 확정 표시하지 않는다 |
+| 디자인 | `.data-grid` 2열 대칭 그리드와 `.data-card` flex 컬럼(액션 하단 정렬)로 6개 카드가 동일 구조·높이를 갖도록 통일. 780px 이하에서 1열로 접힘 |
+| 스킬 버전 | `Sub_domain-guardians_0.04`, `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.16` |
+
+검증:
+
+1. `npm run harness:check` Required 0 fail, runtime version `0.04 → 0.05` 통과, `git diff --check` 공백 오류 없음.
+2. 인라인 앱 스크립트 `vm.Script` 파싱 통과.
+3. 백업·복원 로직은 설정 화면에서 데이터 관리로 이동(중복 제거), 관련 이벤트 핸들러 id를 `data*`로 정리.
+
+남은 위험/미완:
+
+1. 다기기 삭제 수렴을 위한 `tombstones` pull 처리는 미구현이다. 현재는 삭제 기기의 소프트삭제 행을 `sync_queue` upsert로 클라우드에 반영하는 수준이다.
+2. 실제 브라우저에서 부분/일괄 삭제 후 IndexedDB 상태와 동기화 큐, 복원 왕복은 수동 확인이 필요하다.

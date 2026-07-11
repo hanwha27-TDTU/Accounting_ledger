@@ -298,6 +298,13 @@
     .status-item-title { font-weight: 800; }
     .status-item-body { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
+    .data-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .data-card { display: flex; flex-direction: column; }
+    .data-card .data-body { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+    .data-card .data-actions { margin-top: auto; padding-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; }
+    .data-card .data-actions .button { flex: 1; justify-content: center; }
+    .data-card .select { margin-top: 4px; width: 100%; }
+
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
       position: fixed;
@@ -421,7 +428,7 @@
       .metric-value { font-size: 19px; }
       .form-grid { grid-template-columns: 1fr; }
       .field, .field.third, .field.full { grid-column: 1; }
-      .status-board, .developer-grid, .guide-checks { grid-template-columns: 1fr; }
+      .status-board, .developer-grid, .guide-checks, .data-grid { grid-template-columns: 1fr; }
       .topbar-actions .button-label { display: none; }
     }
     @media (max-width: 480px) {
@@ -485,7 +492,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.04',
+      version: '0.05',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -500,7 +507,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.04', date: '2026-07-11', label: '최신 · 사업자 CRUD·RLS 왕복 검증', detail: '로그인한 소유자 권한으로 businesses 테이블에 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 왕복 검증하고 결과를 설정과 개발 기록에 표시합니다.' },
+      { version: '0.05', date: '2026-07-11', label: '최신 · 데이터 관리 화면', detail: '관리 메뉴에 데이터 관리 화면을 추가해 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(소프트 삭제·감사·동기화 반영)와 이 기기 전체 삭제를 대칭 구조로 한 곳에서 처리합니다.' },
+      { version: '0.04', date: '2026-07-11', label: '사업자 CRUD·RLS 왕복 검증', detail: '로그인한 소유자 권한으로 businesses 테이블에 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 왕복 검증하고 결과를 설정과 개발 기록에 표시합니다.' },
       { version: '0.03', date: '2026-07-11', label: '연결 가이드와 실로그인', detail: 'Google OAuth 실로그인을 검증하고 앱 설정값과 진단 상태에 자동 연동되는 연결 가이드를 추가했습니다.' },
       { version: '0.02', date: '2026-07-11', label: 'Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
       { version: '0.01', date: '2026-07-11', label: '첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
@@ -517,6 +525,7 @@
       { group: '관리', id: 'closing', label: '마감', icon: 'lock-keyhole' },
       { group: '관리', id: 'settings', label: '설정', icon: 'settings-2' },
       { group: '관리', id: 'developer', label: '개발 기록', icon: 'code-2' },
+      { group: '관리', id: 'data', label: '데이터 관리', icon: 'database' },
       { group: '도움말', id: 'guide', label: '가이드', icon: 'circle-help' }
     ]);
 
@@ -1206,6 +1215,57 @@
         return { id: Utils.uuid(), entity_type: entityType, entity_id: payload.id, operation: 'upsert', payload, status: 'pending', retry_count: 0, last_error: null, created_at: now, updated_at: now, deleted_at: null };
       },
 
+      tombstone(entityType, entityId) {
+        const now = Utils.now();
+        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: state.business?.id || null, deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
+      },
+
+      // Soft delete a source transaction with its journal entry and lines, keeping an audit trail,
+      // tombstones for delete sync, and sync-queue upserts so the cloud row is also marked deleted.
+      async deleteTransaction(transactionId) {
+        const transaction = state.transactions.find(row => row.id === transactionId && !row.deleted_at);
+        if (!transaction) throw new Error('TRANSACTION_NOT_FOUND');
+        const now = Utils.now();
+        const soft = row => ({ ...row, deleted_at: now, updated_at: now });
+        const journals = state.journals.filter(row => row.source_transaction_id === transactionId && !row.deleted_at);
+        const journalIds = new Set(journals.map(row => row.id));
+        const lines = state.journalLines.filter(row => journalIds.has(row.journal_entry_id) && !row.deleted_at);
+        const deletedTx = soft(transaction);
+        const deletedJournals = journals.map(soft);
+        const deletedLines = lines.map(soft);
+        const tombstones = [
+          this.tombstone('source_transactions', transaction.id),
+          ...deletedJournals.map(row => this.tombstone('journal_entries', row.id)),
+          ...deletedLines.map(row => this.tombstone('journal_entry_lines', row.id))
+        ];
+        const audit = this.audit('source_transaction', transaction.id, 'delete', transaction, deletedTx, '거래 삭제');
+        const queueRows = [
+          this.queue('source_transactions', deletedTx),
+          ...deletedJournals.map(row => this.queue('journal_entries', row)),
+          ...deletedLines.map(row => this.queue('journal_entry_lines', row)),
+          this.queue('audit_logs', audit)
+        ];
+        await storage.putMany({
+          source_transactions: [deletedTx],
+          ...(deletedJournals.length ? { journal_entries: deletedJournals } : {}),
+          ...(deletedLines.length ? { journal_entry_lines: deletedLines } : {}),
+          audit_logs: [audit],
+          tombstones,
+          sync_queue: queueRows
+        });
+        await this.reload();
+        return { deletedTransaction: 1, deletedJournals: deletedJournals.length, deletedLines: deletedLines.length };
+      },
+
+      // Bulk delete: clear every ledger store on this device. Connection settings and device id (localStorage) stay.
+      async clearLocalData() {
+        await storage.clearAll();
+        state.config.canonicalVersion = 0;
+        state.config.lastSyncAt = null;
+        ConfigAdapter.save(state.config);
+        await this.reload();
+      },
+
       async exportBackup() {
         const tables = await storage.snapshot();
         return {
@@ -1362,6 +1422,7 @@
       if (code.includes('PUBLIC_CONNECTION')) return 'Supabase 공개 연결을 확인하지 못했습니다. 네트워크와 프로젝트 설정을 확인해 주세요.';
       if (code.includes('SECRET_KEY_NOT_ALLOWED')) return '비밀키 또는 service role 형태의 키는 이 앱에 저장할 수 없습니다.';
       if (code.includes('BUSINESS_REQUIRED')) return '사업자 정보를 먼저 설정해 주세요.';
+      if (code.includes('TRANSACTION_NOT_FOUND')) return '삭제할 거래를 찾지 못했습니다. 목록을 새로고침해 주세요.';
       if (code.includes('JOURNAL_UNBALANCED')) return '차변과 대변이 맞지 않아 거래를 저장하지 않았습니다.';
       if (code.includes('BACKUP_')) return '백업 파일 구조를 확인할 수 없어 복원하지 않았습니다.';
       return '작업을 완료하지 못했습니다. 개발 기록의 진단 정보를 확인해 주세요.';
@@ -1579,8 +1640,48 @@
           </div>
           <form id="supabaseForm" class="form-grid"><div class="field"><label for="supabaseUrl">Project URL</label><input class="input" id="supabaseUrl" type="url" value="${Utils.escape(state.config.supabaseUrl)}"></div><div class="field"><label for="supabaseKey">Publishable key</label><input class="input" id="supabaseKey" type="password" autocomplete="off" value="${Utils.escape(state.config.supabaseKey || '')}" placeholder="sb_publishable_..."><div class="field-help">service role, secret key, OAuth client secret은 입력하지 마세요.</div></div><div class="field full"><div class="form-actions"><button class="button" id="saveSupabaseButton" type="submit">설정 저장</button><button class="button" id="connectionDiagnosticButton" type="button" ${diagnostic.status === 'checking' ? 'disabled' : ''}>${icon('activity')}연결 진단</button>${diagnostic.googleProvider === 'disabled' ? `<a class="button" href="https://supabase.com/dashboard/project/ihxiywffzmvrwmqvatzt/auth/providers" target="_blank" rel="noopener">${icon('external-link')}Supabase에서 설정</a>` : ''}${state.session?`<button class="button danger" id="logoutButton" type="button">${icon('log-out')}로그아웃</button><button class="button primary" id="syncNowButton" type="button">${icon('refresh-cw')}지금 동기화</button>`:`<button class="button primary" id="googleLoginButton" type="button" ${providerReady ? '' : 'disabled'}>${icon('log-in')}Google로 로그인</button>`}</div></div></form>
         </section>
-        ${renderBusinessRoundtrip()}
-        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">백업과 복원</h2><p class="section-help">암호화되지 않은 JSON 파일이므로 안전한 위치에 보관하세요.</p></div>${state.config.lastBackupAt?badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'),'success'):badge('백업 없음','warning')}</div><div class="inline-actions"><button class="button" id="backupButton" type="button">${icon('download')}JSON 백업</button><button class="button" id="restoreButton" type="button">${icon('upload')}JSON 복원</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div></section>`;
+        ${renderBusinessRoundtrip()}`;
+    }
+
+    function renderData() {
+      const activeCount = activeTransactions().length;
+      const connected = Boolean(state.session && state.allowedUser);
+      const lastSync = state.config.lastSyncAt ? new Date(state.config.lastSyncAt).toLocaleString('ko-KR') : '없음';
+      const deleteOptions = activeTransactions().slice(0, 300)
+        .map(row => `<option value="${row.id}">${row.transaction_date} · ${Utils.escape(row.description)} · ${Utils.won(row.total_amount)}</option>`)
+        .join('');
+      const dataCard = (title, help, headBadge, body, actions) =>
+        `<section class="panel card-panel data-card"><div class="panel-head"><div><h2 class="section-title">${title}</h2><p class="section-help">${help}</p></div>${headBadge}</div><div class="data-body">${body}</div><div class="data-actions">${actions}</div></section>`;
+      return `${pageHeader('데이터 관리', '저장, 백업, 복원, 동기화, 삭제를 한 곳에서 관리합니다.')}
+        <div class="notice info">${icon('shield-check')}<div><strong>모든 입력은 이 기기에 자동 저장됩니다.</strong><br>삭제와 복원은 되돌리기 어렵습니다. 중요한 데이터는 먼저 JSON 백업을 만들어 두세요.</div></div>
+        <div class="data-grid">
+          ${dataCard('로컬 저장', '이 기기 IndexedDB에 자동으로 저장됩니다.',
+            badge(state.ready ? '자동 저장 중' : '준비 중', state.ready ? 'success' : ''),
+            `저장소 <code>${storage.name}</code> · ${LOCAL_STORES.length} stores<br>거래 ${activeCount}건 · 동기화 대기 ${state.queue.length}건 · canonical v${Number(state.config.canonicalVersion || 0)}`,
+            `<button class="button" id="dataReloadButton" type="button">${icon('refresh-cw')}저장 상태 새로고침</button>`)}
+          ${dataCard('클라우드 동기화', '로그인한 소유자만 Supabase와 동기화합니다.',
+            badge(connected ? '연결됨' : '로그인 필요', connected ? 'success' : 'warning'),
+            `마지막 동기화 ${lastSync}<br>${connected ? '지금 로컬 변경을 클라우드에 반영할 수 있습니다.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}`,
+            `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button>`)}
+          ${dataCard('JSON 백업', '암호화되지 않은 파일이므로 안전한 위치에 보관하세요.',
+            state.config.lastBackupAt ? badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'), 'success') : badge('백업 없음', 'warning'),
+            '전체 로컬 데이터를 하나의 JSON 파일로 내려받습니다. 거래처와 세무자료가 포함될 수 있습니다.',
+            `<button class="button" id="dataBackupButton" type="button">${icon('download')}백업 만들기</button>`)}
+          ${dataCard('JSON 복원', '현재 로컬 데이터를 파일 내용으로 교체합니다.',
+            badge('주의', 'warning'),
+            '백업 파일을 선택하면 이 기기의 로컬 데이터를 파일 기준으로 덮어씁니다. 복원 전에 현재 데이터를 백업하세요.',
+            `<button class="button" id="dataRestoreButton" type="button">${icon('upload')}복원 파일 선택</button><input id="dataRestoreFile" type="file" accept="application/json,.json" hidden>`)}
+          ${dataCard('부분 삭제', '거래 한 건을 소프트 삭제합니다.',
+            badge(`${activeCount}건`, activeCount ? 'info' : ''),
+            activeCount
+              ? `삭제해도 감사로그와 tombstone에 기록되고 동기화에 반영됩니다.<select class="select" id="dataDeleteSelect" aria-label="삭제할 거래 선택">${deleteOptions}</select>`
+              : '삭제할 수 있는 거래가 없습니다. 거래를 입력하면 여기에서 개별 삭제할 수 있습니다.',
+            `<button class="button danger" id="dataPartialDeleteButton" type="button" ${activeCount ? '' : 'disabled'}>${icon('trash-2')}선택 거래 삭제</button>`)}
+          ${dataCard('일괄 삭제', '이 기기의 모든 장부 데이터를 삭제합니다.',
+            badge('위험', 'danger'),
+            '거래, 전표, 사업자 정보 등 모든 로컬 데이터를 지웁니다. Supabase 연결 설정과 기기 식별자는 유지되고, 클라우드 데이터에는 영향을 주지 않습니다.',
+            `<button class="button danger" id="dataWipeButton" type="button">${icon('trash')}이 기기 전체 삭제</button>`)}
+        </div>`;
     }
 
     function guideValue(label, value) {
@@ -1639,7 +1740,7 @@
     function emptyState(iconName, title, note) { return `<div class="empty-state">${icon(iconName)}<div class="empty-title">${title}</div><div class="empty-note">${note}</div></div>`; }
 
     function render() {
-      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, guide:renderGuide };
+      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, data:renderData, guide:renderGuide };
       if (!renderers[state.route]) state.route = 'dashboard';
       const item = NAV_ITEMS.find(nav => nav.id === state.route);
       el('topbarTitle').textContent = item?.label || '대시보드';
@@ -1754,7 +1855,9 @@
         } catch (error) { diagnostic(error); }
         render();
       });
-      el('backupButton')?.addEventListener('click', async () => {
+      el('dataReloadButton')?.addEventListener('click', async () => { try { await AppService.reload(); toast('저장 상태를 새로고침했습니다.','success'); render(); } catch(error){ diagnostic(error); } });
+      el('dataSyncButton')?.addEventListener('click', async () => { try { await SyncService.connectAndSync(); toast('클라우드 동기화를 완료했습니다.','success'); render(); } catch(error){ diagnostic(error); } });
+      el('dataBackupButton')?.addEventListener('click', async () => {
         if (!confirm('백업 파일에는 거래처와 세무자료가 포함될 수 있습니다. 안전한 위치에 보관하시겠습니까?')) return;
         try {
           const backup = await AppService.exportBackup();
@@ -1763,11 +1866,23 @@
           state.config.lastBackupAt = Utils.now(); ConfigAdapter.save(state.config); toast('JSON 백업 파일을 만들었습니다.','success'); render();
         } catch(error){ diagnostic(error); }
       });
-      el('restoreButton')?.addEventListener('click', () => el('restoreFile').click());
-      el('restoreFile')?.addEventListener('change', async event => {
+      el('dataRestoreButton')?.addEventListener('click', () => el('dataRestoreFile').click());
+      el('dataRestoreFile')?.addEventListener('change', async event => {
         const file = event.target.files?.[0]; if (!file) return;
         if (!confirm('현재 로컬 데이터를 백업 파일 내용으로 교체합니다. 계속하시겠습니까?')) return;
         try { await AppService.restoreBackup(JSON.parse(await file.text())); toast('백업을 복원했습니다.','success'); render(); } catch(error){ diagnostic(error); }
+      });
+      el('dataPartialDeleteButton')?.addEventListener('click', async () => {
+        const select = el('dataDeleteSelect'); const id = select?.value;
+        if (!id) return toast('삭제할 거래를 선택해 주세요.','error');
+        const label = select.options[select.selectedIndex]?.text || '선택한 거래';
+        if (!confirm(`다음 거래를 삭제합니다.\n${label}\n\n관련 전표도 함께 소프트 삭제되고 감사로그에 남습니다. 계속하시겠습니까?`)) return;
+        try { const result = await AppService.deleteTransaction(id); toast(`거래를 삭제했습니다. 전표 ${result.deletedJournals}건·라인 ${result.deletedLines}건 반영.`,'success'); render(); } catch(error){ diagnostic(error); }
+      });
+      el('dataWipeButton')?.addEventListener('click', async () => {
+        if (!confirm('이 기기의 모든 장부 데이터를 삭제합니다. Supabase 연결 설정은 유지됩니다. 계속하시겠습니까?')) return;
+        if (!confirm('되돌릴 수 없습니다. 먼저 JSON 백업을 만들었는지 확인하세요. 정말 전체 삭제할까요?')) return;
+        try { await AppService.clearLocalData(); toast('이 기기의 로컬 데이터를 모두 삭제했습니다.','success'); render(); } catch(error){ diagnostic(error); }
       });
     }
 
