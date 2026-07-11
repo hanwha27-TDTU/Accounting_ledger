@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.25** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.26** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -587,3 +587,23 @@ advisor 잔여 항목:
 1. 대표자명 Google 자동채움·큰업종 자동설정·인적용역 힌트는 실브라우저 수동 확인 대상(`docs/accounting-ledger-browser-checklist.md`).
 2. ②그룹은 사용자 자료 대기. ③그룹은 키 발급 + CORS 확인 필요.
 3. 큰업종 매핑(`BROAD_INDUSTRY_BY_MAJOR`)은 23개 대분류 중 주요만 명시 매핑, 나머지는 기타 서비스로 fallback(휴리스틱, 사용자 수정 가능).
+
+## 2026-07-11 앱 0.15 경비율 자동 표시 (②그룹 #1)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.15` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `tax_data` |
+| 제목 | 업종코드 선택 시 국세청 단순·기준경비율 자동 표시 |
+| 출처 | 사용자 제공 「국세청 2025년 귀속 단순·기준경비율」 xlsx(1,542개). 근거: law.go.kr admRulSeq=2100000276582(귀속 경비율 고시). 컬럼: 귀속연도·업종코드·업태명·중분류·세분류·세세분류·적용기준내용·단순(일반/초과)·기준(일반) |
+| 구현 | `scripts/build-expense-rates.py`(stdlib zip+xml)로 code→[단순일반,단순초과,기준일반] 추출, `NTS_EXPENSE_RATES`(38KB) 파생 상수 임베드. `ExpenseRates.find(code)` 조회. `industryPickedHtml`이 선택 코드의 경비율을 후보로 표시(귀속연도·출처 태그, 초과율 있으면 함께) |
+| 정확성(North Star) | 확정 아님. 실제 적용 경비율은 수입 규모(초과율 임계)에 따라 달라 **값만 표시하고 자동 계산은 하지 않음**. 추계소득 계산은 초과율 적용 수입금액 임계표를 받은 뒤 후보로 구현 예정. 원본 xlsx 미커밋(참고자료 하드룰), writer 스크립트만 커밋 |
+| 검증 | 실코드 테스트 +3(741400 단순 77.3/기준 23.1, 851201 일반의원 70.5/27.9는 데이터로 확인, 940903 초과율 46.4, 미존재→null, taxYear 2025), 총 24 assertion 게이트 통과. 하네스 Required 0(대용량 상수에도 tracked-secrets·whitespace 통과) |
+| 스킬 버전 | `Sub_income-tax-reporting_0.03`, `Sub_tax-vat-classification_0.04`, `Sub_legal-forms_0.02`, `Sub_app-research-notes_0.26` |
+
+남은 위험/미완:
+
+1. 초과율 적용 임계(수입금액 기준)가 없어 추계소득 자동계산은 미구현. 임계표 수령 후 후보로 구현.
+2. 실브라우저에서 경비율 표시 왕복은 수동 확인 대상.
+3. 연계표(0.11)는 2023 귀속, 경비율은 2025 귀속 — 귀속연도 불일치 가능. 코드 체계는 대체로 안정이나, 신고 연도에 맞춰 갱신 필요(둘 다 writer 스크립트로 재생성).

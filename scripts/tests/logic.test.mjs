@@ -50,7 +50,14 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, APP_INFO } = api;
+
+  // Expense rates (official NTS 2025 data) — display-only candidates
+  const consultingRate = ExpenseRates.find('741400');
+  ok(consultingRate && consultingRate.simpleGeneral === 77.3 && consultingRate.standardGeneral === 23.1, 'ExpenseRates 741400 -> 단순 77.3 / 기준 23.1');
+  const personalRate = ExpenseRates.find('940903');
+  ok(personalRate && personalRate.simpleExcess === 46.4, 'ExpenseRates 940903 has 초과율 46.4');
+  ok(ExpenseRates.find('000000') === null && ExpenseRates.taxYear === '2025', 'ExpenseRates missing -> null, taxYear 2025');
 
   // Accounting domain — the double-entry core (a North Star invariant)
   const amt = AccountingDomain.calculateAmounts('11000', 'taxable');
