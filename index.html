@@ -347,6 +347,11 @@
     .est-row strong { font-variant-numeric: tabular-nums; }
     .est-row.total { border-top: 1px solid rgba(0,0,0,.1); padding-top: 8px; margin-top: 2px; font-size: 15px; }
     .est-row.total strong { color: var(--brand); }
+    .est-judgement { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
+    .est-tag { font-size: 12px; padding: 2px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-strong); }
+    .est-tag:empty { display: none; }
+    .legal-basis { display: flex; gap: 10px; margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.6; }
+    .legal-basis strong { color: var(--brand-strong); }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -535,7 +540,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.19',
+      version: '0.20',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -550,7 +555,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.19', date: '2026-07-11', label: '최신 · 기준경비율 추계소득 계산기', detail: '리포트 화면에 추계소득금액 계산기를 추가했습니다. 총수입·매입·임차·인건비를 넣고 기장의무를 고르면, 선택한 업종의 경비율(자동 채움·수정 가능)로 기준소득금액·비교소득금액·소득금액(둘 중 작은 값)·필요경비를 실시간으로 보여줍니다. 검토용 후보 계산입니다.' },
+      { version: '0.20', date: '2026-07-11', label: '최신 · 계산기 자동판정 + 법령 가이드', detail: '추계소득 계산기에 직전연도 수입금액을 넣으면 기장의무(복식/간편)와 적용 경비율(단순/기준)이 자동 판정됩니다. 또한 가이드에 기장의무·부가가치세 면세·추계신고 경비율을 쉬운 설명과 근거 조문(소득세법 §160·시행령 §208⑤·§143, 부가가치세법 §26)으로 안내하는 버튼을 추가했습니다.' },
+      { version: '0.19', date: '2026-07-11', label: '기준경비율 추계소득 계산기', detail: '리포트 화면에 추계소득금액 계산기를 추가했습니다. 총수입·매입·임차·인건비를 넣고 기장의무를 고르면, 선택한 업종의 경비율(자동 채움·수정 가능)로 기준소득금액·비교소득금액·소득금액(둘 중 작은 값)·필요경비를 실시간으로 보여줍니다. 검토용 후보 계산입니다.' },
       { version: '0.18', date: '2026-07-11', label: '기준경비율 추계소득 계산 엔진·안내', detail: '국세청 추계신고(기준경비율) 작성사례의 공식 계산식을 검증된 엔진으로 구현했습니다. 소득금액 = min(기준소득금액, 비교소득금액)이며 복식부기의무자는 기준경비율 1/2·비교 3.4배, 간편장부대상자는 전체·2.8배를 적용합니다. 리포트 화면에 계산 방법과 복식부기의무자 추계 시 가산세 경고를 검토용으로 안내합니다.' },
       { version: '0.17', date: '2026-07-11', label: '간편장부 계정과목 분류표', detail: '국세청 간편장부 작성요령의 계정과목 분류표(수입·비용·제조비용·자산 25개 계정과목과 공식 설명)를 앱에 담아, 가져오기 화면에서 간편장부 수입·비용·자산 열 대응 기준으로 보여줍니다. 이후 Excel 가져오기의 계정과목 매핑 기준이 됩니다.' },
       { version: '0.16', date: '2026-07-11', label: '기장의무·면세 근거 자동 표시', detail: '업종코드를 고르면 기장의무 기준(소득세법 시행령 §208⑤: 3억/1.5억/7,500만원)과 부가세 면세 가능성(부가가치세법 §26①)을 근거 조문과 함께 후보로 보여줍니다. 면세는 공급 성질로 판단하므로 개별 판단이 필요함을 명시합니다.' },
@@ -670,6 +676,28 @@
         if (isNew) obligation = '간편장부대상자';
         else if (Number.isFinite(Number(priorRevenue))) obligation = Number(priorRevenue) >= threshold ? '복식부기의무자' : '간편장부대상자';
         return { basis: this.basis, threshold, obligation };
+      }
+    });
+
+    // 단순경비율 vs 기준경비율 적용 판정 — 소득세법 시행령 제143조 제4항 제2호.
+    // 직전 과세기간 수입금액이 업종별 기준(가 6,000만·나 3,600만·다 2,400만) 미만이면 단순경비율,
+    // 이상이면 기준경비율. 신규개시자는 단순경비율. §208⑤(기장의무)와 그룹 경계가 다르다
+    // (인적용역 94xxx는 여기서 나목 3,600만).
+    const ExpenseRateMethod = Object.freeze({
+      basis: '소득세법 시행령 제143조 제4항',
+      THRESHOLDS: Object.freeze({ '가': 60000000, '나': 36000000, '다': 24000000 }),
+      GROUP_BY_MAJOR: Object.freeze(['가', '가', '나', '나', '나', '나', '가', '나', '나', '나', '나', '다', '다', '다', '가', '다', '다', '다', '다', '다', '다', '다', '가']),
+      thresholdOf(code) {
+        if (String(code || '').startsWith('94')) return this.THRESHOLDS['나']; // 인적용역(부가세 시행령 §42①1호) → 나목
+        const row = NTS_INDUSTRY_CODES.rows.find(e => e[0] === code);
+        return row ? this.THRESHOLDS[this.GROUP_BY_MAJOR[row[2]] || '가'] : null;
+      },
+      method(code, priorRevenue, isNew) {
+        const threshold = this.thresholdOf(code);
+        if (threshold == null) return null;
+        if (isNew) return { method: '단순경비율', threshold, basis: this.basis };
+        if (!Number.isFinite(Number(priorRevenue))) return { method: null, threshold, basis: this.basis };
+        return { method: Number(priorRevenue) >= threshold ? '기준경비율' : '단순경비율', threshold, basis: this.basis };
       }
     });
 
@@ -2031,6 +2059,7 @@
       return `<div class="estimator">
         <div class="estimator-grid">
           <label class="est-field"><span>총수입금액</span><input class="select" type="text" inputmode="numeric" id="estRevenue" value="${rev || ''}"></label>
+          <label class="est-field"><span>직전연도 수입금액</span><input class="select" type="text" inputmode="numeric" id="estPriorRevenue" value="" placeholder="입력 시 자동 판정"></label>
           <label class="est-field"><span>매입비용</span><input class="select" type="text" inputmode="numeric" id="estPurchase" value=""></label>
           <label class="est-field"><span>임차료</span><input class="select" type="text" inputmode="numeric" id="estRent" value=""></label>
           <label class="est-field"><span>인건비</span><input class="select" type="text" inputmode="numeric" id="estLabor" value=""></label>
@@ -2039,6 +2068,7 @@
           <label class="est-field"><span>단순경비율(%)</span><input class="select" type="text" inputmode="decimal" id="estSimpleRate" value="${rate ? rate.simpleGeneral : ''}"></label>
         </div>
         <p class="est-note major">${Utils.escape(rateNote)}${dutyNote}</p>
+        <div class="est-judgement"><span class="est-tag" id="estDutyAuto"></span><span class="est-tag" id="estMethodAuto"></span></div>
         <div class="est-out">
           <div class="est-row"><span>주요경비(매입+임차+인건)</span><strong id="estMainCosts">0원</strong></div>
           <div class="est-row"><span>① 기준소득금액</span><strong id="estPrimary">0원</strong></div>
@@ -2261,20 +2291,28 @@
       return `<section class="guide-section"><div class="guide-section-head"><span class="guide-step-number">${number}</span><div><h2 class="guide-section-title">${title}</h2><p class="guide-section-note">${note}</p></div></div>${body}</section>`;
     }
 
+    const GUIDE_TOPICS = Object.freeze([
+      { id: 'google-cloud', icon: 'cloud-cog', title: '구글클라우드 연결방법', note: 'Google 로그인부터 Supabase 연결과 앱 진단까지 한 단계씩 확인합니다.' },
+      { id: 'bookkeeping-duty', icon: 'book-open-check', title: '기장의무 판단 (간편장부·복식부기)', note: '내 사업이 간편장부인지 복식부기인지 근거 법령과 함께 설명합니다.' },
+      { id: 'vat-exemption', icon: 'badge-percent', title: '부가가치세 면세', note: '어떤 공급이 면세인지 부가가치세법 근거와 함께 설명합니다.' },
+      { id: 'estimate-expense-rate', icon: 'calculator', title: '추계신고와 경비율', note: '장부 없이 신고할 때 단순·기준경비율과 소득 계산법을 설명합니다.' }
+    ]);
+    function guideTopicButtons() {
+      return GUIDE_TOPICS.map(t => { const open = state.guideTopic === t.id; return `<button class="guide-topic-button ${open ? 'active' : ''}" type="button" data-guide-topic="${t.id}" aria-expanded="${open}"><span class="guide-topic-icon">${icon(t.icon)}</span><span class="guide-topic-copy"><span class="guide-topic-title">${t.title}</span><span class="guide-topic-note">${t.note}</span></span><span class="guide-topic-arrow">${icon(open ? 'chevron-up' : 'chevron-right')}</span></button>`; }).join('');
+    }
     function renderGuide() {
-      const topicOpen = state.guideTopic === 'google-cloud';
+      const header = `${pageHeader('가이드','필요한 주제를 선택하면 쉬운 설명과 법적 근거를 함께 보여드립니다.')}<div class="guide-topic-list">${guideTopicButtons()}</div>`;
+      const topic = state.guideTopic;
+      if (topic === 'google-cloud') return `${header}${googleCloudGuideHtml()}`;
+      if (topic === 'bookkeeping-duty' || topic === 'vat-exemption' || topic === 'estimate-expense-rate') return `${header}${legalGuideHtml(topic)}`;
+      return header;
+    }
+    function googleCloudGuideHtml() {
       const status = GuideService.status();
       const statusItem = (label, passed, successText, waitText) => `<div class="guide-check"><div class="guide-check-label">${label}</div><div class="guide-check-state ${passed ? 'success' : 'warning'}">${passed ? successText : waitText}</div></div>`;
-      const topicButton = `<button class="guide-topic-button ${topicOpen ? 'active' : ''}" type="button" data-guide-topic="google-cloud" aria-expanded="${topicOpen}"><span class="guide-topic-icon">${icon('cloud-cog')}</span><span class="guide-topic-copy"><span class="guide-topic-title">구글클라우드 연결방법</span><span class="guide-topic-note">Google 로그인부터 Supabase 연결과 앱 진단까지 한 단계씩 확인합니다.</span></span><span class="guide-topic-arrow">${icon(topicOpen ? 'chevron-up' : 'chevron-right')}</span></button>`;
-      if (!topicOpen) {
-        return `${pageHeader('가이드','필요한 작업을 선택하면 현재 앱 설정에 맞는 값을 보여드립니다.')}<div class="guide-topic-list">${topicButton}</div>`;
-      }
-
       const origins = GuideService.javascriptOrigins().map((value, index) => guideValue(`JavaScript 원본 ${index + 1}`, value)).join('');
       const redirects = GuideService.appRedirectUrls().map((value, index) => guideValue(`Supabase Redirect URL ${index + 1}`, value)).join('');
-      return `${pageHeader('가이드','필요한 작업을 선택하면 현재 앱 설정에 맞는 값을 보여드립니다.')}
-        <div class="guide-topic-list">${topicButton}</div>
-        <div class="guide-summary">
+      return `<div class="guide-summary">
           <div class="notice info">${icon('refresh-cw')}<div><strong>이 안내는 현재 앱 기록과 연결되어 있습니다.</strong><br>앱 버전, 소유자 이메일, Supabase 주소, 배포 주소와 연결 진단이 바뀌면 아래 값과 상태도 함께 바뀝니다. 현재 앱은 v${APP_INFO.version}입니다.</div></div>
           <div class="guide-checks">
             ${statusItem('Data API', status.dataApi, '연결됨', '진단 필요')}
@@ -2294,6 +2332,35 @@
           ${guideSection(7, '바른장부에서 연결을 확인합니다', '세 가지 진단이 통과한 다음 소유자 계정으로 로그인합니다.', `<ol class="guide-steps"><li>왼쪽 메뉴에서 <strong>설정</strong>을 누릅니다.</li><li><strong>Supabase 및 Google 로그인</strong>에서 <strong>연결 진단</strong>을 누릅니다.</li><li>Data API는 <strong>정상</strong>, 익명 회계자료 격리는 <strong>차단 정상</strong>, Google OAuth는 <strong>사용 가능</strong>인지 확인합니다.</li><li><strong>Google로 로그인</strong>을 누르고 아래 소유자 계정을 선택합니다.</li><li>앱으로 돌아왔을 때 위쪽 상태가 <strong>동기화 완료</strong>이면 연결이 끝난 것입니다.</li></ol><div class="guide-values">${guideValue('로그인할 Google 계정', APP_INFO.ownerEmail)}</div><div class="form-actions"><button class="button" type="button" data-route="settings">${icon('settings-2')}설정에서 확인</button></div>`)}
           ${guideSection(8, '문제가 생기면 이 순서로 봅니다', '주소 한 글자, 테스트 사용자, 비밀값 위치를 먼저 확인하면 대부분 해결됩니다.', `<ol class="guide-steps"><li><strong>redirect_uri_mismatch</strong>: Google Cloud의 승인된 리디렉션 URI가 위 callback 주소와 완전히 같은지 확인합니다.</li><li><strong>Access blocked</strong>: Google Auth Platform이 테스트 중인지, 소유자 이메일이 테스트 사용자에 들어 있는지 확인합니다.</li><li><strong>Google 설정 필요</strong>: Supabase Google provider가 켜져 있고 Client ID와 Secret이 저장됐는지 확인합니다.</li><li><strong>로그인은 됐지만 자료 접근 불가</strong>: 허용 사용자 대장에서 이메일 상태가 active인지 확인합니다.</li><li>주소를 고친 뒤 앱의 <strong>설정 → 연결 진단</strong>을 다시 누릅니다.</li></ol>`)}
         </div>`;
+    }
+
+    // 주요 세무 법령을 쉬운 설명 + 근거 조문으로 안내한다. 확정 신고 판단이 아니라 이해를 돕는 안내다.
+    function legalGuideHtml(topic) {
+      if (topic === 'bookkeeping-duty') {
+        return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">기장의무 판단 — 간편장부 vs 복식부기</h2><p class="section-help">내 사업이 어떤 장부를 써야 하는지 쉬운 말과 법적 근거로 정리합니다.</p></div>${badge('법적 근거','info')}</div>
+          <div class="notice info">${icon('book-open-check')}<div><strong>장부는 두 종류입니다.</strong><br><strong>간편장부</strong>는 가계부처럼 날짜·내용·금액을 적는 쉬운 장부이고, <strong>복식부기</strong>는 한 거래를 차변·대변 양쪽에 이중으로 적는 정식 장부입니다.</div></div>
+          <div class="notice">${icon('scale')}<div><strong>누가 복식부기의무자인가?</strong><br>직전 과세기간(작년) 수입금액이 업종별 기준 <strong>이상</strong>이면 복식부기의무자, <strong>미만</strong>이면 간편장부대상자입니다. 그 해에 <strong>새로 시작한 사업자</strong>는 간편장부대상자입니다.</div></div>
+          <div class="guide-values">${guideValue('가목 · 농림어업, 광업, 도소매, 부동산매매 등', '3억원')}${guideValue('나목 · 제조, 숙박·음식, 건설, 운수, 정보통신, 금융·보험 등', '1억 5천만원')}${guideValue('다목 · 부동산임대, 전문·과학·기술, 교육, 보건, 예술, 개인서비스 등', '7천 5백만원')}</div>
+          <div class="legal-basis">${icon('gavel')}<div><strong>근거</strong> · 소득세법 제160조(장부의 비치ㆍ기록) 제1항~제3항, 소득세법 시행령 제208조 제5항 제2호. 직전 수입금액이 위 금액 미만이면 간편장부대상자, 이상이면 복식부기의무자입니다.</div></div>
+          <div class="form-actions"><button class="button" type="button" data-route="settings">${icon('settings-2')}설정에서 업종코드 고르기</button></div>
+          <p class="section-help">설정에서 업종코드를 고르면 이 기준이 자동으로 표시됩니다. 리포트 계산기에서는 직전연도 수입금액을 넣으면 기장의무가 자동 판정됩니다.</p></section>`;
+      }
+      if (topic === 'vat-exemption') {
+        return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">부가가치세 면세</h2><p class="section-help">어떤 공급이 면세인지 근거와 함께 정리합니다.</p></div>${badge('법적 근거','info')}</div>
+          <div class="notice info">${icon('badge-percent')}<div><strong>면세는 '업종'이 아니라 '무엇을 공급하는가'로 판단합니다.</strong><br>부가가치세는 과세 거래에 붙지만, 법이 정한 재화·용역은 면세입니다. 같은 업종이라도 개별 공급에 따라 과세될 수 있습니다.</div></div>
+          <div class="guide-values">${guideValue('제1호 · 가공되지 않은 식료품', '면세')}${guideValue('제5호 · 의료보건 용역', '면세 (미용·성형 등 일부 과세)')}${guideValue('제6호 · 교육 용역', '면세 (무도·자동차운전 학원 등 일부 과세)')}${guideValue('제8호 · 도서·신문·잡지', '면세 (광고 제외)')}${guideValue('제11호 · 금융·보험 용역', '면세')}${guideValue('제12호 · 주택과 부수 토지의 임대', '면세')}${guideValue('제14호 · 토지', '면세')}${guideValue('제15호 · 직업상 인적용역', '면세 (시행령이 정한 것)')}</div>
+          <div class="notice">${icon('triangle-alert')}<div>면세 대상은 위가 전부가 아니라 모두 <strong>20개 호</strong>이며, 각 호마다 '대통령령으로 정하는 것' 조건이 붙습니다. 실제 면세 여부는 개별 공급 단위로 확인하세요.</div></div>
+          <div class="legal-basis">${icon('gavel')}<div><strong>근거</strong> · 부가가치세법 제26조(재화 또는 용역의 공급에 대한 면세) 제1항.</div></div>
+          <p class="section-help">설정에서 업종코드를 고르면 면세 가능성을 후보로 표시합니다.</p></section>`;
+      }
+      return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">추계신고와 경비율</h2><p class="section-help">장부가 없을 때 소득을 어떻게 정하는지 근거와 함께 정리합니다.</p></div>${badge('법적 근거','info')}</div>
+        <div class="notice info">${icon('calculator')}<div><strong>장부가 없으면 정부가 정한 '경비율'로 소득을 추정해 신고합니다(추계신고).</strong><br>경비율에는 <strong>단순경비율</strong>과 <strong>기준경비율</strong> 두 가지가 있습니다.</div></div>
+        <div class="notice">${icon('git-branch')}<div><strong>어느 경비율을 쓰나?</strong><br>직전연도 수입금액이 업종별 기준 <strong>미만</strong>이면 단순경비율, <strong>이상</strong>이면 기준경비율입니다. 신규 사업자는 단순경비율입니다.</div></div>
+        <div class="guide-values">${guideValue('가목 업종 (도소매 등)', '6천만원')}${guideValue('나목 업종 (제조·음식·인적용역 등)', '3천 6백만원')}${guideValue('다목 업종 (전문서비스·교육·보건 등)', '2천 4백만원')}</div>
+        <div class="notice">${icon('sigma')}<div><strong>기준경비율 소득금액 = min(①, ②)</strong><br>① 수입금액 − 주요경비(매입·임차·인건) − (수입금액 × 기준경비율 × <strong>복식부기 ½</strong>)<br>② 수입금액 × (1 − 단순경비율) × <strong>복식부기 3.4배 / 간편장부 2.8배</strong></div></div>
+        <div class="notice danger">${icon('shield-alert')}<div><strong>복식부기의무자</strong>가 장부 없이 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 <strong>큰 금액</strong>이 부과됩니다.</div></div>
+        <div class="legal-basis">${icon('gavel')}<div><strong>근거</strong> · 소득세법 제80조 제3항, 소득세법 시행령 제143조 제3항(계산방법)·제4항 제2호(단순·기준 구분 기준금액). 비교소득금액 배율은 같은 항 제1호 단서와 소득세법 시행규칙에 따릅니다.</div></div>
+        <div class="form-actions"><button class="button" type="button" data-route="reports">${icon('chart-column')}리포트에서 계산기 열기</button></div></section>`;
     }
 
     function renderDeveloper() {
@@ -2375,7 +2442,13 @@
       }
 
       if (el('estRevenue')) {
+        const code = state.business?.main_industry_code || '';
         const estRecalc = () => {
+          const priorRaw = el('estPriorRevenue').value.trim();
+          const duty = code && priorRaw ? BookkeepingDuty.assess(code, Utils.number(priorRaw), false) : null;
+          const method = code && priorRaw ? ExpenseRateMethod.method(code, Utils.number(priorRaw), false) : null;
+          el('estDutyAuto').textContent = duty?.obligation ? `기장의무 판정: ${duty.obligation}` : '';
+          el('estMethodAuto').textContent = method?.method ? `경비율 적용: ${method.method}` : '';
           const mainCosts = Utils.number(el('estPurchase').value) + Utils.number(el('estRent').value) + Utils.number(el('estLabor').value);
           const res = EstimatedIncome.byStandardRate({
             revenue: Utils.number(el('estRevenue').value), mainCosts,
@@ -2388,6 +2461,11 @@
           el('estIncome').textContent = Utils.won(res.income);
           el('estNecessary').textContent = Utils.won(res.necessaryExpense);
         };
+        el('estPriorRevenue').addEventListener('input', () => {
+          const duty = code && el('estPriorRevenue').value.trim() ? BookkeepingDuty.assess(code, Utils.number(el('estPriorRevenue').value), false) : null;
+          if (duty?.obligation) el('estDuty').value = duty.obligation === '복식부기의무자' ? 'double' : 'simple';
+          estRecalc();
+        });
         ['estRevenue', 'estPurchase', 'estRent', 'estLabor', 'estStdRate', 'estSimpleRate'].forEach(id => el(id).addEventListener('input', estRecalc));
         el('estDuty').addEventListener('change', estRecalc);
         estRecalc();
@@ -2592,7 +2670,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, EstimatedIncome, SimpleBookAccounts, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

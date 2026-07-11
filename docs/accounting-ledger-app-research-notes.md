@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.30** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.31** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -691,3 +691,25 @@ advisor 잔여 항목:
 2. 주요경비는 매입+임차+인건 단순 합. 정규증빙 검증·항목별 한도는 미반영(안내 문구로만 고지).
 3. 단순경비율 초과율/배제 임계표는 여전히 자료 대기(0.18 노트 참조).
 4. 브라우저 검증은 계산 경로 한정. 시각·레이아웃(모바일 overflow 등)은 수동 확인 대상.
+
+## 2026-07-11 앱 0.20 계산기 자동판정 + 법령 가이드 버튼
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.20` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `ui`, `legal_basis` |
+| 제목 | 추계 계산기 직전수입 자동판정 + 가이드 법령 안내(기장의무·면세·추계 경비율) |
+| 근거 확인(법령 MCP 원문 대조) | 소득세법 제160조(장부 비치·기록: 복식부기 원칙·간편장부 특례·정의), 소득세법 시행령 제208조 제5항 제2호(기장의무 기준 3억/1.5억/7,500만), 부가가치세법 제26조 제1항(면세 20개 호 전문), 소득세법 시행령 제143조 제3항(추계 계산법)·제4항 제2호(단순/기준 구분 6,000만/3,600만/2,400만). 143④2호 나목은 인적용역(부가세 시행령 §42①1호)을 포함 → 94xxx는 나목(3,600만)으로 §208⑤(다목)과 경계 상이함을 확인 |
+| 구현 ① 계산기 | 신규 `ExpenseRateMethod`(단순/기준 판정, §143④2호, 94xxx 특례). `estimatorPanelHtml`에 `직전연도 수입금액` 입력 추가. `bindViewEvents` estRecalc가 `BookkeepingDuty.assess`·`ExpenseRateMethod.method`로 `estDutyAuto`/`estMethodAuto` 태그 갱신, 직전수입 입력 시 estDuty select 자동 선택(사용자 수동 변경은 보존). `.est-judgement`·`.est-tag` CSS |
+| 구현 ② 가이드 | `renderGuide`를 `GUIDE_TOPICS` 레지스트리 + `guideTopicButtons()`로 리팩터, google-cloud 상세는 `googleCloudGuideHtml()`로 분리(동작 동일). `legalGuideHtml(topic)`로 기장의무·부가세 면세·추계 경비율 3개 안내(쉬운 설명 + 기준금액 + `근거` 조문 블록 + 앱 화면 링크). `.legal-basis` CSS |
+| 검증(정직) | 헤드리스 Chromium: 가이드 4개 토픽 버튼 + 각 법령 근거 블록 렌더 확인(§160·§208⑤·§80③·§143·§26①), 계산기 자동판정 서비스(851201 3천만↑→기준·복식, 2천만→단순·간편) 및 소득 21,220,000 재확인, 앱 JS 콘솔 에러 0. 로직 테스트 +6(ExpenseRateMethod 임계·판정, 총 50). 하네스 Required 0 |
+| 정확성(North Star) | 가이드는 이해용 안내(확정 신고 판단 아님). 면세는 20개 호·개별 판단 명시. 계산기 자동판정은 업종코드 설정 시에만 동작(미설정 시 수동) |
+| 스킬 버전 | `Sub_income-tax-reporting_0.04`, `Sub_tax-vat-classification_0.04`, `Sub_legal-forms_0.02`, `Sub_app-research-notes_0.31` |
+
+남은 위험/미완:
+
+1. 계산기 자동판정 태그(estDutyAuto/estMethodAuto)의 실제 DOM 표시는 활성 사업자 업종코드가 있어야 하며, file:// 검증에서는 서비스 로직으로만 확인. 로그인·사업자 설정 상태의 실제 표시는 수동 확인 대상.
+2. ExpenseRateMethod의 대분류→그룹 매핑은 §208⑤과 마찬가지로 대분류 근사(부동산매매/임대, 상품중개 등 세분류 경계는 개별 확인). 94xxx 인적용역만 특례 처리.
+3. 가이드 면세 목록은 대표 호만 노출(전체 20개 호는 조문 참조 안내). 시행령 위임 세부는 미표시.
+4. 가산세 자동계산은 여전히 미구현(경고 안내만).

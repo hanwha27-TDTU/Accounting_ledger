@@ -50,7 +50,15 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, EstimatedIncome, SimpleBookAccounts, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, APP_INFO } = api;
+
+  // 단순경비율 vs 기준경비율 적용 판정 (소득세법 시행령 §143④2호): 가 6,000만·나 3,600만·다 2,400만
+  ok(ExpenseRateMethod.thresholdOf('552101') === 36000000, 'ExpenseRateMethod 552101 음식점 -> 나목 3,600만');
+  ok(ExpenseRateMethod.thresholdOf('851201') === 24000000, 'ExpenseRateMethod 851201 의료 -> 다목 2,400만');
+  ok(ExpenseRateMethod.thresholdOf('940600') === 36000000, 'ExpenseRateMethod 940600 인적용역 -> 나목 3,600만 (§143④2호 나목)');
+  ok(ExpenseRateMethod.method('851201', 30000000, false).method === '기준경비율', 'ExpenseRateMethod 수입 >= 기준 -> 기준경비율');
+  ok(ExpenseRateMethod.method('851201', 20000000, false).method === '단순경비율', 'ExpenseRateMethod 수입 < 기준 -> 단순경비율');
+  ok(ExpenseRateMethod.method('851201', 99999999, true).method === '단순경비율', 'ExpenseRateMethod 신규개시자 -> 단순경비율');
 
   // 기준경비율 추계소득금액 (국세청 추계신고 작성사례: 한식점 552101, 복식부기의무자)
   // 총수입 120,000,000 · 주요경비 92,960,000 · 기준경비율 9.7% · 단순경비율 89.7%
