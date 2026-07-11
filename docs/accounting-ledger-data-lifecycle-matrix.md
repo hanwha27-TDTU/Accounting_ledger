@@ -1,6 +1,6 @@
 # Accounting Ledger 데이터 도메인 × 생명주기 매트릭스
 
-> 개정 2026-07-11 · 대상 앱 버전 `0.10`
+> 개정 2026-07-11 · 대상 앱 버전 `0.12`
 > 목적: 각 데이터 종류(도메인)가 생명주기 노드(로컬저장·로드·백업·복원·동기화 push·merge·최종본·삭제→tombstone·개수/버전)에 빠짐없이 배선됐는지 한눈에 보고, "다른 도메인엔 있는 노드가 특정 도메인만 조용히 빠진" 버그 클래스를 원천 차단한다. 새 동기화 도메인을 추가하면 이 표에도 반드시 추가한다(하네스 `data-lifecycle-matrix` 게이트가 강제).
 
 범례: ✓ 배선됨 · ✗ 미배선(gap) · ⊘ 데이터 클래스상 의도적 제외
@@ -30,7 +30,7 @@
 | source_transactions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 기준 도메인(전 노드) |
 | journal_entries | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
 | journal_entry_lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
-| evidence_files | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | **삭제→tombstone 미배선(중간)** — 첨부만 되고 제거 없음 |
+| evidence_files | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 0.12에서 증빙 제거(soft-delete+tombstone) 배선. Cloudinary 원본 삭제는 서명 필요라 후속 |
 | audit_logs | ✓ | ✓ | ✓ | ✓ | ✓(append) | ✓ | ✓ | ⊘ | append-only |
 | period_closings | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 마감 재개방은 별도 lifecycle |
 | tombstones | ✓ | ✗ | ✓ | ✓ | ✓ | ✓(apply) | ✓(apply) | ⊘ | 삭제 신호 자체 |
@@ -39,7 +39,7 @@
 
 ## Gap 심각도순과 수정안 (형제 도메인 대조)
 
-1. **evidence_files 삭제→tombstone 미배선** (중간). 형제 `source_transactions`는 `deleteTransaction`으로 soft-delete + tombstone + 감사 + 큐를 가진다. 수정안: `AppService.removeEvidence(id)`로 evidence_files를 동일 규칙(soft-delete + tombstone + 큐)으로 제거하고 다른 증빙이 없으면 거래를 `not_attached`로 되돌린다. Cloudinary **원본** 삭제는 서명 API(secret) 필요라 브라우저 직접 불가 → `delete_status='pending_remote'` 표시 후 Edge Function 후보.
+1. ~~evidence_files 삭제→tombstone 미배선~~ **(0.12 해결)**. `AppService.removeEvidence`가 형제 `deleteTransaction`과 동일 규칙(soft-delete + tombstone + 감사 + 큐)으로 증빙 링크를 제거하고, 다른 증빙이 없으면 거래를 `not_attached`로 되돌린다. Cloudinary **원본** 삭제는 서명 API(secret) 필요라 브라우저 직접 불가 → `delete_status='unlinked'` 표시 후 Edge Function 후보.
 2. **counterparties 삭제 미배선** (낮음). 형제 대조상 soft-delete + tombstone 추가 가능. 사용 빈도 낮아 후속.
 3. **import 미리보기 부재** (중간, 백업/가져오기 대칭). `imports`는 placeholder다. 실제 구현 시 백업 5봉합점(백업 생성·읽기·적용·미리보기 계산·미리보기 표시)을 대칭으로 배선하고, 미리보기는 적용과 같은 규칙(id 키·merge/append/replace)으로 계산한다.
 4. **ledger_period_settings·tombstones·app_research_notes state 미보관** (낮음/의도적). ad-hoc 읽기 또는 infra라 reload state에 담지 않는다.

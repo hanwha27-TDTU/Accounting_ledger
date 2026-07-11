@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.22** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.23** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -528,3 +528,20 @@ advisor 잔여 항목:
 2. 임베드 88KB로 index.html이 커졌다(gzip 완화, 오프라인 완전 동작). 추후 대량화 시 IndexedDB 참조 스토어/Supabase 참조 데이터로 이전 여지.
 3. 연계표는 2023 귀속 스냅샷이다. 귀속연도 변경 시 최신 파일로 재생성해야 하며, 선택값의 requires_review·공식 확인 안내로 오적용을 막는다.
 4. 업종코드 선택을 단순/기준경비율·간편장부/복식부기 의무 판정과 연결하는 것은 후속(경비율 데이터·법정 근거 필요).
+
+## 2026-07-11 앱 0.12 증빙 제거 (생명주기 매트릭스 gap 해소)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.12` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `data_contract` |
+| 제목 | 첨부 증빙 제거를 형제 도메인과 대칭으로 배선 |
+| 배경 | 0.10 생명주기 매트릭스가 `evidence_files`의 삭제→tombstone 미배선(첨부만 되고 제거 없음)을 gap으로 지목. 형제 `source_transactions`는 `deleteTransaction`으로 완비 |
+| 구현 | `AppService.removeEvidence`: evidence_files를 `deleted_at`+`delete_status='unlinked'` 소프트삭제, `tombstones`·`audit_logs`·`sync_queue` 반영. 그 거래에 다른 활성 증빙이 없으면 `source_transactions.evidence_status='not_attached'`로 되돌림. 증빙 화면 파일별 제거 버튼(x) 추가 |
+| 다기기 | evidence_files가 `SYNC_TABLE_ORDER`에 있어 `convergeTombstones`가 tombstone을 다른 기기의 로컬 evidence_files에 소프트삭제로 적용 → 제거가 수렴 |
+| Cloudinary 원본 | 서명 API(secret) 필요라 브라우저에서 원본 삭제 불가. 링크만 제거하고 `delete_status='unlinked'`로 표시, 서버측(Edge Function) 정리는 후속 |
+| 검증 | 제거 로직 자동 테스트 7/7(소프트삭제+unlinked, evidence tombstone, 잔여 없으면 거래 미첨부 복귀·detached=1, 잔여 있으면 거래 미변경·detached=0, 미발견→EVIDENCE_NOT_FOUND). RLS는 기존 business-scoped update/tombstone insert(앞서 검증) 재사용. 하네스 8게이트 Required 0 |
+| 스킬 버전 | `Sub_evidence-archive_0.01`, `Sub_code-architecture-guardians_0.03`, `Sub_app-research-notes_0.23` |
+
+남은 매트릭스 gap: counterparties 삭제(낮음), import 미리보기(중간, #5에서 대칭 배선 예정). Cloudinary 원본 서버측 삭제(후속).

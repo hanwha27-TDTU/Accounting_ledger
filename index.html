@@ -311,6 +311,10 @@
     .evidence-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .evidence-thumb { display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
     .evidence-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .evidence-file-wrap { position: relative; display: inline-flex; }
+    .evidence-remove { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .evidence-remove:hover { color: var(--danger); border-color: var(--danger); }
+    .evidence-remove i { width: 13px; height: 13px; }
 
     .industry-results { border: 1px solid var(--line); border-radius: 7px; margin-top: 6px; max-height: 240px; overflow-y: auto; background: var(--surface); }
     .industry-item { display: block; width: 100%; text-align: left; padding: 9px 12px; cursor: pointer; border: 0; border-bottom: 1px solid var(--line); background: transparent; font: inherit; color: inherit; }
@@ -507,7 +511,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.11',
+      version: '0.12',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -522,7 +526,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.11', date: '2026-07-11', label: '최신 · 업종코드 검색 선택', detail: '국세청 업종코드-표준산업분류 연계표(2023 귀속) 1,784개를 앱에 담아, 블라인드 6자리 입력 대신 업종명·코드로 검색해 고르면 코드가 자동 채워집니다. 선택값은 후보이며 홈택스 공식 조회·경비율 고시 링크로 확인하도록 안내합니다.' },
+      { version: '0.12', date: '2026-07-11', label: '최신 · 증빙 제거', detail: '첨부한 증빙을 제거할 수 있습니다. 링크를 소프트 삭제하고 tombstone으로 다른 기기까지 반영하며, 그 거래에 다른 증빙이 없으면 미첨부로 되돌립니다. Cloudinary 원본 파일 자체는 남습니다.' },
+      { version: '0.11', date: '2026-07-11', label: '업종코드 검색 선택', detail: '국세청 업종코드-표준산업분류 연계표(2023 귀속) 1,784개를 앱에 담아, 블라인드 6자리 입력 대신 업종명·코드로 검색해 고르면 코드가 자동 채워집니다. 선택값은 후보이며 홈택스 공식 조회·경비율 고시 링크로 확인하도록 안내합니다.' },
       { version: '0.10', date: '2026-07-11', label: '빈 클라우드 가드와 생명주기 매트릭스', detail: '최종본 적용 시 클라우드가 빈 응답을 주면 로컬 데이터를 지키려고 wipe를 중단하는 가드를 넣고, 데이터 도메인×생명주기 매트릭스와 드리프트 게이트로 배선 누락을 구조적으로 막습니다.' },
       { version: '0.09', date: '2026-07-11', label: 'Cloudinary 증빙 첨부', detail: '증빙 화면에서 거래별로 이미지·PDF를 Cloudinary 제한 unsigned preset으로 업로드하고, 파일 메타를 장부·Supabase(evidence_files)에 연결합니다. 썸네일과 원본 링크를 보여주며 첨부는 오프라인에서도 됩니다.' },
       { version: '0.08', date: '2026-07-11', label: '최종본 지정 동기화', detail: '소유자가 데이터 관리에서 이 기기를 클라우드 최종본으로 지정하면 canonical version이 올라가고, 다른 기기는 다음 동기화에서 로컬 전용 변경을 버리고 이 기기 기준으로 수렴합니다.' },
@@ -1404,6 +1409,30 @@
         return evidence;
       },
 
+      // Remove an evidence link: soft-delete the metadata + tombstone (converges across devices), and if the
+      // transaction has no other evidence, mark it not_attached. The Cloudinary original is not deleted here
+      // (that needs a signed API); we flag it as unlinked for a future server-side cleanup.
+      async removeEvidence(evidenceId) {
+        const evidence = state.evidenceFiles.find(row => row.id === evidenceId && !row.deleted_at);
+        if (!evidence) throw new Error('EVIDENCE_NOT_FOUND');
+        const now = Utils.now();
+        const deleted = { ...evidence, deleted_at: now, updated_at: now, delete_status: 'unlinked' };
+        const tombstone = this.tombstone('evidence_files', evidence.id);
+        const audit = this.audit('evidence_file', evidence.id, 'delete', { id: evidence.id, cloudinary_public_id: evidence.cloudinary_public_id }, { id: evidence.id, deleted_at: now }, '증빙 제거');
+        const queueRows = [this.queue('evidence_files', deleted), this.queue('audit_logs', audit)];
+        const putPayload = { evidence_files: [deleted], audit_logs: [audit], tombstones: [tombstone], sync_queue: queueRows };
+        const tx = state.transactions.find(row => row.id === evidence.source_transaction_id && !row.deleted_at);
+        const stillAttached = state.evidenceFiles.some(row => row.source_transaction_id === evidence.source_transaction_id && !row.deleted_at && row.id !== evidence.id);
+        if (tx && !stillAttached) {
+          const updatedTx = { ...tx, evidence_status: 'not_attached', updated_at: now };
+          putPayload.source_transactions = [updatedTx];
+          queueRows.push(this.queue('source_transactions', updatedTx));
+        }
+        await storage.putMany(putPayload);
+        await this.reload();
+        return { detachedTransaction: tx && !stillAttached ? 1 : 0 };
+      },
+
       async exportBackup() {
         const tables = await storage.snapshot();
         return {
@@ -1657,6 +1686,7 @@
       if (code.includes('SECRET_KEY_NOT_ALLOWED')) return '비밀키 또는 service role 형태의 키는 이 앱에 저장할 수 없습니다.';
       if (code.includes('BUSINESS_REQUIRED')) return '사업자 정보를 먼저 설정해 주세요.';
       if (code.includes('TRANSACTION_NOT_FOUND')) return '삭제할 거래를 찾지 못했습니다. 목록을 새로고침해 주세요.';
+      if (code.includes('EVIDENCE_NOT_FOUND')) return '제거할 증빙을 찾지 못했습니다. 목록을 새로고침해 주세요.';
       if (code.includes('ALLOWLIST_EMAIL_INVALID')) return '올바른 이메일 형식을 입력해 주세요.';
       if (code.includes('ALLOWLIST_OWNER_PROTECTED')) return '소유자 계정은 차단할 수 없습니다.';
       if (code.includes('CANONICAL_OWNER_ONLY')) return '최종본 지정은 소유자 계정만 할 수 있습니다.';
@@ -1806,7 +1836,7 @@
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">거래별 증빙</h2><p class="section-help">파일이 없어도 거래는 유지하고 검토 항목으로 남깁니다. 첨부는 오프라인에서도 되고 로그인 시 클라우드에 동기화됩니다.</p></div>${badge(`미첨부 ${missing.length}건`, missing.length?'warning':'success')}</div>
         ${rows.length ? `<div>${rows.map(row => {
           const files = evidenceFor(row.id);
-          return `<div class="evidence-row"><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))} · ${Utils.won(row.total_amount)}</div>${files.length?`<div class="evidence-files">${files.map(evidenceThumb).join('')}</div>`:''}</div><div class="evidence-actions">${files.length?badge(`${files.length}개 첨부`,'success'):badge('미첨부','warning')}<button class="button small" type="button" data-attach-tx="${row.id}" ${configured?'':'disabled'}>${icon('upload')}파일 첨부</button></div></div>`;
+          return `<div class="evidence-row"><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))} · ${Utils.won(row.total_amount)}</div>${files.length?`<div class="evidence-files">${files.map(file => `<div class="evidence-file-wrap">${evidenceThumb(file)}<button class="evidence-remove" type="button" data-remove-evidence="${file.id}" title="증빙 제거" aria-label="증빙 제거">${icon('x')}</button></div>`).join('')}</div>`:''}</div><div class="evidence-actions">${files.length?badge(`${files.length}개 첨부`,'success'):badge('미첨부','warning')}<button class="button small" type="button" data-attach-tx="${row.id}" ${configured?'':'disabled'}>${icon('upload')}파일 첨부</button></div></div>`;
         }).join('')}</div>` : emptyState('paperclip','거래가 없습니다','거래를 입력하면 여기에서 증빙을 첨부할 수 있습니다.')}
         </section>
         <input id="evidenceFileInput" type="file" accept="image/*,application/pdf" hidden>`;
@@ -2166,6 +2196,10 @@
       document.querySelectorAll('[data-attach-tx]').forEach(button => button.addEventListener('click', () => {
         state.pendingEvidenceTx = button.dataset.attachTx;
         el('evidenceFileInput')?.click();
+      }));
+      document.querySelectorAll('[data-remove-evidence]').forEach(button => button.addEventListener('click', async () => {
+        if (!confirm('이 증빙 연결을 제거합니다. 장부에서 링크가 사라지고 다른 기기에도 반영됩니다. (Cloudinary 원본 파일 자체는 남습니다.) 계속하시겠습니까?')) return;
+        try { await AppService.removeEvidence(button.dataset.removeEvidence); toast('증빙 연결을 제거했습니다.', 'success'); render(); } catch (error) { diagnostic(error); }
       }));
       el('evidenceFileInput')?.addEventListener('change', async event => {
         const file = event.target.files?.[0];
