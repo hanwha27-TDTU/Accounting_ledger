@@ -1,4 +1,4 @@
-> **Sub_harness-quality-gate_0.05** · 개정 2026-07-11
+> **Sub_harness-quality-gate_0.06** · 개정 2026-07-11
 
 # Accounting Ledger Harness Quality Gate Skill
 
@@ -31,7 +31,7 @@
 | migration-contract | 초기 migration 4개와 RLS·canonical sync 표식 |
 | tracked-scope-and-secrets | 참고 원본의 추적 여부와 자격증명 형태 값 |
 | git-diff-integrity | staged/unstaged diff 공백 오류 |
-| runtime-version-contract | 앱 버전·업데이트 이력·핵심 런타임 레이어·동기화·Supabase 공개 연결/RLS/OAuth 진단 표식·고정 CDN 의존성 |
+| runtime-version-contract | 앱 버전·업데이트 이력·핵심 런타임 레이어·동기화·Supabase 공개 연결/RLS/OAuth 진단·동적 연결 가이드 표식·고정 CDN 의존성 |
 
 ## 런타임 도입 후 규칙
 
@@ -43,6 +43,7 @@
 4. `UPDATE_HISTORY`에 현재 버전이 포함된다.
 5. 최신 표시는 하나만 존재한다.
 6. Supabase 연결 기능이 있으면 publishable key, 연결 진단 상태, 익명 데이터 노출 차단, Google provider 비활성 차단 표식이 존재한다.
+7. 연결 가이드가 있으면 guide route, `GuideService`, 복사 표식, Google 프로젝트·GitHub Pages SSOT가 존재한다.
 
 실제 UI와 저장 기능이 생기면 버전·브라우저·복원·동기화 게이트를 기존 코드와 테스트 구조에 맞춰 Required로 확장한다. 존재하지 않는 `DOMAIN_REGISTRY`, Playwright, 백업 포맷을 추측해 만들지 않는다.
 

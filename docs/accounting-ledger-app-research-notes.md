@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.13** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.14** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -303,3 +303,39 @@ advisor 잔여 항목:
 4. 390px 모바일 폭에서 가로 overflow가 없고 console error가 없다.
 
 다음 단계는 Google Cloud 웹 OAuth Client ID와 Client Secret을 Supabase Dashboard에만 등록하고, Redirect URL을 설정한 뒤 `hanwha27@gmail.com` 실제 로그인·allowlist 연결·인증 RLS·로그아웃을 왕복 검증하는 것이다.
+
+## 2026-07-11 앱 0.03 Google OAuth 실로그인·동적 연결 가이드
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.03` |
+| note_type | `feature_release`, `security_review`, `user_guidance` |
+| 제목 | Google OAuth 실로그인 검증과 설정 SSOT 기반 연결 가이드 |
+| 사용자 변화 | 사이드바 `가이드`에서 `구글클라우드 연결방법`을 열고 프로젝트 생성부터 앱 로그인까지 단계별로 확인 가능 |
+| 자동 연동 | 앱 버전, owner 이메일, Google Cloud 프로젝트, GitHub Pages URL, 현재 Supabase URL·callback, 연결 진단과 로그인 상태를 런타임 기준값에서 읽음 |
+| 보안 | Client Secret을 가이드·앱 상태·문서·Git에 저장하지 않으며 Supabase Dashboard에만 입력하도록 명시 |
+| 데이터 영향 | Supabase 스키마·row 변경 없음. 원격 확인은 read-only SQL만 사용 |
+| 스킬 버전 | `Sub_auth-login_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_harness-baseline_0.06`, `Sub_app-research-notes_0.14` |
+
+원격·브라우저 확인 결과:
+
+1. Google provider가 활성화됐고 앱 진단에서 Data API `정상`, 익명 회계자료 `차단 정상`, Google OAuth `사용 가능`을 확인했다.
+2. `hanwha27@gmail.com` 실제 OAuth 왕복 뒤 앱이 `동기화 완료` 상태로 전환됐다.
+3. Supabase `auth.users`에 owner 계정 1명, `auth.identities`에 Google identity 연결 1건을 read-only SQL로 확인했다.
+4. `app_allowed_users`의 owner row는 `role='owner'`, `status='active'`, `deleted_at is null`이다.
+5. 운영 스키마는 allowlist 이메일과 검증된 JWT 이메일을 대조하며, 사업장 소유권은 `businesses.owner_user_id = auth.uid()`로 통제한다. 초기 설계 문서의 `auth_user_id` 연결 설명은 현행 계약에 맞춰 수정했다.
+6. 로컬 앱의 1280px desktop과 390x844 mobile에서 가이드 route, 주제 열기, 모바일 메뉴의 가이드 위치, 긴 URL 줄바꿈과 가로 overflow 없음, 복사 성공 알림을 확인했다.
+7. 가이드 브라우저 검증 중 console error는 0건이었다.
+
+가이드 자동 연동 원칙:
+
+1. 안내 절차와 값은 같은 화면 안에서도 분리한다. 절차 문장은 검토 가능한 콘텐츠이고, 주소·이메일·버전·상태는 `APP_INFO`, `GuideService`, 런타임 state에서 계산한다.
+2. Google 승인 원본은 경로 없는 origin을, Supabase Site/Redirect URL은 저장소 경로와 끝 `/`를 포함한 완전한 앱 URL을 사용한다.
+3. 복사 버튼은 공개 설정값만 제공하고 publishable key와 Client Secret은 가이드에 표시하지 않는다.
+4. 런타임 하네스가 가이드 route, `GuideService`, 복사 표식, Google 프로젝트·GitHub Pages SSOT 존재를 Required로 확인한다.
+
+남은 검증:
+
+1. 사업자 정보를 저장한 뒤 인증 사용자 기준 `businesses` 생성·조회·수정 RLS 왕복을 확인한다.
+2. 비허용 Google 계정의 접근 차단과 로그아웃을 확인한다.
+3. GitHub Pages에 앱 0.03을 배포한 뒤 배포 URL에서 OAuth·가이드·모바일 화면을 다시 확인한다.

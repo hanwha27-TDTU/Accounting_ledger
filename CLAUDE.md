@@ -10,13 +10,14 @@
 
 ## 작업 원칙
 
-- 현재 앱 버전은 `0.02`다. Supabase 공개 연결·익명 RLS 격리·Google provider 사전 진단이 구현되었으며 다음 사용자 영향 변경은 `0.03`이다.
+- 현재 앱 버전은 `0.03`이다. Google OAuth owner 실로그인과 초기 동기화를 검증했고, 앱 설정·진단 상태에 연동되는 `가이드 → 구글클라우드 연결방법`을 구현했다. 다음 사용자 영향 변경은 `0.04`다.
 - V1은 단일 HTML과 GitHub Pages를 기준으로 한다. 회계 도메인·저장소·외부 서비스 접근은 분리한다.
 - 내부 원장은 복식부기 SSOT다. 간편장부는 입력 UX와 출력 view다.
 - 거래, 분개, 계정과목, 세무 매핑, 마감, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 먼저 적용한다.
 - 단일 HTML 구조, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 먼저 적용한다.
 - 동기화에는 `id`, `created_at`, `updated_at`, `deleted_at`과 `canonical_version` 규칙을 유지한다.
 - Google OAuth allowlist와 Supabase RLS를 유지한다. `hanwha27@gmail.com`은 bootstrap owner다.
+- 연결 가이드의 주소·이메일·버전·상태는 `APP_INFO`, `GuideService`, 런타임 진단 state를 SSOT로 사용한다. 같은 값을 별도 문장에 중복 하드코딩하지 않는다.
 - service role key, Cloudinary secret, OAuth client secret을 코드·문서·커밋에 넣지 않는다.
 - 법정서식은 최신 스냅샷 검증 없이는 확정 출력으로 표시하지 않는다.
 - 참고용 Excel·PDF·ZIP 원본은 명시적 요청 없이는 Git에 추가하지 않는다.

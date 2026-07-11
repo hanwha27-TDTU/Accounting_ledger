@@ -209,6 +209,12 @@ addGate('runtime-version-contract', 'REQUIRED', () => {
   hasRequiredText(currentHtml, 'connectionDiagnostics', 'index.html');
   hasRequiredText(currentHtml, 'ANONYMOUS_DATA_EXPOSED', 'index.html');
   hasRequiredText(currentHtml, 'GOOGLE_PROVIDER_DISABLED', 'index.html');
+  hasRequiredText(currentHtml, "id: 'guide'", 'index.html');
+  hasRequiredText(currentHtml, 'function renderGuide()', 'index.html');
+  hasRequiredText(currentHtml, 'const GuideService', 'index.html');
+  hasRequiredText(currentHtml, 'data-copy-value', 'index.html');
+  hasRequiredText(currentHtml, 'googleCloudProjectId', 'index.html');
+  hasRequiredText(currentHtml, 'githubPagesUrl', 'index.html');
   hasRequiredText(currentHtml, '@supabase/supabase-js@2.110.2', 'index.html');
   hasRequiredText(currentHtml, 'lucide@0.468.0', 'index.html');
   const currentVersionOccurrences = currentHtml.split(currentVersion).length - 1;

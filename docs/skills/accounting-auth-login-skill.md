@@ -1,4 +1,4 @@
-> **📌 Sub_auth-login_0.02** · 개정 2026-07-11
+> **📌 Sub_auth-login_0.03** · 개정 2026-07-11
 
 # Accounting Ledger Auth/Login Skill
 
@@ -12,7 +12,7 @@
 | 초기 소유자 이메일 | `hanwha27@gmail.com` |
 | 허용 사용자 원장 | Supabase `app_allowed_users` |
 | 허용 사용자 관리 권한 | active owner만 |
-| owner 판정 | 최초 owner 이메일 + 연결된 `auth.uid()` |
+| owner 판정 | 검증된 JWT 이메일 + active owner allowlist. 사업장 소유권은 `auth.uid()` |
 | 비허용 계정 | 앱 데이터 접근 차단, 가능하면 사용자 생성 전 차단 |
 | 비밀번호 로그인 | 사용하지 않음 |
 | 익명 로그인 | 사용하지 않음 |
@@ -21,7 +21,7 @@
 ## 운영 원칙
 
 1. `hanwha27@gmail.com`을 bootstrap owner로 seed한다.
-2. 첫 Google 로그인 때 이메일이 bootstrap owner와 일치하면 해당 `auth.uid()`를 owner 레코드에 연결한다.
+2. 첫 Google 로그인 때 Supabase `auth.users`와 Google `auth.identities`가 생성되고, JWT 이메일을 active allowlist와 대조한다.
 3. 이후 허용 이메일 추가/해제/권한 변경은 active owner만 할 수 있다.
 4. owner 관리 화면은 편의 기능일 뿐이고, 실제 보안은 RLS와 DB 정책으로 보장한다.
 5. 클라이언트에서 이메일을 비교하는 로직은 UX 가드로만 사용한다.
@@ -29,7 +29,7 @@
 7. Google OAuth 외 provider는 기본 비활성으로 둔다.
 8. Supabase 테이블은 명시적 `GRANT` + RLS + 정책을 한 묶음으로 관리한다.
 
-## 권장 테이블
+## V1 현행 허용 사용자 테이블
 
 ```sql
 create extension if not exists citext;
@@ -37,20 +37,12 @@ create extension if not exists citext;
 create table if not exists app_allowed_users (
   id uuid primary key default gen_random_uuid(),
   email citext unique not null,
-  auth_user_id uuid unique,
-  role text not null default 'user',
-  status text not null default 'pending',
+  role text not null check (role in ('owner', 'editor', 'viewer')),
+  status text not null check (status in ('active', 'blocked', 'pending')),
   label text,
-  invited_by uuid,
-  first_seen_at timestamptz,
-  last_login_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  constraint app_allowed_users_role_check
-    check (role in ('owner', 'admin', 'user', 'tax_accountant', 'viewer')),
-  constraint app_allowed_users_status_check
-    check (status in ('pending', 'active', 'revoked'))
+  deleted_at timestamptz
 );
 
 insert into app_allowed_users (email, role, status, label)
@@ -95,17 +87,19 @@ create table if not exists auth_access_logs (
   -> Google OAuth 완료
   -> auth user email 확인
   -> app_allowed_users에서 active 여부 확인
-  -> 허용됨: owner/admin/user 권한 로드 후 앱 진입
+  -> 허용됨: owner/editor/viewer 권한 로드 후 앱 진입
   -> 비허용: 접근 차단 안내, auth_access_logs 기록 시도, signOut
 ```
 
 owner 최초 연결:
 
 ```text
-if user.email == 'hanwha27@gmail.com'
+if verified_jwt.email == 'hanwha27@gmail.com'
 and app_allowed_users.email == 'hanwha27@gmail.com'
-and auth_user_id is null
-then bind auth_user_id = user.id
+and app_allowed_users.status == 'active'
+then allow owner access
+
+businesses.owner_user_id는 로그인한 auth.uid()로 저장한다.
 ```
 
 ## 허용 계정 추가 흐름
@@ -118,17 +112,17 @@ owner로 로그인
   -> app_allowed_users upsert(status='pending' 또는 'active')
   -> auth_access_logs 기록
   -> 추가된 사용자가 Google 로그인
-  -> 첫 로그인 때 auth_user_id 연결
+  -> 첫 로그인 뒤 JWT 이메일과 allowlist 상태 재확인
 ```
 
 권장 기본값:
 
 | 항목 | 기본값 |
 |---|---|
-| 일반 보조 사용자 | `role='user'`, `status='active'` |
-| 세무사용 계정 | `role='tax_accountant'`, 필요한 출력/조회 권한만 |
+| 일반 보조 사용자 | `role='editor'`, `status='active'` |
+| 조회 전용 계정 | `role='viewer'`, 필요한 출력/조회 권한만 |
 | 임시 허용 | `status='pending'`, 첫 로그인 후 active 확인 |
-| 접근 해제 | hard delete 금지, `status='revoked'` 또는 `deleted_at` |
+| 접근 해제 | hard delete 금지, `status='blocked'` 또는 `deleted_at` |
 
 ## Before User Created Hook
 
@@ -158,7 +152,7 @@ owner로 로그인
 - RLS 없는 세무 테이블 공개 금지
 - 허용 사용자 변경을 감사로그 없이 처리 금지
 
-## 2026-07-11 운영 프로젝트 진단 기준
+## 2026-07-11 운영 프로젝트 검증 결과
 
 | 항목 | 확인 결과 |
 |---|---|
@@ -168,18 +162,29 @@ owner로 로그인
 | RLS 정책 SQL | `businesses` SELECT는 `authenticated` 역할과 본인 `auth.uid()` 조건만 허용 |
 | 현재 원격 row | `businesses` 0건. 빈 배열 검사는 노출 감지 canary이며 정책 검증은 SQL 결과와 함께 판정 |
 | owner allowlist | `hanwha27@gmail.com` 1건 존재 |
-| Auth 사용자 | 0명 |
-| Google identity | 0건 |
-| Google provider | 비활성. authorize 요청이 `provider is not enabled`로 거부됨 |
-| 앱 동작 | provider가 준비되기 전 Google 로그인 버튼을 비활성화하고 설정 필요 상태를 표시 |
+| Auth 사용자 | `hanwha27@gmail.com` 1명 생성 확인 |
+| Google identity | Google identity 연결 1건 확인 |
+| Google provider | 활성. 실제 Google OAuth 왕복 성공 |
+| owner allowlist 상태 | `owner`, `active`, `bootstrap owner`, `deleted_at is null` |
+| 앱 동작 | Data API 정상, 익명 RLS 차단 정상, Google OAuth 사용 가능, owner 로그인과 초기 동기화 완료 |
 
-빈 테이블의 익명 조회 결과만으로 RLS 정책 전체가 증명되지는 않는다. 런타임 진단은 데이터 노출 감지 장치로 사용하고, 릴리스 보안 검토에서는 `pg_policies`의 역할·조건을 함께 확인한다. 이 결과는 공개 연결과 익명 격리 검증이지 Google 로그인의 완료 증거도 아니다. 실제 인증 완료 판정은 다음 조건을 모두 충족해야 한다.
+빈 테이블의 익명 조회 결과만으로 RLS 정책 전체가 증명되지는 않는다. 런타임 진단은 데이터 노출 감지 장치로 사용하고, 릴리스 보안 검토에서는 `pg_policies`의 역할·조건을 함께 확인한다. Google 로그인 완료는 Auth 사용자, Google identity, active allowlist와 앱 세션을 함께 확인한다.
 
-1. Google Cloud에서 웹 OAuth Client ID와 Client Secret을 발급한다.
-2. Client Secret은 Supabase Dashboard에만 입력하고 앱·저장소·문서에 기록하지 않는다.
-3. Supabase Auth Google provider와 허용 Redirect URL을 설정한다.
-4. owner로 실제 로그인한 뒤 `auth.uid()` 연결, allowlist, 인증 RLS, 로그아웃을 왕복 검증한다.
-5. 비허용 Google 계정의 데이터 접근 차단도 별도로 검증한다.
+완료된 인증 연결과 별도로 남은 보안 검증은 다음과 같다.
+
+1. 사업자 row를 생성한 뒤 `owner_user_id = auth.uid()` 저장과 인증 RLS CRUD를 왕복 검증한다.
+2. 비허용 Google 계정의 앱 데이터 접근 차단과 자동 로그아웃을 검증한다.
+3. owner가 허용 사용자를 추가·차단하는 관리 UI와 감사로그를 구현한 뒤 권한별 RLS를 검증한다.
+
+## 앱 연결 가이드 SSOT 규칙
+
+앱 `0.03`부터 `가이드 → 구글클라우드 연결방법`은 별도 하드코딩 문서가 아니라 런타임 기준값을 사용한다.
+
+1. 앱 버전, owner 이메일, Google Cloud 프로젝트, OAuth 클라이언트 이름, GitHub Pages 주소는 `APP_INFO`를 읽는다.
+2. Supabase Project URL과 callback은 현재 저장된 앱 설정을 읽어 계산한다.
+3. Data API, 익명 RLS, Google provider, owner 로그인 완료 표시는 `connectionDiagnostics`, session, allowlist 상태를 읽는다.
+4. Google Client Secret은 가이드 상수, 앱 상태, 문서, Git에 절대 저장하지 않는다.
+5. `APP_INFO` 또는 인증 연결 계약을 바꾸면 가이드 렌더링과 하네스 표식도 같은 변경에서 검토한다.
 
 ## 검증 체크리스트
 
@@ -189,7 +194,7 @@ owner로 로그인
 | 비허용 Google 로그인 | 앱 데이터 접근 차단 및 로그아웃 |
 | owner가 이메일 추가 | allowlist에 추가되고 감사로그 생성 |
 | 일반 사용자가 이메일 추가 시도 | RLS 또는 RPC에서 거부 |
-| revoked 사용자 로그인 | 앱 접근 차단 |
+| blocked 사용자 로그인 | 앱 접근 차단 |
 | HTML 키 검사 | service role/secret 문자열 없음 |
 | RLS 검사 | authenticated 전체허용 정책 없음 |
 | Data API 검사 | 필요한 테이블만 explicit GRANT + RLS 적용 |

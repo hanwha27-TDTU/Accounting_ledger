@@ -346,6 +346,58 @@
     .guardian-name { font-weight: 800; }
     .guardian-role { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 
+    .guide-topic-list { display: grid; gap: 10px; max-width: 760px; }
+    .guide-topic-button {
+      width: 100%;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 13px 15px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--ink);
+      text-align: left;
+    }
+    .guide-topic-button:hover, .guide-topic-button.active { border-color: var(--brand); background: var(--brand-soft); }
+    .guide-topic-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 6px; background: var(--brand); color: #fff; flex: 0 0 auto; }
+    .guide-topic-icon svg { width: 19px; height: 19px; }
+    .guide-topic-copy { min-width: 0; flex: 1; }
+    .guide-topic-title { display: block; font-weight: 850; overflow-wrap: anywhere; }
+    .guide-topic-note { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+    .guide-topic-arrow { color: var(--brand); flex: 0 0 auto; }
+    .guide-topic-arrow svg { width: 18px; height: 18px; }
+    .guide-summary { margin: 22px 0 8px; }
+    .guide-section { padding: 20px 0 6px; border-top: 1px solid var(--line-strong); scroll-margin-top: calc(var(--header) + 16px); }
+    .guide-section:first-child { border-top: 0; }
+    .guide-section-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .guide-step-number { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 50%; background: var(--brand); color: #fff; font-size: 12px; font-weight: 900; flex: 0 0 auto; }
+    .guide-section-title { margin: 1px 0 0; font-size: 17px; }
+    .guide-section-note { margin: 5px 0 0; color: var(--muted); line-height: 1.6; font-size: 13px; }
+    .guide-steps { margin: 0; padding-left: 22px; line-height: 1.85; }
+    .guide-steps li + li { margin-top: 5px; }
+    .guide-values { display: grid; gap: 8px; margin-top: 14px; }
+    .guide-value {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(130px, .45fr) minmax(0, 1fr) 38px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+    }
+    .guide-value-label { color: var(--muted); font-size: 12px; font-weight: 750; }
+    .guide-value code { min-width: 0; overflow-wrap: anywhere; color: #254c42; }
+    .guide-checks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 14px 0 4px; }
+    .guide-check { padding: 11px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+    .guide-check-label { color: var(--muted); font-size: 11px; }
+    .guide-check-state { margin-top: 6px; font-weight: 800; }
+    .guide-check-state.success { color: var(--success); }
+    .guide-check-state.warning { color: var(--warning); }
+
     @media (max-width: 1100px) {
       .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .layout-two { grid-template-columns: 1fr; }
@@ -369,7 +421,7 @@
       .metric-value { font-size: 19px; }
       .form-grid { grid-template-columns: 1fr; }
       .field, .field.third, .field.full { grid-column: 1; }
-      .status-board, .developer-grid { grid-template-columns: 1fr; }
+      .status-board, .developer-grid, .guide-checks { grid-template-columns: 1fr; }
       .topbar-actions .button-label { display: none; }
     }
     @media (max-width: 480px) {
@@ -381,6 +433,8 @@
       .form-actions { flex-direction: column-reverse; }
       .form-actions .button { width: 100%; }
       .topbar-title { font-size: 16px; }
+      .guide-value { grid-template-columns: 1fr 38px; }
+      .guide-value-label { grid-column: 1 / -1; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
@@ -431,17 +485,23 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.02',
+      version: '0.03',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
+      googleCloudProjectName: 'Accounting Ledger',
+      googleCloudProjectId: 'accounting-ledger-502100',
+      googleOAuthClientName: 'Dr. Bugeon의 회계장부 OAuth',
+      githubPagesUrl: 'https://hanwha27-tdtu.github.io/Accounting_ledger/',
+      localOrigins: Object.freeze(['http://127.0.0.1:8765', 'http://localhost:8765']),
       supabaseProjectUrl: 'https://ihxiywffzmvrwmqvatzt.supabase.co',
       supabasePublishableKey: 'sb_publishable_odSJPQq5HtylGyJEp-x95g_LL9wlcxR'
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.02', date: '2026-07-11', label: '최신 · Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
+      { version: '0.03', date: '2026-07-11', label: '최신 · 연결 가이드와 실로그인', detail: 'Google OAuth 실로그인을 검증하고 앱 설정값과 진단 상태에 자동 연동되는 연결 가이드를 추가했습니다.' },
+      { version: '0.02', date: '2026-07-11', label: 'Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
       { version: '0.01', date: '2026-07-11', label: '첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
     ]);
 
@@ -455,7 +515,8 @@
       { group: '자료', id: 'reports', label: '리포트', icon: 'file-chart-column' },
       { group: '관리', id: 'closing', label: '마감', icon: 'lock-keyhole' },
       { group: '관리', id: 'settings', label: '설정', icon: 'settings-2' },
-      { group: '관리', id: 'developer', label: '개발 기록', icon: 'code-2' }
+      { group: '관리', id: 'developer', label: '개발 기록', icon: 'code-2' },
+      { group: '도움말', id: 'guide', label: '가이드', icon: 'circle-help' }
     ]);
 
     const ACCOUNT_TEMPLATES = Object.freeze([
@@ -901,10 +962,43 @@
       online: navigator.onLine,
       syncStatus: 'idle',
       syncError: null,
+      guideTopic: null,
       formType: 'expense',
       filters: { query: '', type: 'all', year: 'all' },
       ready: false
     };
+
+    const GuideService = Object.freeze({
+      supabaseUrl() {
+        return String(state.config.supabaseUrl || APP_INFO.supabaseProjectUrl).replace(/\/+$/, '');
+      },
+      callbackUrl() {
+        return `${this.supabaseUrl()}/auth/v1/callback`;
+      },
+      projectRef() {
+        try { return new URL(this.supabaseUrl()).hostname.split('.')[0]; }
+        catch { return '프로젝트 URL을 먼저 확인하세요'; }
+      },
+      githubOrigin() {
+        try { return new URL(APP_INFO.githubPagesUrl).origin; }
+        catch { return APP_INFO.githubPagesUrl; }
+      },
+      javascriptOrigins() {
+        return [...APP_INFO.localOrigins, this.githubOrigin()];
+      },
+      appRedirectUrls() {
+        return [...APP_INFO.localOrigins.map(url => `${url}/`), APP_INFO.githubPagesUrl];
+      },
+      status() {
+        const diagnostics = state.connectionDiagnostics;
+        return {
+          dataApi: diagnostics.api === 'ready',
+          anonymousIsolation: diagnostics.anonymousIsolation === 'pass',
+          googleProvider: diagnostics.googleProvider === 'ready',
+          ownerLogin: Boolean(state.session && state.allowedUser?.status === 'active')
+        };
+      }
+    });
 
     const AppService = Object.freeze({
       async reload() {
@@ -1117,7 +1211,7 @@
           };
         }
         renderShellStatus();
-        if (state.route === 'settings' || state.route === 'developer') render();
+        if (state.route === 'settings' || state.route === 'developer' || state.route === 'guide') render();
         return state.connectionDiagnostics;
       },
       async initializeAuth() {
@@ -1400,6 +1494,50 @@
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">백업과 복원</h2><p class="section-help">암호화되지 않은 JSON 파일이므로 안전한 위치에 보관하세요.</p></div>${state.config.lastBackupAt?badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'),'success'):badge('백업 없음','warning')}</div><div class="inline-actions"><button class="button" id="backupButton" type="button">${icon('download')}JSON 백업</button><button class="button" id="restoreButton" type="button">${icon('upload')}JSON 복원</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div></section>`;
     }
 
+    function guideValue(label, value) {
+      const safeValue = Utils.escape(value);
+      return `<div class="guide-value"><div class="guide-value-label">${Utils.escape(label)}</div><code>${safeValue}</code><button class="icon-button" type="button" data-copy-value="${safeValue}" title="복사" aria-label="${Utils.escape(label)} 복사">${icon('copy')}</button></div>`;
+    }
+
+    function guideSection(number, title, note, body) {
+      return `<section class="guide-section"><div class="guide-section-head"><span class="guide-step-number">${number}</span><div><h2 class="guide-section-title">${title}</h2><p class="guide-section-note">${note}</p></div></div>${body}</section>`;
+    }
+
+    function renderGuide() {
+      const topicOpen = state.guideTopic === 'google-cloud';
+      const status = GuideService.status();
+      const statusItem = (label, passed, successText, waitText) => `<div class="guide-check"><div class="guide-check-label">${label}</div><div class="guide-check-state ${passed ? 'success' : 'warning'}">${passed ? successText : waitText}</div></div>`;
+      const topicButton = `<button class="guide-topic-button ${topicOpen ? 'active' : ''}" type="button" data-guide-topic="google-cloud" aria-expanded="${topicOpen}"><span class="guide-topic-icon">${icon('cloud-cog')}</span><span class="guide-topic-copy"><span class="guide-topic-title">구글클라우드 연결방법</span><span class="guide-topic-note">Google 로그인부터 Supabase 연결과 앱 진단까지 한 단계씩 확인합니다.</span></span><span class="guide-topic-arrow">${icon(topicOpen ? 'chevron-up' : 'chevron-right')}</span></button>`;
+      if (!topicOpen) {
+        return `${pageHeader('가이드','필요한 작업을 선택하면 현재 앱 설정에 맞는 값을 보여드립니다.')}<div class="guide-topic-list">${topicButton}</div>`;
+      }
+
+      const origins = GuideService.javascriptOrigins().map((value, index) => guideValue(`JavaScript 원본 ${index + 1}`, value)).join('');
+      const redirects = GuideService.appRedirectUrls().map((value, index) => guideValue(`Supabase Redirect URL ${index + 1}`, value)).join('');
+      return `${pageHeader('가이드','필요한 작업을 선택하면 현재 앱 설정에 맞는 값을 보여드립니다.')}
+        <div class="guide-topic-list">${topicButton}</div>
+        <div class="guide-summary">
+          <div class="notice info">${icon('refresh-cw')}<div><strong>이 안내는 현재 앱 기록과 연결되어 있습니다.</strong><br>앱 버전, 소유자 이메일, Supabase 주소, 배포 주소와 연결 진단이 바뀌면 아래 값과 상태도 함께 바뀝니다. 현재 앱은 v${APP_INFO.version}입니다.</div></div>
+          <div class="guide-checks">
+            ${statusItem('Data API', status.dataApi, '연결됨', '진단 필요')}
+            ${statusItem('익명 자료 차단', status.anonymousIsolation, '차단 정상', '진단 필요')}
+            ${statusItem('Google OAuth', status.googleProvider, '사용 가능', '설정 필요')}
+            ${statusItem('소유자 로그인', status.ownerLogin, '로그인 완료', '로그인 필요')}
+          </div>
+        </div>
+        <div class="notice danger">${icon('shield-alert')}<div><strong>비밀값은 이 가이드나 앱에 적지 마세요.</strong><br>Google Client Secret은 Google Cloud에서 확인한 뒤 Supabase Dashboard에만 입력합니다. 화면 캡처, 문서, GitHub, 앱 설정에는 남기지 않습니다.</div></div>
+        <div class="panel">
+          ${guideSection(1, 'Google Cloud 프로젝트를 준비합니다', 'Google 로그인을 만들 공간을 선택합니다.', `<ol class="guide-steps"><li>Google Cloud Console을 열고 위쪽 프로젝트 선택 버튼을 누릅니다.</li><li><strong>새 프로젝트</strong>를 누릅니다.</li><li>아래 이름을 입력하고 <strong>만들기</strong>를 누릅니다.</li><li>프로젝트가 만들어지면 반드시 그 프로젝트가 선택되어 있는지 확인합니다.</li></ol><div class="guide-values">${guideValue('프로젝트 이름', APP_INFO.googleCloudProjectName)}${guideValue('프로젝트 ID', APP_INFO.googleCloudProjectId)}</div>`)}
+          ${guideSection(2, 'Google 인증 플랫폼을 설정합니다', '로그인 화면에 표시될 앱 정보와 사용할 사람을 정합니다.', `<ol class="guide-steps"><li>상단 검색창에 <strong>Google Auth Platform</strong>을 입력해 이동합니다.</li><li><strong>시작하기</strong>를 누르고 앱 이름과 사용자 지원 이메일을 입력합니다. 앱 이름은 나중에 로그인 화면에 보입니다.</li><li>대상은 <strong>외부</strong>를 선택합니다. 조직 계정이 없어도 사용할 수 있는 방식입니다.</li><li>게시 상태는 <strong>테스트 중</strong>으로 둡니다. 지금은 앱 게시 버튼을 누르지 않습니다.</li><li><strong>대상</strong> 메뉴의 테스트 사용자에서 아래 이메일만 추가합니다.</li></ol><div class="guide-values">${guideValue('로그인 화면 앱 이름', APP_INFO.name)}${guideValue('사용자 지원 이메일', APP_INFO.ownerEmail)}${guideValue('앱 소유자·테스트 사용자', APP_INFO.ownerEmail)}</div>`)}
+          ${guideSection(3, '필요한 권한만 선택합니다', '이 앱은 로그인한 사람의 기본 이름과 이메일만 확인합니다.', `<ol class="guide-steps"><li><strong>데이터 액세스</strong> 메뉴에서 <strong>범위 추가 또는 삭제</strong>를 누릅니다.</li><li>아래 세 범위만 체크하고 저장합니다.</li><li>Gmail, Drive, Calendar 같은 다른 권한은 선택하지 않습니다.</li></ol><div class="guide-values">${guideValue('범위 1', 'openid')}${guideValue('범위 2', '.../auth/userinfo.email')}${guideValue('범위 3', '.../auth/userinfo.profile')}</div>`)}
+          ${guideSection(4, '웹 OAuth 클라이언트를 만듭니다', 'Google이 바른장부와 Supabase를 믿을 수 있도록 정확한 주소를 등록합니다.', `<ol class="guide-steps"><li><strong>클라이언트</strong> 메뉴에서 <strong>클라이언트 만들기</strong>를 누릅니다.</li><li>애플리케이션 유형은 <strong>웹 애플리케이션</strong>을 선택합니다.</li><li>아래 클라이언트 이름을 입력합니다.</li><li><strong>승인된 JavaScript 원본</strong>에는 아래 세 주소를 각각 추가합니다. GitHub 주소에는 저장소 경로를 넣지 않습니다.</li><li><strong>승인된 리디렉션 URI</strong>에는 Supabase callback 주소 하나만 넣습니다.</li><li><strong>만들기</strong>를 누른 뒤 Client ID와 Client Secret을 확인합니다. Secret은 복사한 뒤 Supabase에만 붙여넣습니다.</li></ol><div class="guide-values">${guideValue('OAuth 클라이언트 이름', APP_INFO.googleOAuthClientName)}${origins}${guideValue('승인된 리디렉션 URI', GuideService.callbackUrl())}</div>`)}
+          ${guideSection(5, 'Supabase에서 Google 로그인을 켭니다', 'Google에서 만든 두 값을 Supabase Auth에 연결합니다.', `<ol class="guide-steps"><li>Supabase Dashboard에서 현재 프로젝트를 엽니다.</li><li><strong>Authentication → Sign In / Providers → Google</strong>로 이동합니다.</li><li><strong>Enable Sign in with Google</strong>을 켭니다.</li><li>Google Cloud의 Client ID를 <strong>Client IDs</strong>에 입력합니다.</li><li>Client Secret을 <strong>Client Secret (for OAuth)</strong>에 입력합니다.</li><li><strong>Skip nonce checks</strong>와 <strong>Allow users without an email</strong>은 끈 상태로 둡니다.</li><li><strong>Save</strong>를 누릅니다.</li></ol><div class="guide-values">${guideValue('Supabase 프로젝트 ref', GuideService.projectRef())}${guideValue('Supabase Project URL', GuideService.supabaseUrl())}${guideValue('Google에 등록할 callback', GuideService.callbackUrl())}</div>`)}
+          ${guideSection(6, 'Supabase 이동 주소를 등록합니다', '로그인 뒤 돌아올 수 있는 앱 주소만 허용합니다.', `<ol class="guide-steps"><li>Supabase에서 <strong>Authentication → URL Configuration</strong>으로 이동합니다.</li><li><strong>Site URL</strong>에 GitHub Pages 앱 주소를 입력하고 저장합니다.</li><li><strong>Redirect URLs</strong>에서 아래 세 주소를 하나씩 추가합니다.</li><li>주소 끝의 <code>/</code>까지 똑같이 입력합니다.</li></ol><div class="guide-values">${guideValue('Site URL', APP_INFO.githubPagesUrl)}${redirects}</div>`)}
+          ${guideSection(7, '바른장부에서 연결을 확인합니다', '세 가지 진단이 통과한 다음 소유자 계정으로 로그인합니다.', `<ol class="guide-steps"><li>왼쪽 메뉴에서 <strong>설정</strong>을 누릅니다.</li><li><strong>Supabase 및 Google 로그인</strong>에서 <strong>연결 진단</strong>을 누릅니다.</li><li>Data API는 <strong>정상</strong>, 익명 회계자료 격리는 <strong>차단 정상</strong>, Google OAuth는 <strong>사용 가능</strong>인지 확인합니다.</li><li><strong>Google로 로그인</strong>을 누르고 아래 소유자 계정을 선택합니다.</li><li>앱으로 돌아왔을 때 위쪽 상태가 <strong>동기화 완료</strong>이면 연결이 끝난 것입니다.</li></ol><div class="guide-values">${guideValue('로그인할 Google 계정', APP_INFO.ownerEmail)}</div><div class="form-actions"><button class="button" type="button" data-route="settings">${icon('settings-2')}설정에서 확인</button></div>`)}
+          ${guideSection(8, '문제가 생기면 이 순서로 봅니다', '주소 한 글자, 테스트 사용자, 비밀값 위치를 먼저 확인하면 대부분 해결됩니다.', `<ol class="guide-steps"><li><strong>redirect_uri_mismatch</strong>: Google Cloud의 승인된 리디렉션 URI가 위 callback 주소와 완전히 같은지 확인합니다.</li><li><strong>Access blocked</strong>: Google Auth Platform이 테스트 중인지, 소유자 이메일이 테스트 사용자에 들어 있는지 확인합니다.</li><li><strong>Google 설정 필요</strong>: Supabase Google provider가 켜져 있고 Client ID와 Secret이 저장됐는지 확인합니다.</li><li><strong>로그인은 됐지만 자료 접근 불가</strong>: 허용 사용자 대장에서 이메일 상태가 active인지 확인합니다.</li><li>주소를 고친 뒤 앱의 <strong>설정 → 연결 진단</strong>을 다시 누릅니다.</li></ol>`)}
+        </div>`;
+    }
+
     function renderDeveloper() {
       const statusText = { implemented:'구현', manual_only:'부분/수동', planned:'계획', blocked:'차단' };
       const statusKind = { implemented:'success', manual_only:'warning', planned:'', blocked:'danger' };
@@ -1412,7 +1550,7 @@
     function emptyState(iconName, title, note) { return `<div class="empty-state">${icon(iconName)}<div class="empty-title">${title}</div><div class="empty-note">${note}</div></div>`; }
 
     function render() {
-      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper };
+      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, guide:renderGuide };
       if (!renderers[state.route]) state.route = 'dashboard';
       const item = NAV_ITEMS.find(nav => nav.id === state.route);
       el('topbarTitle').textContent = item?.label || '대시보드';
@@ -1424,6 +1562,22 @@
     // 8. UI event layer delegates to services and domain functions
     function bindViewEvents() {
       document.querySelectorAll('[data-route]').forEach(button => button.addEventListener('click', () => routeTo(button.dataset.route)));
+      document.querySelectorAll('[data-guide-topic]').forEach(button => button.addEventListener('click', () => {
+        state.guideTopic = state.guideTopic === button.dataset.guideTopic ? null : button.dataset.guideTopic;
+        render();
+      }));
+      document.querySelectorAll('[data-copy-value]').forEach(button => button.addEventListener('click', async () => {
+        const value = button.dataset.copyValue || '';
+        try {
+          if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+          else {
+            const helper = document.createElement('textarea');
+            helper.value = value; helper.setAttribute('readonly', ''); helper.style.position = 'fixed'; helper.style.opacity = '0';
+            document.body.appendChild(helper); helper.select(); document.execCommand('copy'); helper.remove();
+          }
+          toast('복사했습니다.', 'success');
+        } catch { toast('복사하지 못했습니다. 값을 직접 선택해 주세요.', 'error'); }
+      }));
       document.querySelectorAll('[data-term]').forEach(button => button.addEventListener('click', event => showTerm(event.currentTarget.dataset.term, event.currentTarget)));
       document.querySelectorAll('[data-account-id]').forEach(button => button.addEventListener('click', event => {
         const account = state.accounts.find(row => row.id === event.currentTarget.dataset.accountId);
@@ -1560,7 +1714,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, AccountingDomain, Utils, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

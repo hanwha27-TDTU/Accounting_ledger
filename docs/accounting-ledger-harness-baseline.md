@@ -1,4 +1,4 @@
-> **Sub_harness-baseline_0.05** · 기록 2026-07-11
+> **Sub_harness-baseline_0.06** · 기록 2026-07-11
 
 # Accounting Ledger Harness Baseline
 
@@ -6,9 +6,9 @@
 
 | 항목 | 관찰 결과 |
 |---|---|
-| 기준 커밋 | `5f83ad8 feat: implement accounting ledger app 0.01` 이후 앱 0.02 작업 트리 |
-| 앱 버전 | `0.02` |
-| 런타임 | 단일 `index.html` 업무 앱. IndexedDB, 회계 도메인, Supabase/Auth adapter와 공개 연결 진단 포함 |
+| 기준 커밋 | `3013904 feat: add Supabase connection diagnostics for app 0.02` 이후 앱 0.03 작업 트리 |
+| 앱 버전 | `0.03` |
+| 런타임 | 단일 `index.html` 업무 앱. IndexedDB, 회계 도메인, Supabase/Auth adapter, 공개 연결 진단, 설정 SSOT 기반 연결 가이드 포함 |
 | 패키지·스크립트 | `package.json`, `scripts/harness-check.mjs`, `npm run harness:check` |
 | CI | `.github/workflows/harness.yml`에서 같은 하네스 실행 |
 | 테스트 | 런타임 정적 계약 Required. 브라우저 왕복은 현재 수동 실행 |
@@ -26,9 +26,9 @@
 | migration-contract | Required | 활성 | 초기 migration 4개와 RLS·canonical sync 표식 확인 |
 | tracked-scope-and-secrets | Required | 활성 | 참고 원본 커밋과 자격증명 형태의 값 차단 |
 | git-diff-integrity | Required | 활성 | staged/unstaged diff 공백 오류 차단 |
-| runtime-version-contract | Required | 활성 | `APP_INFO.version`, `UPDATE_HISTORY`, 정확한 버전 증가, 핵심 레이어·동기화·고정 의존성 표식 확인 |
-| browser-roundtrip | Manual | 실행 | Data API 정상, 익명 회계자료 차단, Google 설정 필요 표시, 로그인 버튼 비활성, 모바일 390px 가로 overflow 없음, console error 없음 |
-| Supabase advisor/RLS 실측 | Manual | 실행 | 회계 테이블 RLS 유지, owner allowlist 1건, 익명 `businesses` 0건. 기존 비회계 advisor 항목은 범위 밖으로 유지 |
+| runtime-version-contract | Required | 활성 | `APP_INFO.version`, `UPDATE_HISTORY`, 정확한 버전 증가, 핵심 레이어·동기화·연결 가이드 SSOT·고정 의존성 표식 확인 |
+| browser-roundtrip | Manual | 실행 | Data API 정상, 익명 회계자료 차단, Google OAuth 사용 가능, owner 로그인·초기 동기화 완료. 가이드 1280px desktop·390x844 mobile, 메뉴 위치, 긴 값 overflow 없음, 복사 알림, console error 0건 확인 |
+| Supabase advisor/RLS 실측 | Manual | 실행 | 회계 테이블 RLS 유지, active owner allowlist 1건, Auth user 1명, Google identity 1건, 익명 `businesses` 0건. 기존 비회계 advisor 항목은 범위 밖으로 유지 |
 
 ## 공식 명령
 
