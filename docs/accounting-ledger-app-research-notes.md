@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.24** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.25** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -566,3 +566,24 @@ advisor 잔여 항목:
 1. Part B 특성화는 서비스 메서드의 replica다(실코드는 DOM/IDB 의존). 실코드와 함께 갱신해야 하며, 주석으로 명시. 향후 서비스 로직을 순수 코어로 더 분리하면 실코드 검증 범위를 넓힐 수 있다.
 2. 실브라우저에서 인적용역 안내·업종 선택 힌트·등록번호 미입력 저장 왕복은 수동 확인 대상.
 3. 다음 구조 후속: 개념 정의 원장(집행 앵커)+앵커 존재 게이트, 반응형 오버플로 헤드리스 게이트(chromium 사용 가능).
+
+## 2026-07-11 앱 0.14 입력 자동화 ①그룹(휴먼에러 방지)과 자동화 로드맵
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.14` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `product_direction` |
+| 제목 | 입력 칸 법적 필요성 재검토 + 자동화 3그룹 분류, ①그룹 구현 |
+| 배경 | 사용자 요청: "입력 칸 전체 법적 필요여부 재검토 + 휴먼에러 방지 자동화, 필요한 것 알려줘". 사업자 기본정보·거래입력 폼을 전수 검토 |
+| ①그룹 구현(자료 0) | `AccountingDomain.isValidBusinessNumber` 체크섬(가중치 1,3,7,1,3,7,1,3,5, 9번째×5//10 보정)으로 사업자번호 오타 차단(입력 시에만; 인적용역 등 미입력 통과). 대표자명 미입력 시 Google `user_metadata.name/full_name` 자동 채움. 업종코드 선택 시 대분류(94→프리랜서, 그 외 `BROAD_INDUSTRY_BY_MAJOR`)로 큰 업종 자동 설정 |
+| ②그룹(자료 필요) | 세무 정확성 직결이라 사용자 공식 자료만 후보(requires_review)+출처로 탑재: 경비율 데이터(단순/기준경비율 by 업종코드·귀속연도), 부가세 면세업종 코드 목록, 기장의무 수입금액 기준표, 간편장부 계정과목 코드표(작성사례 PDF에서 3자리 코드 112·115·120·121·123·125 확인, 인적용역 940903·원천징수 3.3% 사례) |
+| ③그룹(API 키) | juso.go.kr 주소 자동완성(브라우저 모드), 공공데이터포털 사업자등록 상태조회(정부 API CORS로 Supabase Edge Function 프록시 필요 가능, 키는 서버 보관 권장) |
+| 검증 | 로직 테스트 +3(체크섬 실코드: 2208162517 유효, 2208162518 무효, 5자리 무효), 총 21 assertion 하네스 게이트 통과. 나머지(대표자명 프리필·큰업종 자동)는 실브라우저 확인 대상 |
+| 스킬 버전 | `Sub_income-tax-reporting_0.03`, `Sub_business-classification`(도메인 스킬), `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.25` |
+
+남은 위험/미완:
+
+1. 대표자명 Google 자동채움·큰업종 자동설정·인적용역 힌트는 실브라우저 수동 확인 대상(`docs/accounting-ledger-browser-checklist.md`).
+2. ②그룹은 사용자 자료 대기. ③그룹은 키 발급 + CORS 확인 필요.
+3. 큰업종 매핑(`BROAD_INDUSTRY_BY_MAJOR`)은 23개 대분류 중 주요만 명시 매핑, 나머지는 기타 서비스로 fallback(휴리스틱, 사용자 수정 가능).

@@ -70,6 +70,11 @@ if (api) {
   const credit = lines.reduce((s, l) => s + Number(l.credit_amount || 0), 0);
   ok(debit === credit && debit === 11000, 'buildPosting income lines balance (debit==credit==total)');
 
+  // Business registration number checksum (2208162517 = valid Samsung Electronics; flip last digit -> invalid)
+  ok(AccountingDomain.isValidBusinessNumber('2208162517') === true, 'isValidBusinessNumber accepts a valid number');
+  ok(AccountingDomain.isValidBusinessNumber('2208162518') === false, 'isValidBusinessNumber rejects a bad check digit');
+  ok(AccountingDomain.isValidBusinessNumber('12345') === false, 'isValidBusinessNumber rejects wrong length');
+
   // Utils
   ok(Utils.latestByUpdatedAt({ id: 1, updated_at: '2026-01-02' }, { id: 1, updated_at: '2026-01-01' }).updated_at === '2026-01-02', 'latestByUpdatedAt newer wins');
   ok(Utils.isSecretKey('service_role_abc') === true && Utils.isSecretKey('sb_publishable_x') === false, 'isSecretKey flags service_role, allows publishable');
