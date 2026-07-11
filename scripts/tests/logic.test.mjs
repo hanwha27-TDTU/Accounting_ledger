@@ -62,6 +62,14 @@ if (api) {
   ok(nr && nr.date === '2025-01-05' && nr.kind === 'expense' && nr.expense === 1450 && nr.knownAccount === true, 'SimpleBookImport normalizeRow -> 여비교통비 비용 1450, 분류표에 존재');
   ok(SimpleBookImport.normalizeRow({}, '2025') === null, 'SimpleBookImport normalizeRow empty -> null');
 
+  // deterministic id (idempotent import): same input -> same UUID, different -> different, valid UUID format
+  const idA = Utils.deterministicId('biz|sb|4|2025-01-01|여비교통비|버스요금|경기버스|expense|1450|0');
+  const idB = Utils.deterministicId('biz|sb|4|2025-01-01|여비교통비|버스요금|경기버스|expense|1450|0');
+  const idC = Utils.deterministicId('biz|sb|5|2025-01-01|여비교통비|버스요금|경기버스|expense|1450|0');
+  ok(idA === idB, 'deterministicId stable for same input (idempotent import)');
+  ok(idA !== idC, 'deterministicId differs when source row differs (distinguishes identical-content rows)');
+  ok(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(idA), 'deterministicId is a valid UUID (v5-format)');
+
   // 세법 용어사전 — 법적 정의(근거 조문) + 초딩 설명, 대시보드 검색용
   ok(TermService.all().length === 28, 'TermService has 28 terms');
   ok(TermService.find('필요경비') && /제27조/.test(TermService.find('필요경비').law), 'TermService 필요경비 -> 법적 정의에 소득세법 §27');

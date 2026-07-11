@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.36** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.37** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -813,3 +813,25 @@ advisor 잔여 항목:
 2. 날짜가 월/일 분리가 아니라 단일 일자열(또는 엑셀 date serial)인 다른 양식은 `buildDate` 폴백만 동작 — 서식 변형 추가 대응 필요.
 3. 미리보기 200건 상한(대용량 DOM 방지). 전체 반영은 전기 단계에서 처리.
 4. ZIP64·암호화 xlsx는 미지원(명확한 오류). 일반 Excel/Hancom 출력은 정상.
+
+## 2026-07-11 앱 0.25 간편장부 가져오기 → 복식부기 원장 전기 (#5 완성)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.25` |
+| schema_version | `0.03` (DB·migration 변경 없음 — 기존 스키마·엔진 재사용) |
+| note_type | `feature_release`, `import`, `data_integrity` |
+| 제목 | 미리보기한 간편장부 거래를 균형 복식부기 전표로 원장에 반영(멱등) |
+| 데이터 계약 확인 | `simple_book_rows`는 **VIEW**(복식부기 원장→간편장부 출력, `coalesce(account.name, standard.name)`) — 임포트 대상 아님. 따라서 전기는 `source_transactions`+`journal_entries`+`journal_entry_lines` 생성. view가 계정 명칭을 링크 계정에서 읽으므로 원 계정과목 명칭 보존을 위해 계정 자동 생성 필요 |
+| 좀비 방지 설계 | `Utils.deterministicId`(cyrb128 128비트→UUID v5 포맷, 동기·무 crypto.subtle) 신설. tx id = `deterministicId(businessId+"|sb|"+sourceRow+내용)`, journal/line id도 tx id에서 파생. **같은 파일 재반영 → 동일 id → IndexedDB put 덮어씀(중복 0)**, 내용 동일·sourceRow 다르면 구분(예: 커피 800 2건). 파싱에 `sourceRow`(시트 행번호) 추가 |
+| 구현 | `AppService.importSimpleBook(rows)`: 계정과목→type(`SimpleBookAccounts` group: income→revenue·asset→asset·나머지 expense) 판정 후 이름으로 기존 계정 재사용/자동 생성(코드 `SB-…`), 거래처 자동 생성. 행별 tx(supply=금액·vat=부가세·total 합산, `vat_type` vat>0?taxable:exempt, `payment_status='paid'`, 미분류 계정과목→`requires_review`, `source_channel='simple_book_import'`) + `buildPosting`→`validateJournal`(불균형 시 제외 카운트). 단일 putMany+sync 큐, reload 1회. UI: 요약에 `장부에 반영` 버튼→window.confirm→전기→toast(신규/갱신/불균형/건너뜀)→장부 이동 |
+| 검증(정직·실데이터·멱등) | 헤드리스 Chromium 전 과정 구동: 사업자 생성(상호만) → 실 샘플(945행) 반영 → **945 거래·2,427 라인·차변=대변 81,651,988(전부 균형)·계정 20개(14 템플릿+6 자동)**. **재반영 → 945 유지·균형 유지(멱등, 중복 0)**. 앱 JS 콘솔 에러 0. 로직 테스트 +3(deterministicId 안정·구분·UUID형, 총 64). 원본 xlsx 미커밋 |
+| 정확성(North Star) | 모든 행이 실제 복식부기 균형 전표. `payment_status='paid'`·`vat_type` 추정은 후보(미분류 계정과목은 검토 필요 표시). 확정 신고 아님 |
+| 스킬 버전 | `Sub_import-export_0.03`, `Sub_code-architecture-guardians_0.04`, `Sub_app-research-notes_0.37` |
+
+남은 위험/미완:
+
+1. `payment_status`는 일괄 `paid`(간편장부에 미수/미지급 구분 없음), `vat_type`은 부가세 유무로 추정 — 실제 미수금·면세/과세 구분은 사용자 검토 필요.
+2. 파일을 수정 후 재반영하면 변경 행은 새 id로 추가(구 행은 잔존) — "같은 파일" 멱등만 보장. 배치 교체(기존 임포트분 삭제 후 재반영) UI는 후속.
+3. 자동 생성 계정과목 코드는 `SB-`+해시 — 표준 계정코드 체계와 별개(장부 명칭은 정확). 표준코드 매핑은 후속.
+4. 945건 단일 putMany는 대량이지만 일회성 — 성능 관찰 대상. 반영은 헤드리스로만 구동 검증(실기기 체감은 수동).

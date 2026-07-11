@@ -556,7 +556,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.24',
+      version: '0.25',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -571,7 +571,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.24', date: '2026-07-11', label: '최신 · 간편장부 Excel 미리보기(가져오기)', detail: '국세청 간편장부(.xlsx)를 외부 라이브러리 없이 브라우저에서 직접 읽어 미리보기합니다. 「장부」 시트의 월·일·계정과목·거래내용·거래처·수입/비용/자산 금액을 원본 그대로 표로 보여주고, 계정과목이 분류표에 있는지 확인합니다. 아직 장부에 반영하지 않는 안전한 미리보기 단계입니다.' },
+      { version: '0.25', date: '2026-07-11', label: '최신 · 간편장부 가져오기 장부 반영', detail: '미리보기한 간편장부 거래를 복식부기 원장에 실제로 반영합니다. 각 거래는 균형 전표로 기록되고, 없는 계정과목·거래처는 자동으로 만들어집니다. 같은 파일을 다시 반영해도 내용 기반 식별로 중복(좀비 데이터) 없이 덮어씁니다.' },
+      { version: '0.24', date: '2026-07-11', label: '간편장부 Excel 미리보기(가져오기)', detail: '국세청 간편장부(.xlsx)를 외부 라이브러리 없이 브라우저에서 직접 읽어 미리보기합니다. 「장부」 시트의 월·일·계정과목·거래내용·거래처·수입/비용/자산 금액을 원본 그대로 표로 보여주고, 계정과목이 분류표에 있는지 확인합니다. 아직 장부에 반영하지 않는 안전한 미리보기 단계입니다.' },
       { version: '0.23', date: '2026-07-11', label: '용어 대장 강제 + 툴팁 단일화', detail: '세법 용어사전을 단일 출처로 삼아 거래 화면 용어 툴팁도 같은 정의를 쓰도록 통합했습니다(중복 제거). 또한 용어가 늘어날 때마다 법적 근거와 대장 등록을 하네스가 강제하고(용어 대장), 기장의무·경비율 기준금액이 코드와 법령 문서에서 일치하는지 자동 검증하는 게이트를 추가했습니다.' },
       { version: '0.22', date: '2026-07-11', label: '세법 용어사전 + 대시보드 검색', detail: '가이드에 주요 세법 용어사전(28개)을 추가했습니다. 복식부기·필요경비·과세표준·경비율·원천징수 등 용어마다 법적 정의(근거 조문)와 초등학생 눈높이 설명을 함께 담았고, 대시보드 검색창에서 바로 찾아볼 수 있습니다.' },
       { version: '0.21', date: '2026-07-11', label: '법령 가이드 눈높이 설명', detail: '가이드의 기장의무·부가가치세 면세·추계 경비율 설명에 "왜 이렇게 정했을까요?" 눈높이 설명을 추가했습니다. 각 제도의 목적과 취지를 중학생도 이해하기 쉬운 말로 풀어, 기준과 근거뿐 아니라 이유까지 알 수 있게 했습니다.' },
@@ -861,13 +862,14 @@
         return [month, day].filter(v => v != null && v !== '').join('/');
       },
       classify(income, expense, asset) { return income ? 'income' : expense ? 'expense' : asset ? 'asset' : 'unknown'; },
-      normalizeRow(cells, year) {
+      normalizeRow(cells, year, sourceRow) {
         const g = k => cells[this.COL[k]];
         const num = v => Utils.number(v);
         const income = num(g('incomeAmount')), expense = num(g('expenseAmount')), asset = num(g('assetAmount'));
         const account = String(g('account') || '').trim(), description = String(g('description') || '').trim();
         if (!account && !description && !income && !expense && !asset) return null;
         return {
+          sourceRow: sourceRow || null,
           date: this.buildDate(year, g('month'), g('day')), account, description,
           counterparty: String(g('counterparty') || '').trim(),
           income, incomeVat: num(g('incomeVat')), expense, expenseVat: num(g('expenseVat')),
@@ -898,7 +900,8 @@
         const year = (shared.join(' ').match(/(20\d{2})\s*년/) || [])[1] || '';
         const rows = [];
         for (const row of shDoc.getElementsByTagName('row')) {
-          if ((parseInt(row.getAttribute('r'), 10) || 0) < this.DATA_START_ROW) continue;
+          const rnum = parseInt(row.getAttribute('r'), 10) || 0;
+          if (rnum < this.DATA_START_ROW) continue;
           const cells = {};
           for (const c of row.getElementsByTagName('c')) {
             const col = this.colLetter(c.getAttribute('r')), t = c.getAttribute('t');
@@ -906,7 +909,7 @@
             const v = c.getElementsByTagName('v')[0]; if (!v) continue;
             cells[col] = (t === 's') ? (shared[parseInt(v.textContent, 10)] ?? '') : v.textContent;
           }
-          const norm = this.normalizeRow(cells, year);
+          const norm = this.normalizeRow(cells, year, rnum);
           if (norm) rows.push(norm);
         }
         const totals = rows.reduce((a, r) => { a.income += r.income; a.expense += r.expense; a.asset += r.asset; return a; }, { income: 0, expense: 0, asset: 0 });
@@ -1035,8 +1038,27 @@
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
 
     // 2. Small pure utilities
+    // Deterministic 128-bit hash (cyrb128) — used to derive stable UUIDs so re-importing the same
+    // row overwrites instead of duplicating (idempotent import; no zombie rows).
+    function hash128(str) {
+      let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+      for (let i = 0, k; i < str.length; i++) {
+        k = str.charCodeAt(i);
+        h1 = h2 ^ Math.imul(h1 ^ k, 597399067); h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+        h3 = h4 ^ Math.imul(h3 ^ k, 951274213); h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+      }
+      h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067); h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+      h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213); h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+      h1 ^= (h2 ^ h3 ^ h4); h2 ^= h1; h3 ^= h1; h4 ^= h1;
+      return [h1 >>> 0, h2 >>> 0, h3 >>> 0, h4 >>> 0];
+    }
+
     const Utils = Object.freeze({
       uuid: () => crypto.randomUUID(),
+      deterministicId: (str) => {
+        const p = hash128(String(str)).map(n => n.toString(16).padStart(8, '0')).join('');
+        return `${p.slice(0, 8)}-${p.slice(8, 12)}-5${p.slice(13, 16)}-${((parseInt(p[16], 16) & 0x3) | 0x8).toString(16)}${p.slice(17, 20)}-${p.slice(20, 32)}`;
+      },
       now: () => new Date().toISOString(),
       today: () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()),
       won: value => `${Math.round(Number(value || 0)).toLocaleString('ko-KR')}원`,
@@ -1687,6 +1709,70 @@
         return { ok: true, transaction, journal, lines, validation };
       },
 
+      // 간편장부 가져오기 → 복식부기 원장 전기. 결정적 id(내용 기반)로 같은 파일 재반영 시 덮어써서
+      // 중복(좀비)을 막는다. 각 행은 기존 buildPosting/validateJournal 엔진으로 균형 전표를 만든다.
+      async importSimpleBook(rows) {
+        if (!state.business) throw new Error('BUSINESS_REQUIRED');
+        const businessId = state.business.id;
+        const now = Utils.now();
+        const map = this.accountMap();
+        const typeOf = (name) => { const hit = SimpleBookAccounts.find(name); return hit ? (hit.group === 'income' ? 'revenue' : hit.group === 'asset' ? 'asset' : 'expense') : 'expense'; };
+        const acctByName = new Map(state.accounts.filter(a => !a.deleted_at && a.business_id === businessId).map(a => [a.account_name, a]));
+        const newAccounts = [];
+        const ensureAccount = (name) => {
+          const key = String(name || '미분류').trim() || '미분류';
+          if (acctByName.has(key)) return acctByName.get(key);
+          const acct = { id: Utils.deterministicId(`${businessId}|acct|${key}`), business_id: businessId, standard_account_id: null, account_code: 'SB-' + Utils.deterministicId(key).slice(0, 8), account_name: key, account_type: typeOf(key), is_active: true, local_key: null, local_explanation: '간편장부 가져오기로 만든 계정과목입니다.', created_at: now, updated_at: now, deleted_at: null };
+          acctByName.set(key, acct); newAccounts.push(acct); return acct;
+        };
+        const cpByName = new Map(state.counterparties.filter(c => !c.deleted_at).map(c => [c.name.trim().toLowerCase(), c]));
+        const newCounterparties = [];
+        const ensureCp = (name) => {
+          const n = String(name || '').trim(); if (!n) return null;
+          if (cpByName.has(n.toLowerCase())) return cpByName.get(n.toLowerCase());
+          const cp = { id: Utils.deterministicId(`${businessId}|cp|${n.toLowerCase()}`), business_id: businessId, name: n, registration_number: null, contact: null, memo: null, created_at: now, updated_at: now, deleted_at: null };
+          cpByName.set(n.toLowerCase(), cp); newCounterparties.push(cp); return cp;
+        };
+        const existingTxIds = new Set(state.transactions.map(t => t.id));
+        const txns = [], journals = [], allLines = [];
+        let created = 0, replaced = 0, unbalanced = 0, skipped = 0;
+        for (const r of rows) {
+          const type = r.kind === 'income' ? 'income' : r.kind === 'asset' ? 'asset_purchase' : 'expense';
+          const supply = Number(r.kind === 'income' ? r.income : r.kind === 'asset' ? r.asset : r.expense) || 0;
+          const vat = Number(r.kind === 'income' ? r.incomeVat : r.kind === 'asset' ? r.assetVat : r.expenseVat) || 0;
+          if (!/^20\d{2}-\d{2}-\d{2}$/.test(r.date) || (!supply && !vat)) { skipped++; continue; }
+          const acct = ensureAccount(r.account);
+          const cp = ensureCp(r.counterparty);
+          const txId = Utils.deterministicId(`${businessId}|sb|${r.sourceRow}|${r.date}|${r.account}|${r.description}|${r.counterparty}|${type}|${supply}|${vat}`);
+          if (existingTxIds.has(txId)) replaced++; else created++;
+          const tx = { id: txId, business_id: businessId, business_site_id: state.site?.id || null, transaction_date: r.date, recognition_date: r.date, transaction_type: type, description: r.description || '(내용 없음)', counterparty_id: cp?.id || null, account_id: acct.id, supply_amount: supply, vat_amount: vat, total_amount: supply + vat, vat_type: vat > 0 ? 'taxable' : 'exempt', evidence_status: /카드|현금영수증|세금계산서|계산서/.test(r.note || '') ? 'attached' : 'not_attached', payment_status: 'paid', review_status: SimpleBookAccounts.find(r.account) ? 'normal' : 'requires_review', source_channel: 'simple_book_import', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion, created_at: now, updated_at: now, deleted_at: null };
+          const journal = { id: Utils.deterministicId(`${txId}|journal`), business_id: businessId, source_transaction_id: txId, entry_date: r.date, status: 'generated', generated_from: 'source_transaction', posting_rule_version: APP_INFO.postingRuleVersion, memo: tx.description, created_at: now, updated_at: now, deleted_at: null };
+          let lines;
+          try { lines = AccountingDomain.buildPosting(tx, map).map(l => ({ ...l, id: Utils.deterministicId(`${txId}|line|${l.sort_order}`), journal_entry_id: journal.id })); }
+          catch (e) { unbalanced++; continue; }
+          if (AccountingDomain.validateJournal(lines).status !== 'pass') { unbalanced++; continue; }
+          txns.push(tx); journals.push(journal); allLines.push(...lines);
+        }
+        if (!txns.length) return { created: 0, replaced: 0, unbalanced, skipped, total: 0, newAccounts: 0 };
+        const audit = this.audit('import', businessId, 'create', null, { rows: txns.length, channel: 'simple_book_import' }, `간편장부 가져오기 ${txns.length}건`);
+        const queueRows = [
+          ...newAccounts.map(a => this.queue('accounts', this.remoteSafeAccount(a))),
+          ...newCounterparties.map(c => this.queue('counterparties', c)),
+          ...txns.map(t => this.queue('source_transactions', t)),
+          ...journals.map(j => this.queue('journal_entries', j)),
+          ...allLines.map(l => this.queue('journal_entry_lines', l)),
+          this.queue('audit_logs', audit)
+        ];
+        await storage.putMany({
+          ...(newAccounts.length ? { accounts: newAccounts } : {}),
+          ...(newCounterparties.length ? { counterparties: newCounterparties } : {}),
+          source_transactions: txns, journal_entries: journals, journal_entry_lines: allLines,
+          audit_logs: [audit], sync_queue: queueRows
+        });
+        await this.reload();
+        return { created, replaced, unbalanced, skipped, total: txns.length, newAccounts: newAccounts.length };
+      },
+
       audit(entityType, entityId, action, beforeData, afterData, reason) {
         return { id: Utils.uuid(), business_id: state.business?.id || afterData?.business_id || null, actor_user_id: state.session?.user?.id || null, entity_type: entityType, entity_id: entityId, action, before_data: beforeData, after_data: afterData, reason, created_at: Utils.now() };
       },
@@ -2227,8 +2313,10 @@
       const c = res.counts || {};
       const unknown = res.unknownAccounts || [];
       const warn = unknown.length ? `<div class="notice">${icon('triangle-alert')}<div>분류표에 없는 계정과목 ${unknown.length}종: ${unknown.slice(0, 8).map(Utils.escape).join(', ')}${unknown.length > 8 ? ' 외' : ''}. 반영 단계에서 매핑을 확인하세요.</div></div>` : '';
+      const canPost = Boolean(state.business);
       return `<div class="notice info">${icon('circle-check')}<div><strong>${res.rows.length}건</strong> 읽음${res.year ? ` · ${Utils.escape(res.year)}년 귀속` : ''} · 수입 ${c.income || 0}건 / 비용 ${c.expense || 0}건 / 자산 ${c.asset || 0}건<br>합계 — 수입 <strong>${Utils.won(res.totals.income)}</strong> · 비용 <strong>${Utils.won(res.totals.expense)}</strong> · 자산 <strong>${Utils.won(res.totals.asset)}</strong></div></div>${warn}
-        <div class="form-actions"><button class="button" type="button" disabled title="다음 단계에서 구현">${icon('database')}장부에 반영(다음 단계)</button></div>`;
+        ${canPost ? '' : `<div class="notice">${icon('info')}<div>먼저 설정에서 사업자 정보를 저장하면 장부에 반영할 수 있습니다.</div></div>`}
+        <div class="form-actions"><button class="button primary" type="button" id="importPostButton" ${canPost ? '' : 'disabled'}>${icon('database')}장부에 반영(${res.rows.length}건)</button><span class="section-help">같은 파일을 다시 반영해도 중복으로 쌓이지 않습니다.</span></div>`;
     }
     function importPreviewHtml(res) {
       const cap = 200;
@@ -2614,12 +2702,30 @@
           preview.innerHTML = '';
           try {
             const res = await SimpleBookImport.parse(await file.arrayBuffer());
+            state.pendingImport = res;
             if (!res.rows.length) { status.innerHTML = `<div class="notice">${icon('info')}<div>「장부」 시트에서 읽을 거래 행을 찾지 못했습니다(4행부터 확인).</div></div>`; return; }
             status.innerHTML = importSummaryHtml(res);
             preview.innerHTML = importPreviewHtml(res);
+            bindImportPost();
           } catch (error) {
+            state.pendingImport = null;
             status.innerHTML = `<div class="notice danger">${icon('shield-alert')}<div>${Utils.escape(error.message || '파일을 읽지 못했습니다.')}</div></div>`;
           }
+        });
+      }
+      function bindImportPost() {
+        const btn = el('importPostButton');
+        if (!btn || !state.pendingImport) return;
+        btn.addEventListener('click', async () => {
+          const res = state.pendingImport;
+          if (!confirm(`간편장부 ${res.rows.length}건을 장부에 반영합니다.\n같은 파일을 다시 반영해도 중복되지 않습니다. 계속할까요?`)) return;
+          btn.disabled = true; btn.textContent = '반영 중…';
+          try {
+            const out = await AppService.importSimpleBook(res.rows);
+            toast(`장부 반영 완료 · 신규 ${out.created}건 / 갱신 ${out.replaced}건${out.unbalanced ? ` / 불균형 제외 ${out.unbalanced}건` : ''}${out.skipped ? ` / 건너뜀 ${out.skipped}건` : ''}`, 'success');
+            state.pendingImport = null;
+            routeTo('ledger');
+          } catch (error) { diagnostic(error); btn.disabled = false; btn.textContent = '장부에 반영'; }
         });
       }
       const termSearch = el('termSearch');
