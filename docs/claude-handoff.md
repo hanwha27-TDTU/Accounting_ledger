@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.12`
-> 상태: 업종코드 검색(0.11)에 이어 증빙 제거(soft-delete+tombstone) 배선으로 생명주기 매트릭스 gap 해소(0.12)
+> 앱 버전: `0.13`
+> 상태: 증빙 제거(0.12)에 이어 인적용역 지원(사업자등록번호 선택) + 로직 회귀 테스트를 하네스 게이트로 잠금 + AI 개발 규율 명문화(0.13)
 
 ## 앱 목적 (미션)
 
@@ -55,7 +55,8 @@
 | 앱 0.10 | 동기화 무손실 하드닝(다른 앱 교훈 반영). ① 빈 클라우드 가드: canonical replace가 클라우드 businesses 0인데 로컬에 있으면 `EMPTY_CLOUD_GUARD`로 중단해 wipe 방지(데이터 소실 버그 수정). ② `docs/accounting-ledger-data-lifecycle-matrix.md` 신설(도메인×생명주기 배선표 + gap 심각도) + 하네스 `data-lifecycle-matrix` Required 게이트(SYNC_TABLE_ORDER 도메인이 매트릭스에 없으면 실패). ③ 설계지침 §0에 North Star 비타협 원칙(사실 정확성·데이터 무결성·정직한 완료·보안) 명문화. 코드 로직 5/5·게이트 통과 |
 | 앱 0.11 | 국세청 업종코드 검색·선택. 국세청 「업종코드-11차 표준산업분류 연계표」(2023 귀속) 1,784개를 파싱해 `NTS_INDUSTRY_CODES` 파생 상수로 index.html에 임베드(대분류 인덱스화 88KB). 설정 업종코드 필드를 블라인드 6자리 입력에서 `IndustryCodes.search`(업종명·코드 키워드) 결과 클릭→코드·업종명 자동 채움으로 교체. 선택값은 **후보**(requires_review)이며 홈택스 공식 조회·경비율 고시 링크로 확인 안내. 원본 xlsx는 미추적, 재생성은 `scripts/build-industry-codes.py`(출처: teht.hometax.go.kr 연계표, 근거: law.go.kr admRulSeq=2100000276582). 수동 코드 입력 fallback 유지 |
 | 앱 0.12 | 증빙 제거. `AppService.removeEvidence`가 evidence_files를 soft-delete + tombstone + 감사 + 동기화 큐로 제거(형제 `deleteTransaction`과 대칭)하고, 그 거래에 다른 활성 증빙이 없으면 `evidence_status='not_attached'`로 되돌린다. tombstone은 `SYNC_TABLE_ORDER`의 evidence_files라 `convergeTombstones`가 다른 기기에도 소프트삭제를 적용. Cloudinary 원본 삭제는 서명 API 필요라 미수행(`delete_status='unlinked'`, Edge Function 후보). 증빙 화면에 파일별 제거 버튼. 생명주기 매트릭스의 evidence_files 삭제 gap 해소. 마이그레이션 없음 |
-| 최근 기준 커밋 | `2135377 feat: NTS industry-code search picker for app 0.11`. 앱 0.12 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
+| 앱 0.13 | 다른 앱 프롬프트 교훈 반영 + 인적용역 지원. ① 사업자등록번호를 `(선택)`으로 명확화하고 인적용역(업종코드 94로 시작, 예: 940600 자문·고문료)은 없을 수 있음을 안내(등록번호는 기존에도 선택). 업종 선택 시 94코드면 `industryPickedHtml`이 인적용역 힌트 표시. ② `scripts/tests/logic.test.mjs`를 커밋하고 하네스 `logic-tests` Required 게이트로 등록 — 실제 앱 IIFE를 VM에 로드해 복식부기(buildPosting 균형)·validateJournal·calculateAmounts·Utils·IndustryCodes를 실코드 검증 + 동기화/삭제 알고리즘 특성화(18 assertion). 게이트 양방향 확인(파손→FAIL, 복원→PASS). `IndustryCodes`를 테스트 훅에 노출. ③ CLAUDE.md에 AI 개발 규율(실측 진단·프로덕션 증거·정직한 완료·결함→게이트·단일파일 봉합점·최소변경) 추가 |
+| 최근 기준 커밋 | `dadca19 feat: evidence removal closing the lifecycle-matrix gap for app 0.12`. 앱 0.13 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
 
 ## 다음 구현 우선순위
 
@@ -87,7 +88,9 @@
 
 0.11에서 국세청 업종코드 입력을 자동화했다. 사용자가 제공한 국세청 「업종코드-11차 표준산업분류 연계표」(2023 귀속) Excel을 `scripts/build-industry-codes.py`로 파싱해 코드·업종명·대분류를 파생 상수(`NTS_INDUSTRY_CODES`, 1,784개)로 index.html에 임베드했다. 원본 Excel은 참고자료 하드룰에 따라 Git에 커밋하지 않고, 재생성 스크립트만 커밋했다(SSOT 교훈: Excel=출처, 스크립트=writer, 상수=파생물). 세무 정확성(North Star) 때문에 선택값은 확정이 아니라 후보(requires_review)로 표시하고 홈택스 공식 조회·경비율 고시 링크로 검증하도록 안내한다. 검색 로직 자동 테스트 7/7(컨설팅→741400, 의원→851201 등 실코드 반환). 임베드 크기 88KB로 index.html이 커졌으나 gzip으로 완화되고 오프라인 완전 동작한다.
 
-0.12에서 생명주기 매트릭스가 지목한 `evidence_files` 삭제 gap을 형제 도메인 대칭으로 메웠다(증빙 제거 = soft-delete+tombstone+감사+큐, 다른 증빙 없으면 거래 미첨부 복귀). 제거 로직 자동 테스트 7/7. 남은 매트릭스 gap: counterparties 삭제(낮음), import 미리보기(중간). 다음 단계로는 국세청 간편장부 Excel import(#5, 백업 5봉합점 대칭)를 진행한다.
+0.12에서 생명주기 매트릭스가 지목한 `evidence_files` 삭제 gap을 형제 도메인 대칭으로 메웠다(증빙 제거 = soft-delete+tombstone+감사+큐, 다른 증빙 없으면 거래 미첨부 복귀). 제거 로직 자동 테스트 7/7.
+
+0.13에서 다른 앱의 프롬프트 교훈 18건을 대조했다. 대부분(정독·SSOT·정직완료·프로덕션 증거·최소변경·게이트우선)은 이미 지켜온 규율이라 CLAUDE.md `AI 개발 규율`에 포인터로 흡수했고, 진짜 gap 하나 — 그동안 "N/N 통과"라고 보고한 로직 테스트가 전부 scratchpad(비커밋·비게이트)라 회귀를 못 막던 것 — 을 `scripts/tests/logic.test.mjs` 커밋 + `logic-tests` Required 게이트로 잠갔다(교훈: 특성화 테스트·게이트 우선·정직한 완료). 인적용역 요구(940600 등 사업자등록번호 없을 수 있음)는 UX 안내로 처리했다(데이터층은 기존에도 선택 지원). 남은 매트릭스 gap: counterparties 삭제(낮음), import 미리보기(중간). 다음 구조 후속 후보: 개념 정의 원장(집행 앵커) + 앵커 존재 게이트, 반응형 오버플로 헤드리스 게이트(chromium 사용 가능). 다음 기능은 국세청 간편장부 Excel import(#5, 백업 5봉합점 대칭)다.
 
 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI는 만들지 않는다.
 

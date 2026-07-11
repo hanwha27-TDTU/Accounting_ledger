@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.23** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.24** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -545,3 +545,24 @@ advisor 잔여 항목:
 | 스킬 버전 | `Sub_evidence-archive_0.01`, `Sub_code-architecture-guardians_0.03`, `Sub_app-research-notes_0.23` |
 
 남은 매트릭스 gap: counterparties 삭제(낮음), import 미리보기(중간, #5에서 대칭 배선 예정). Cloudinary 원본 서버측 삭제(후속).
+
+## 2026-07-11 앱 0.13 인적용역 지원 + 로직 회귀 게이트 + AI 개발 규율
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.13` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `test_gate`, `governance` |
+| 제목 | 다른 앱 프롬프트 교훈 18건 반영 + 인적용역(사업자등록번호 없음) 지원 |
+| 인적용역 | 업종코드 94로 시작(114개, 예: 940600 자문·감독·지도료·고문료·교정료, 작가·화가·배우·모델·가수 등)은 3.3% 원천징수 인적용역으로 사업자등록번호가 없을 수 있다. 등록번호 필드를 `(선택)`으로 표시, placeholder·help로 "없으면 비워두세요" 안내. 업종 선택 시 94코드면 `industryPickedHtml`이 인적용역 힌트 표시. 데이터층은 기존에도 `registration_number` 선택(입력 시에만 10자리 검증) |
+| 교훈 반영 | 18건 중 정독·SSOT·정직완료·프로덕션 read-back 증거·최소변경·게이트우선·결함→클래스·단일파일 봉합점·근본원인 실측은 이미 지켜온 규율 → CLAUDE.md `AI 개발 규율`에 포인터로 흡수(중복 정의 없이 강조). 얇은 어댑터·DoD·모델 이식성은 CLAUDE.md 재작성(이전)에서 반영됨 |
+| 진짜 gap 수정 | 그동안 "N/N 통과"로 보고한 로직 테스트가 전부 scratchpad(비커밋·비게이트)라 회귀를 못 막았다(특성화 테스트·게이트 우선 교훈이 겨냥한 지점). `scripts/tests/logic.test.mjs` 커밋 + 하네스 `logic-tests` Required 게이트 등록 |
+| 테스트 설계 | Part A: 실제 index.html의 앱 IIFE를 VM(DOM/IDB/crypto stub)에 로드해 `window.__ACCOUNTING_APP_TEST__` 노출 순수 함수를 **실코드** 검증 — AccountingDomain.calculateAmounts·validateJournal·buildPosting(복식부기 차대변 균형=North Star 불변조건)·Utils.latestByUpdatedAt·isSecretKey·IndustryCodes.search/find. Part B: 동기화/삭제 알고리즘(convergeTombstones·빈클라우드 가드·removeEvidence 분리) 특성화 replica. 총 18 assertion. `IndustryCodes`를 테스트 훅에 추가 노출 |
+| 게이트 검증 | 현재 상태 PASS(18), 고의 파손 시 FAIL(실패 assertion 표시)·복원 시 PASS 양방향 확인(거짓 green 방지) |
+| 스킬 버전 | `Sub_income-tax-reporting_0.03`, `Sub_tax-vat-classification_0.04`, `Sub_harness-quality-gate_0.06`, `Sub_development-governance_0.06`, `Sub_app-research-notes_0.24` |
+
+남은 위험/미완:
+
+1. Part B 특성화는 서비스 메서드의 replica다(실코드는 DOM/IDB 의존). 실코드와 함께 갱신해야 하며, 주석으로 명시. 향후 서비스 로직을 순수 코어로 더 분리하면 실코드 검증 범위를 넓힐 수 있다.
+2. 실브라우저에서 인적용역 안내·업종 선택 힌트·등록번호 미입력 저장 왕복은 수동 확인 대상.
+3. 다음 구조 후속: 개념 정의 원장(집행 앵커)+앵커 존재 게이트, 반응형 오버플로 헤드리스 게이트(chromium 사용 가능).

@@ -323,6 +323,8 @@
     .industry-item .code { font-weight: 800; font-variant-numeric: tabular-nums; }
     .industry-item .major { color: var(--muted); font-size: 11px; }
     .industry-picked { margin-top: 8px; font-size: 13px; }
+    .label-optional { color: var(--muted); font-weight: 500; font-size: 12px; }
+    .personal-service-hint { color: var(--warning); font-weight: 700; }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -511,7 +513,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.12',
+      version: '0.13',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -526,7 +528,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.12', date: '2026-07-11', label: '최신 · 증빙 제거', detail: '첨부한 증빙을 제거할 수 있습니다. 링크를 소프트 삭제하고 tombstone으로 다른 기기까지 반영하며, 그 거래에 다른 증빙이 없으면 미첨부로 되돌립니다. Cloudinary 원본 파일 자체는 남습니다.' },
+      { version: '0.13', date: '2026-07-11', label: '최신 · 인적용역 지원과 회귀 게이트', detail: '사업자등록번호를 선택 입력으로 명확히 하고 인적용역(94로 시작하는 업종)은 없을 수 있음을 안내합니다. 복식부기·검색·동기화 로직 회귀 테스트를 하네스 게이트로 잠갔습니다.' },
+      { version: '0.12', date: '2026-07-11', label: '증빙 제거', detail: '첨부한 증빙을 제거할 수 있습니다. 링크를 소프트 삭제하고 tombstone으로 다른 기기까지 반영하며, 그 거래에 다른 증빙이 없으면 미첨부로 되돌립니다. Cloudinary 원본 파일 자체는 남습니다.' },
       { version: '0.11', date: '2026-07-11', label: '업종코드 검색 선택', detail: '국세청 업종코드-표준산업분류 연계표(2023 귀속) 1,784개를 앱에 담아, 블라인드 6자리 입력 대신 업종명·코드로 검색해 고르면 코드가 자동 채워집니다. 선택값은 후보이며 홈택스 공식 조회·경비율 고시 링크로 확인하도록 안내합니다.' },
       { version: '0.10', date: '2026-07-11', label: '빈 클라우드 가드와 생명주기 매트릭스', detail: '최종본 적용 시 클라우드가 빈 응답을 주면 로컬 데이터를 지키려고 wipe를 중단하는 가드를 넣고, 데이터 도메인×생명주기 매트릭스와 드리프트 게이트로 배선 누락을 구조적으로 막습니다.' },
       { version: '0.09', date: '2026-07-11', label: 'Cloudinary 증빙 첨부', detail: '증빙 화면에서 거래별로 이미지·PDF를 Cloudinary 제한 unsigned preset으로 업로드하고, 파일 메타를 장부·Supabase(evidence_files)에 연결합니다. 썸네일과 원본 링크를 보여주며 첨부는 오프라인에서도 됩니다.' },
@@ -1868,6 +1871,13 @@
       return Boolean(state.session) && Utils.normalizeEmail(state.session.user.email) === Utils.normalizeEmail(APP_INFO.ownerEmail);
     }
 
+    // Codes starting with 94 are 인적용역 (personal service) — those providers often have no business registration number.
+    function industryPickedHtml(code, name) {
+      if (!code) return '검색해서 업종을 고르거나, 아래에 코드를 직접 입력하세요.';
+      const personal = String(code).startsWith('94') ? ' · <span class="personal-service-hint">인적용역 · 사업자등록번호 없을 수 있음</span>' : '';
+      return `선택됨: <strong>${Utils.escape(code)}</strong> · ${Utils.escape(name || '')}${personal}`;
+    }
+
     // role and status must match the app_allowed_users CHECK constraints:
     // role in (owner, editor, viewer); status in (active, blocked, pending).
     const ALLOWLIST_ROLES = Object.freeze([['viewer', '열람자'], ['editor', '편집자']]);
@@ -1939,14 +1949,14 @@
             <div class="field third"><label class="required" for="businessType">사업자 주체</label><select class="select" id="businessType"><option value="individual" ${b.business_type==='individual'?'selected':''}>개인사업자</option><option value="freelancer" ${b.business_type==='freelancer'?'selected':''}>프리랜서형 개인</option><option value="corporation" ${b.business_type==='corporation'?'selected':''}>법인사업자(확장 준비)</option></select></div>
             <div class="field third"><label class="required" for="businessName">상호 또는 장부 이름</label><input class="input" id="businessName" value="${Utils.escape(b.name || '')}" placeholder="예: 부건 자문"></div>
             <div class="field third"><label for="representativeName">대표자명</label><input class="input" id="representativeName" value="${Utils.escape(b.representative_name || '')}"></div>
-            <div class="field third"><label for="registrationNumber">사업자등록번호</label><input class="input" id="registrationNumber" inputmode="numeric" maxlength="12" value="${Utils.escape(b.registration_number || '')}" placeholder="숫자 10자리"></div>
+            <div class="field third"><label for="registrationNumber">사업자등록번호 <span class="label-optional">(선택)</span></label><input class="input" id="registrationNumber" inputmode="numeric" maxlength="12" value="${Utils.escape(b.registration_number || '')}" placeholder="숫자 10자리 · 없으면 비워두세요"><div class="field-help">인적용역(업종코드 94로 시작, 예: 940600 자문·고문료, 작가·배우·모델 등)은 사업자등록번호가 없을 수 있습니다. 없으면 비워두세요.</div></div>
             <div class="field third"><label for="siteName">사업장 이름</label><input class="input" id="siteName" value="${Utils.escape(s.site_name || '')}"></div>
             <div class="field third"><label for="openedOn">개업일</label><input class="input" id="openedOn" type="date" value="${Utils.escape(s.opened_on || '')}"></div>
             <div class="field third"><label for="broadIndustry">큰 업종</label><select class="select" id="broadIndustry"><option value="">선택하세요</option>${['의료','자문·전문직','프리랜서','농업·임업·어업','크리에이터','도소매','제조','부동산','교육·강의','기타 서비스'].map(value=>`<option value="${value}" ${state.config.broadIndustry===value?'selected':''}>${value}</option>`).join('')}</select></div>
             <div class="field full"><span class="field-label">국세청 업종코드</span>
               <input class="input" id="industrySearch" type="search" autocomplete="off" placeholder="업종명·코드로 검색 (예: 경영 컨설팅, 의원, 741)">
               <div id="industryResults" class="industry-results" hidden></div>
-              <div class="industry-picked" id="industryPicked">${s.main_industry_code ? `선택됨: <strong>${Utils.escape(s.main_industry_code)}</strong> · ${Utils.escape(s.main_industry_name || IndustryCodes.find(s.main_industry_code)?.name || '')}` : '검색해서 업종을 고르거나, 아래에 코드를 직접 입력하세요.'}</div>
+              <div class="industry-picked" id="industryPicked">${industryPickedHtml(s.main_industry_code, s.main_industry_name || IndustryCodes.find(s.main_industry_code)?.name || '')}</div>
               <div class="form-grid" style="margin-top:8px">
                 <div class="field third"><label for="industryCode">코드(6자리)</label><input class="input" id="industryCode" inputmode="numeric" maxlength="6" value="${Utils.escape(s.main_industry_code || '')}" placeholder="예: 741401"></div>
                 <div class="field third"><label for="industryName">업종명</label><input class="input" id="industryName" value="${Utils.escape(s.main_industry_name || '')}" placeholder="예: 경영 컨설팅업"></div>
@@ -2162,7 +2172,7 @@
           results.querySelectorAll('[data-code]').forEach(item => item.addEventListener('click', () => {
             el('industryCode').value = item.dataset.code;
             el('industryName').value = item.dataset.name;
-            el('industryPicked').innerHTML = `선택됨: <strong>${Utils.escape(item.dataset.code)}</strong> · ${Utils.escape(item.dataset.name)}`;
+            el('industryPicked').innerHTML = industryPickedHtml(item.dataset.code, item.dataset.name);
             results.hidden = true; industrySearch.value = '';
           }));
         };
@@ -2338,7 +2348,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

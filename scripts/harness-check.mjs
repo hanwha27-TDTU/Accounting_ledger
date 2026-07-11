@@ -119,6 +119,7 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/claude-handoff.md',
     'docs/accounting-ledger-v1-detailed-design.md',
     'docs/accounting-ledger-data-lifecycle-matrix.md',
+    'scripts/tests/logic.test.mjs',
     'docs/skills/accounting-domain-guardians-skill.md',
     'docs/skills/accounting-code-architecture-guardians-skill.md'
   ];
@@ -268,6 +269,26 @@ addGate('data-lifecycle-matrix', 'REQUIRED', () => {
     throw new Error(`synced domains missing from data lifecycle matrix: ${missing.join(', ')}`);
   }
   return { detail: `${domains.length} synced domains documented in the lifecycle matrix` };
+});
+
+addGate('logic-tests', 'REQUIRED', () => {
+  const testPath = absolute('scripts/tests/logic.test.mjs');
+  if (!existsSync(testPath)) {
+    return { status: 'BASELINE', detail: 'logic test suite not present yet' };
+  }
+  try {
+    const out = execFileSync('node', ['scripts/tests/logic.test.mjs'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const summary = out.match(/LOGIC TESTS: (\d+) passed, (\d+) failed/);
+    if (!summary) {
+      throw new Error('logic test output not recognized');
+    }
+    return { detail: `${summary[1]} logic assertions passed` };
+  } catch (error) {
+    const combined = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    const summary = combined.match(/LOGIC TESTS: \d+ passed, \d+ failed/);
+    const firstFail = combined.match(/FAIL:.*/);
+    throw new Error(summary ? `${summary[0]}${firstFail ? ` (${firstFail[0].trim()})` : ''}` : (error.message || 'logic tests failed'));
+  }
 });
 
 addGate('browser-roundtrip', 'MANUAL', () => {
