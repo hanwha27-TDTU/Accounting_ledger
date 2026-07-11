@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.21** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.22** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -506,3 +506,25 @@ advisor 잔여 항목:
 1. SSOT 완전 자동생성(writer 스크립트로 `SYNC_TABLE_ORDER`→IDB·reload 파생)은 미구현. 현재는 매트릭스 게이트가 문서 누락만 강제한다.
 2. evidence_files·counterparties 삭제 흐름, import 미리보기(백업 5봉합점 대칭)는 매트릭스에 gap으로 기록, 후속 구현.
 3. 빈 클라우드 가드의 실브라우저 재현(권한 오류 시 wipe 안 됨)은 수동 확인 대상.
+
+## 2026-07-11 앱 0.11 국세청 업종코드 검색·선택 자동화
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.11` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `tax_data`, `product_direction` |
+| 제목 | 블라인드 6자리 입력 → 업종명·코드 검색 선택 |
+| 출처(근거) | 국세청 「업종코드-11차 표준산업분류 연계표」(2023년 귀속), teht.hometax.go.kr 게시 xlsx. 경비율 근거: law.go.kr admRulSeq=2100000276582(귀속 경비율 고시). 사용자가 직접 제공 |
+| 구현 | 사용자 제공 Excel을 `scripts/build-industry-codes.py`로 파싱(zipfile+xml, 라이브러리 무의존)해 코드·세세분류명(+세부설명)·대분류를 추출. 대분류를 인덱스화한 `NTS_INDUSTRY_CODES`(1,784행, 88KB) 파생 상수를 index.html에 임베드. `IndustryCodes.search/find`로 키워드·코드 검색. 설정 업종코드 필드를 검색 입력+결과 클릭→코드·업종명 자동 채움으로 교체 |
+| 정확성(North Star) | 내가 코드를 지어내면 틀린 신고가 되므로, 사용자 공식 자료만 출처와 함께 탑재. 선택값은 확정이 아니라 **후보**로 표시하고 홈택스 공식 조회·경비율 고시 링크로 검증하도록 안내. 수동 코드 입력 fallback 유지 |
+| SSOT(하드룰) | 원본 xlsx는 참고자료라 Git 미커밋. 재생성 writer 스크립트만 커밋(Excel=출처, 스크립트=writer, 임베드 상수=파생물). 연도 갱신 시 `python3 scripts/build-industry-codes.py <xlsx> --inject`로 재생성 |
+| 검증 | 검색 로직 자동 테스트 7/7: 행수 1784, taxYear 2023, 컨설팅→741400 경영 컨설팅업, 의원→851201 일반의원, 숫자 741→코드 매칭, 빈/무매칭→[]. 하네스 8게이트 Required 0(대용량 상수에도 tracked-secrets·whitespace 통과), 스크립트 파싱 OK |
+| 스킬 버전 | `Sub_income-tax-reporting_0.03`, `Sub_tax-vat-classification_0.04`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.22` |
+
+남은 위험/미완:
+
+1. 실제 브라우저에서 검색→선택→코드 채움→저장 왕복은 수동 확인 대상(`docs/accounting-ledger-browser-checklist.md`).
+2. 임베드 88KB로 index.html이 커졌다(gzip 완화, 오프라인 완전 동작). 추후 대량화 시 IndexedDB 참조 스토어/Supabase 참조 데이터로 이전 여지.
+3. 연계표는 2023 귀속 스냅샷이다. 귀속연도 변경 시 최신 파일로 재생성해야 하며, 선택값의 requires_review·공식 확인 안내로 오적용을 막는다.
+4. 업종코드 선택을 단순/기준경비율·간편장부/복식부기 의무 판정과 연결하는 것은 후속(경비율 데이터·법정 근거 필요).
