@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.17** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.18** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -420,3 +420,24 @@ advisor 잔여 항목:
 2. canonical version 강제 최종본 지정은 아직 UI/코드로 배선되지 않았다(어디서도 cloud canonical을 증가시키지 않음).
 3. 실제 브라우저 2대에서의 삭제→동기화→타기기 소멸 왕복은 수동 확인 대상이다.
 4. 매 동기화에서 cloud에 없는 로컬 tombstone을 push할 때 전체를 훑는다(V1 개인 규모에서 문제없음). 대량화 시 업로드 완료 표식 최적화 여지.
+
+## 2026-07-11 앱 0.07 소유자 전용 허용 사용자(allowlist) 관리와 계정 차단 검증
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.07` |
+| schema_version | `0.03` (DB 스키마·migration 변경 없음, 기존 `app_allowed_users`·`auth_access_logs` 사용) |
+| note_type | `feature_release`, `security_review` |
+| 제목 | 비허용 Google 계정 차단 확인과 owner 허용 사용자 관리 흐름 |
+| 사용자 변화 | 설정에 `허용 사용자 관리(owner 전용)` 패널 추가. bootstrap owner만 보이며 허용 이메일 조회·추가·차단(blocked)·재허용(active) 가능. 변경은 `auth_access_logs`에 기록 |
+| 구현 | `SupabaseAdapter.listAllowedUsers/insertAllowedUser/updateAllowedUser/logAccessEvent`, `SyncService.loadAllowedUsers/addAllowedUser/setAllowedUserStatus/accessEvent`, `isBootstrapOwner()`, `renderAllowlist()`. 로그인·동기화 시 `loadAllowedUsers` 호출 |
+| 차단 경로 | 비허용/차단 계정은 기존 `checkAllowed`가 `status='active'` 아니면 `AUTH_EMAIL_NOT_ALLOWED`로 차단하고 `initializeAuth`가 로그아웃 처리 |
+| 스키마 계약 발견 | `app_allowed_users` CHECK: role ∈ {owner, editor, viewer}, status ∈ {active, blocked, pending}. 초안이 쓰던 `member`/`revoked`는 제약 위반 → 앱을 viewer/editor·blocked로 수정(추가 시 화이트리스트 검증). DB에서 먼저 확인해 런타임 실패를 예방 |
+| 보안 가드 | `renderAllowlist`는 `isBootstrapOwner()`에서만 노출. 소유자 자기 차단은 `ALLOWLIST_OWNER_PROTECTED`로 차단. 감사 로그는 best-effort(실패해도 관리 동작 비차단) |
+| DB 검증 (전부 롤백) | owner 세션: insert(viewer/active)·update(blocked)·`auth_access_logs` insert·전체 조회(2행) 통과. 비-owner(`intruder@example.com`) 세션: `accounting_is_bootstrap_owner()=false`, 가시 행 0, insert RLS 42501 차단. 잔존 행 없음(app_allowed_users 1=seed owner, auth_access_logs 0) |
+| 스킬 버전 | `Sub_auth-login_0.03`, `Sub_domain-guardians_0.04`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.18` |
+
+남은 위험/미완:
+
+1. V1은 단일 owner 모델이라 추가 허용 사용자는 앱 로그인만 가능하고 owner의 `businesses`(owner_user_id 기준 RLS)에는 접근하지 못한다. 다중 사용자 공유는 후속 범위다.
+2. 실제 브라우저에서 비허용 계정 로그인 차단·owner 패널 노출·추가/차단 왕복은 수동 확인 대상이다(`docs/accounting-ledger-browser-checklist.md`).

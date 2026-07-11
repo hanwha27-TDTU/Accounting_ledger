@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.06`
-> 상태: `데이터 관리` 화면(0.05)에 이어 tombstone 기반 다기기 삭제 수렴 구현(0.06). 삭제가 다른 기기에서 되살아나지 않고 동기화 시 모든 기기로 전파됨
+> 앱 버전: `0.07`
+> 상태: tombstone 다기기 삭제 수렴(0.06)에 이어 소유자 전용 허용 사용자(allowlist) 관리 UI와 비허용 계정 차단 검증(0.07)
 
 ## 앱 목적 (미션)
 
@@ -49,14 +49,15 @@
 | 앱 0.04 | 로그인한 owner 권한으로 `businesses`에 격리된 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 실제 RLS로 왕복 검증하는 설정 자가검증과 개발 기록 상태 표시 구현. 임시 행은 로컬 장부에 저장하지 않고 검증 종료 시 삭제 |
 | 앱 0.05 | `관리 → 데이터 관리` 화면 추가. 로컬 저장 상태 확인, JSON 백업·복원, 클라우드 동기화, 거래 부분 삭제(전표·라인 동반 소프트삭제 + tombstone + 감사로그 + 동기화 큐), 이 기기 전체 삭제를 2열 대칭 그리드로 통합. 백업·복원은 설정에서 데이터 관리로 이동 |
 | 앱 0.06 | tombstone 기반 다기기 삭제 수렴. `SyncService.convergeTombstones`가 동기화 시 로컬 tombstone을 클라우드에 push(ignore-duplicates)하고 cloud tombstone을 pull해 모든 기기에 소프트삭제를 멱등 적용. RLS SELECT가 `deleted_at is null`로 삭제 행을 숨겨 pull로 전파되지 않던 삭제가 tombstone 채널로 수렴. `tombstones` 테이블·RLS는 기존 스키마 사용(마이그레이션 없음) |
-| 최근 기준 커밋 | `ff88595 docs: make CLAUDE.md self-sufficient for cheaper models`. 앱 0.06 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
+| 앱 0.07 | 소유자 전용 허용 사용자 관리. 설정에 `허용 사용자 관리(owner 전용)` 패널을 추가해 `app_allowed_users`를 조회·추가·차단(status blocked)·재허용(active)하고 변경을 `auth_access_logs`에 기록. bootstrap owner(`hanwha27@gmail.com`)에게만 노출, 소유자 자기 차단 방지 가드. role은 `owner/editor/viewer`, status는 `active/blocked/pending` CHECK 제약에 맞춤. 비허용 계정은 기존 `checkAllowed`가 `status='active'` 아니면 차단·로그아웃. 마이그레이션 없음 |
+| 최근 기준 커밋 | `4ac599e docs: trim collaboration skill and add reusable browser checklist`. 앱 0.07 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
 
 ## 다음 구현 우선순위
 
 다음 사용자 영향 변경은 앱 `0.06`이며 아래 순서로 진행한다.
 
 1. (완료 · 0.04) 인증 사용자 기준 `businesses` CRUD와 RLS 왕복 검증
-2. 비허용 Google 계정 차단과 owner 허용 사용자 관리 흐름 검증
+2. (완료 · 0.07) 비허용 Google 계정 차단과 owner 허용 사용자 관리 흐름 검증
 3. 일반 동기화와 canonical version 변경 수렴의 다기기 자동 테스트 (0.06에서 tombstone push/pull/apply 삭제 수렴 구현. canonical version 강제 최종본 배선과 실브라우저 다기기 테스트는 미완)
 4. Cloudinary 이미지/PDF 업로드와 증빙 파일 메타·삭제 상태 연결
 5. 국세청 간편장부 Excel import 미리보기·원본 행 보존·확정 흐름
@@ -71,7 +72,9 @@
 
 남은 잠재 좀비 트랩: 향후 거래 **수정(update)** 기능을 추가하면, 다른 기기에서 이미 삭제됐지만 아직 tombstone을 못 받은 행을 편집·재업로드해 되살릴 수 있다. 수정 기능 구현 시 upsert 전에 `tombstones`/`deleted_at`를 확인해 tombstoned id는 되살리지 않도록 가드해야 한다. 현재는 거래 수정 UI가 없어 트리거되지 않는다.
 
-다음 단계로는 비허용 계정 차단과 owner allowlist 관리 흐름(#2)을 진행한다.
+0.07에서 소유자 전용 허용 사용자 관리 흐름을 구현했다. `SupabaseAdapter`의 `listAllowedUsers`/`insertAllowedUser`/`updateAllowedUser`/`logAccessEvent`와 `SyncService`의 `loadAllowedUsers`/`addAllowedUser`/`setAllowedUserStatus`로, 설정의 owner 전용 패널에서 `app_allowed_users`를 조회·추가·차단·재허용한다. `app_allowed_users` CHECK 제약(role `owner/editor/viewer`, status `active/blocked/pending`)에 앱 값을 맞췄다(이전 초안의 `member`/`revoked`는 제약 위반이라 수정). DB 검증(모두 롤백): owner 인증 세션에서 insert(viewer/active)·update(blocked)·`auth_access_logs` insert·전체 조회(2행) 통과. 비-owner(`intruder@example.com`) 세션은 `accounting_is_bootstrap_owner()=false`, allowlist 가시 행 0, insert는 RLS 42501로 차단됨을 확인했다. 소유자 자기 차단은 `ALLOWLIST_OWNER_PROTECTED` 가드로 막는다. 마이그레이션 없음. `auth_access_logs` 컬럼: id(default)·actor_user_id·actor_email·action·target_email·result·detail·created_at.
+
+다음 단계로는 일반 동기화/canonical 다기기 수렴 자동 테스트(#3) 또는 Cloudinary 증빙 업로드(#4)를 진행한다.
 
 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI는 만들지 않는다.
 
