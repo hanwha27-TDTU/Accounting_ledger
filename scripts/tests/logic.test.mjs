@@ -50,7 +50,15 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, SimpleBookAccounts, APP_INFO } = api;
+
+  // 간편장부 계정과목 분류표 (국세청 간편장부 작성요령) — 간편장부 view/import 매핑의 기준
+  ok(SimpleBookAccounts.all().length === 25, 'SimpleBookAccounts has 25 accounts (2 수입 + 16 비용 + 3 제조 + 4 자산)');
+  ok(SimpleBookAccounts.columnOf('매출') === '수입금액', 'SimpleBookAccounts 매출 -> 수입금액 열');
+  ok(SimpleBookAccounts.columnOf('소모품비') === '비용', 'SimpleBookAccounts 소모품비 -> 비용 열');
+  ok(SimpleBookAccounts.columnOf('경비') === '비용', 'SimpleBookAccounts 제조 경비 -> 비용 열');
+  ok(SimpleBookAccounts.columnOf('비품') === '자산', 'SimpleBookAccounts 비품 -> 자산 열');
+  ok(SimpleBookAccounts.find('없는과목') === null, 'SimpleBookAccounts unknown -> null');
 
   // Expense rates (official NTS 2025 data) — display-only candidates
   const consultingRate = ExpenseRates.find('741400');
