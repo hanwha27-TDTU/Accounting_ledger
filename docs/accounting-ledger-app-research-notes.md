@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.34** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.35** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -779,3 +779,15 @@ advisor 잔여 항목:
 2. 용어 대장 게이트는 `TAX_TERMS` 정규 포맷(한 줄 객체)에 의존. 포맷이 바뀌면 파서 갱신 필요.
 3. 툴팁 실제 DOM 노출은 사업자 설정 상태에서 term-button이 렌더되므로 수동 확인 대상(해석 로직은 검증).
 4. "기능 추가 시 강제"는 용어·기준값 축에 한정. 임의 신규 기능 전반의 근거 강제는 범위 밖.
+
+## 2026-07-11 전수감사 + 하네스 보강 (앱 버전 변경 없음)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.23` (런타임 무변경 — 하네스·문서만 갱신) |
+| note_type | `audit`, `quality_gate` |
+| 제목 | 0.16~0.23 세션 결과물 전수감사 및 하네스 게이트 보강 |
+| 감사 범위·결과 | (1) **세무 로직**: BookkeepingDuty·ExpenseRateMethod·EstimatedIncome·VatExemption을 VM에서 8개 대표 코드로 실행 — 501101 가목(3억/6천만)·151101 나목(1.5억/3.6천만)·741400 다목(7,500만/2.4천만)·851201 의료(면세 §5)·940600/940903 인적용역(기장 7,500만 다목 vs 경비율 3,600만 나목 특례)·221100 나목·미존재코드 null. EI 작성사례 21,220,000/98,780,000 재확인. 면세 오탐 없음(컨설팅·제조 null). **버그 0**. (2) **버전 정합**: index/handoff/checklist/term-ledger 모두 0.23, 최신 마커 1개, 버전 문자열 2회. (3) **보안**: 자격증명 값 0(매치는 Supabase grant DDL·탐지 정규식 자체), 참고자료 미추적, RLS·마이그레이션 0.15 이후 무변경. (4) **정합**: 필수파일 14개 존재, 로직 테스트 56개 전부 활성, guide 리팩터 topicOpen 잔재 0 |
+| 하네스 보강 | `legal-ssot-contract`에 **추계 배율 잠금** 추가: `EstimatedIncome`의 `isDoubleEntry ? 0.5 : 1`(기준경비율 ½)와 `isDoubleEntry ? 3.4 : 2.8`(비교배율) 리터럴을 코드에서 확인하고, legal-basis 문서의 `3.4배`·`2.8배`·`½` 표기와 대조. 배율 변경 시 게이트가 막음(3.4→3.9 실험 시 FAIL, 복구 PASS로 양방향 검증) |
+| 관찰(비버그) | `simple_book_rows` 테이블이 스키마·마이그레이션에 존재하나 index.html 런타임 참조 0 — 간편장부 import(#5)의 예정 대상(이번 세션 산출물 아님). `TERM_HELP`(툴팁)와 `TAX_TERMS`(사전)의 용도 분리 유지. `legal-ssot` 기대값은 게이트에 하드코딩(법 개정 시 3중 갱신 강제, 의도) |
+| 스킬 버전 | `Sub_app-research-notes_0.35` |

@@ -346,14 +346,25 @@ addGate('legal-ssot-contract', 'REQUIRED', () => {
   if (!eq(method, [60000000, 36000000, 24000000])) {
     throw new Error(`ExpenseRateMethod thresholds changed: ${method.join(', ')} (expected 6,000만/3,600만/2,400만; update law reference + this gate)`);
   }
-  // doc must carry the matching human-readable amounts (ties code values to the legal-basis SSOT doc)
-  const ref = readText('docs/skills/accounting-legal-basis-reference-skill.md');
-  const amounts = ['3억원', '1억 5천만원', '7천 5백만원', '6천만원', '3천 6백만원', '2천 4백만원'];
-  const absent = amounts.filter((a) => !ref.includes(a));
-  if (absent.length > 0) {
-    throw new Error(`legal-basis reference doc missing threshold amounts: ${absent.join(', ')}`);
+  // lock the statutory 추계 multipliers (복식부기 기준경비율 ½, 비교배율 복식 3.4 / 간편 2.8)
+  const estBlock = html.match(/const EstimatedIncome[\s\S]*?byStandardRate\(\{[\s\S]*?return \{[^}]*\};/);
+  if (!estBlock) throw new Error('EstimatedIncome.byStandardRate not found in index.html');
+  const estMultipliers = [
+    ['기준경비율 1/2 (복식부기)', /isDoubleEntry \? 0\.5 : 1/],
+    ['비교배율 3.4/2.8', /isDoubleEntry \? 3\.4 : 2\.8/]
+  ];
+  const badMul = estMultipliers.filter(([, re]) => !re.test(estBlock[0])).map(([label]) => label);
+  if (badMul.length > 0) {
+    throw new Error(`EstimatedIncome multiplier changed or missing: ${badMul.join(', ')} (update law reference + this gate)`);
   }
-  return { detail: 'statutory thresholds locked in code and mirrored in legal-basis SSOT doc' };
+  // doc must carry the matching human-readable amounts + multipliers (ties code values to the legal-basis SSOT doc)
+  const ref = readText('docs/skills/accounting-legal-basis-reference-skill.md');
+  const expected = ['3억원', '1억 5천만원', '7천 5백만원', '6천만원', '3천 6백만원', '2천 4백만원', '3.4배', '2.8배', '½'];
+  const absent = expected.filter((a) => !ref.includes(a));
+  if (absent.length > 0) {
+    throw new Error(`legal-basis reference doc missing values: ${absent.join(', ')}`);
+  }
+  return { detail: 'statutory thresholds + 추계 multipliers locked in code and mirrored in legal-basis SSOT doc' };
 });
 
 addGate('browser-roundtrip', 'MANUAL', () => {
