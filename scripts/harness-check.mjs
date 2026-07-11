@@ -119,6 +119,8 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/claude-handoff.md',
     'docs/accounting-ledger-v1-detailed-design.md',
     'docs/accounting-ledger-data-lifecycle-matrix.md',
+    'docs/accounting-ledger-term-ledger.md',
+    'docs/skills/accounting-legal-basis-reference-skill.md',
     'scripts/tests/logic.test.mjs',
     'docs/skills/accounting-domain-guardians-skill.md',
     'docs/skills/accounting-code-architecture-guardians-skill.md'
@@ -289,6 +291,69 @@ addGate('logic-tests', 'REQUIRED', () => {
     const firstFail = combined.match(/FAIL:.*/);
     throw new Error(summary ? `${summary[0]}${firstFail ? ` (${firstFail[0].trim()})` : ''}` : (error.message || 'logic tests failed'));
   }
+});
+
+addGate('term-ledger-contract', 'REQUIRED', () => {
+  if (!existsSync(absolute('index.html'))) {
+    return { status: 'BASELINE', detail: 'index.html not present yet; term ledger gate activates with the runtime file' };
+  }
+  const html = readText('index.html');
+  const block = html.match(/const TAX_TERMS\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\);/);
+  if (!block) {
+    throw new Error('index.html must define TAX_TERMS as a frozen array');
+  }
+  const entries = [...block[1].matchAll(/\{ term: '([^']+)', cat: '([^']+)', law: '(.*?)', kid: '(.*?)' \}/g)];
+  if (entries.length === 0) {
+    throw new Error('TAX_TERMS parsed to zero entries (format changed?)');
+  }
+  // every term must carry a legal definition and a kid-level explanation (forces legal info on add)
+  const empty = entries.filter((e) => !e[3].trim() || !e[4].trim()).map((e) => e[1]);
+  if (empty.length > 0) {
+    throw new Error(`TAX_TERMS entries missing law/kid text: ${empty.join(', ')}`);
+  }
+  const codeTerms = new Set(entries.map((e) => e[1]));
+  // ledger doc must register exactly the same term set (bijection) — like a consent ledger
+  const ledger = readText('docs/accounting-ledger-term-ledger.md');
+  const ledgerTerms = new Set([...ledger.matchAll(/^\|\s*`([^`]+)`\s*\|/gm)].map((m) => m[1]));
+  if (ledgerTerms.size === 0) {
+    throw new Error('term ledger doc lists no terms (expected `용어` rows)');
+  }
+  const missingInLedger = [...codeTerms].filter((t) => !ledgerTerms.has(t));
+  const orphanInLedger = [...ledgerTerms].filter((t) => !codeTerms.has(t));
+  if (missingInLedger.length > 0 || orphanInLedger.length > 0) {
+    throw new Error(`term ledger out of sync — missing: [${missingInLedger.join(', ')}] orphan: [${orphanInLedger.join(', ')}]`);
+  }
+  return { detail: `${codeTerms.size} tax terms registered with legal basis + kid explanation` };
+});
+
+addGate('legal-ssot-contract', 'REQUIRED', () => {
+  if (!existsSync(absolute('index.html'))) {
+    return { status: 'BASELINE', detail: 'index.html not present yet; legal SSOT gate activates with the runtime file' };
+  }
+  const html = readText('index.html');
+  const parseThresholds = (name) => {
+    const block = html.match(new RegExp(`const ${name}[\\s\\S]*?THRESHOLDS:\\s*Object\\.freeze\\(\\{([^}]*)\\}\\)`));
+    if (!block) throw new Error(`${name}.THRESHOLDS not found in index.html`);
+    return [...block[1].matchAll(/(\d{6,})/g)].map((m) => Number(m[1])).sort((a, b) => b - a);
+  };
+  // lock the statutory threshold values in code (regression guard; changing them forces a conscious update here + docs)
+  const duty = parseThresholds('BookkeepingDuty');
+  const method = parseThresholds('ExpenseRateMethod');
+  const eq = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  if (!eq(duty, [300000000, 150000000, 75000000])) {
+    throw new Error(`BookkeepingDuty thresholds changed: ${duty.join(', ')} (expected 3억/1.5억/7,500만; update law reference + this gate)`);
+  }
+  if (!eq(method, [60000000, 36000000, 24000000])) {
+    throw new Error(`ExpenseRateMethod thresholds changed: ${method.join(', ')} (expected 6,000만/3,600만/2,400만; update law reference + this gate)`);
+  }
+  // doc must carry the matching human-readable amounts (ties code values to the legal-basis SSOT doc)
+  const ref = readText('docs/skills/accounting-legal-basis-reference-skill.md');
+  const amounts = ['3억원', '1억 5천만원', '7천 5백만원', '6천만원', '3천 6백만원', '2천 4백만원'];
+  const absent = amounts.filter((a) => !ref.includes(a));
+  if (absent.length > 0) {
+    throw new Error(`legal-basis reference doc missing threshold amounts: ${absent.join(', ')}`);
+  }
+  return { detail: 'statutory thresholds locked in code and mirrored in legal-basis SSOT doc' };
 });
 
 addGate('browser-roundtrip', 'MANUAL', () => {

@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.33** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.34** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -756,3 +756,26 @@ advisor 잔여 항목:
 1. `TERM_HELP`(기존 툴팁 9개, 짧은 설명)와 `TAX_TERMS`(28개, 상세)가 일부 용어에서 병존. 툴팁은 짧게, 사전은 상세로 용도가 달라 유지하되, 향후 단일화 검토.
 2. 용어 법적 정의는 서술형(조문 인용 아님). §24/§27/§19/§29/§37은 표준 조문번호로 서술했으며 원문 verbatim 대조는 §14·§26·§160·§208·§143·§80에 한정.
 3. 대시보드 검색은 클라이언트 필터(부분일치)만. 동의어·오타 보정은 미구현.
+
+## 2026-07-11 앱 0.23 용어 대장 강제 게이트 + 툴팁 단일화 + SSOT 정합
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.23` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `quality_gate`, `refactor` |
+| 제목 | 용어·법적근거 등록을 하네스로 강제(컨센트 대장 개념), 세법 용어 툴팁 단일화, 기준값 SSOT 정합 게이트 |
+| 배경(사용자 요청) | 기능·용어가 추가될 때마다 용어대장을 만들어 법적정보·용어추가를 자동 강제(컨센트 대장처럼), 그 뒤 툴팁 단일화+SSOT 게이트화(#3), 그리고 0.16~0.23 전체 배포 |
+| 구현 ① 용어 대장 | `docs/accounting-ledger-term-ledger.md` 신설(28개 용어 + 분류 + 근거 요약). 하네스 게이트 `term-ledger-contract`(REQUIRED): index.html `TAX_TERMS` 파싱 → 각 용어 `law`·`kid` 비어있으면 FAIL, `TAX_TERMS` 용어집합 ↔ 대장 용어집합 **양방향 일치**(missing/orphan) 검사 |
+| 구현 ② SSOT 정합 | `legal-ssot-contract`(REQUIRED): `BookkeepingDuty.THRESHOLDS`=[3억,1.5억,7,500만]·`ExpenseRateMethod.THRESHOLDS`=[6,000만,3,600만,2,400만]을 코드에서 파싱해 고정값과 대조(회귀 가드), legal-basis-reference 문서에 6개 금액 표기 존재 확인(코드↔문서 정합). 임계 변경 시 게이트가 막아 의식적 갱신 강제 |
+| 구현 ③ 툴팁 단일화 | `TERM_HELP`에서 세법 용어(복식부기·차변·대변·공급가액·계정과목) 제거 → 앱 고유 용어(부가세·원천거래·전표·canonical_version)만 유지. `showTerm`이 `TermService.find(name)?.kid`(TAX_TERMS SSOT) 우선, 없으면 TERM_HELP 폴백. 세법 용어 정의 중복 제거 |
+| 필수파일 | requiredFiles에 `docs/accounting-ledger-term-ledger.md`·`docs/skills/accounting-legal-basis-reference-skill.md` 추가(삭제 방지) |
+| 검증(정직·양방향) | 게이트가 실제로 무는지 확인: (1) TAX_TERMS에 유령용어 추가→term-ledger FAIL(missing), (2) law 빈값→FAIL, (3) 임계값 변경→legal-ssot FAIL, 복구 시 전부 PASS. 툴팁 단일화는 헤드리스로 해석 경로 확인(복식부기·공급가액→TAX_TERMS, 부가세·원천거래→TERM_HELP 폴백), 앱 JS 에러 0. 하네스 11개 게이트 Required 0, 로직 테스트 56 유지 |
+| 스킬 버전 | `Sub_legal-basis-reference_0.01`, `Sub_app-research-notes_0.34` |
+
+남은 위험/미완:
+
+1. `legal-ssot-contract`의 기대 임계값은 게이트 코드에 하드코딩 — 법 개정 시 게이트+문서+코드를 함께 고쳐야 통과(의도된 강제지만 3중 갱신 필요).
+2. 용어 대장 게이트는 `TAX_TERMS` 정규 포맷(한 줄 객체)에 의존. 포맷이 바뀌면 파서 갱신 필요.
+3. 툴팁 실제 DOM 노출은 사업자 설정 상태에서 term-button이 렌더되므로 수동 확인 대상(해석 로직은 검증).
+4. "기능 추가 시 강제"는 용어·기준값 축에 한정. 임의 신규 기능 전반의 근거 강제는 범위 밖.
