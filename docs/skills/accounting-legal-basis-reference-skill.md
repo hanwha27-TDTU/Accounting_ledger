@@ -126,6 +126,7 @@
 | `ExpenseRates` / `NTS_EXPENSE_RATES` | 국세청 경비율 고시 admRulSeq=2100000276582 | 5 |
 | `IndustryCodes` / `NTS_INDUSTRY_CODES` | 국세청 업종코드 연계표 | 6 |
 | `SimpleBookAccounts` | 국세청 간편장부 작성요령, 소득세법 시행령 §208⑨ | 7 |
+| `TAX_TERMS` / `TermService` (용어사전 28개) | 각 용어 근거 조문(§160·§208·§143·§80·§26·§14·§24·§27·§19·§29·§37 등) | 1~7 전반 |
 
 ## 유지 규율 (이번 세션에서 확립한 교훈)
 

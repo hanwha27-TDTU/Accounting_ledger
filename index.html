@@ -355,6 +355,14 @@
     .guide-why { display: flex; gap: 10px; margin-top: 12px; padding: 13px 15px; border-radius: 12px; background: var(--surface-warm); border: 1px solid var(--warning-soft); font-size: 13.5px; line-height: 1.75; }
     .guide-why strong { color: var(--warning); }
     .guide-why > :first-child { flex: 0 0 auto; color: var(--warning); }
+    .term-results { margin-top: 12px; }
+    .term-group-title { font-size: 14px; margin: 18px 0 8px; color: var(--brand-strong); }
+    .term-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; background: var(--surface); }
+    .term-card-name { font-weight: 700; font-size: 15px; margin-bottom: 5px; }
+    .term-card-kid { display: flex; gap: 8px; font-size: 13.5px; line-height: 1.65; margin-bottom: 7px; }
+    .term-card-kid > :first-child { flex: 0 0 auto; color: var(--accent); }
+    .term-card-law { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+    .term-card-law strong { color: var(--brand-strong); }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -543,7 +551,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.21',
+      version: '0.22',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -558,7 +566,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.21', date: '2026-07-11', label: '최신 · 법령 가이드 눈높이 설명', detail: '가이드의 기장의무·부가가치세 면세·추계 경비율 설명에 "왜 이렇게 정했을까요?" 눈높이 설명을 추가했습니다. 각 제도의 목적과 취지를 중학생도 이해하기 쉬운 말로 풀어, 기준과 근거뿐 아니라 이유까지 알 수 있게 했습니다.' },
+      { version: '0.22', date: '2026-07-11', label: '최신 · 세법 용어사전 + 대시보드 검색', detail: '가이드에 주요 세법 용어사전(28개)을 추가했습니다. 복식부기·필요경비·과세표준·경비율·원천징수 등 용어마다 법적 정의(근거 조문)와 초등학생 눈높이 설명을 함께 담았고, 대시보드 검색창에서 바로 찾아볼 수 있습니다.' },
+      { version: '0.21', date: '2026-07-11', label: '법령 가이드 눈높이 설명', detail: '가이드의 기장의무·부가가치세 면세·추계 경비율 설명에 "왜 이렇게 정했을까요?" 눈높이 설명을 추가했습니다. 각 제도의 목적과 취지를 중학생도 이해하기 쉬운 말로 풀어, 기준과 근거뿐 아니라 이유까지 알 수 있게 했습니다.' },
       { version: '0.20', date: '2026-07-11', label: '계산기 자동판정 + 법령 가이드', detail: '추계소득 계산기에 직전연도 수입금액을 넣으면 기장의무(복식/간편)와 적용 경비율(단순/기준)이 자동 판정됩니다. 또한 가이드에 기장의무·부가가치세 면세·추계신고 경비율을 쉬운 설명과 근거 조문(소득세법 §160·시행령 §208⑤·§143, 부가가치세법 §26)으로 안내하는 버튼을 추가했습니다.' },
       { version: '0.19', date: '2026-07-11', label: '기준경비율 추계소득 계산기', detail: '리포트 화면에 추계소득금액 계산기를 추가했습니다. 총수입·매입·임차·인건비를 넣고 기장의무를 고르면, 선택한 업종의 경비율(자동 채움·수정 가능)로 기준소득금액·비교소득금액·소득금액(둘 중 작은 값)·필요경비를 실시간으로 보여줍니다. 검토용 후보 계산입니다.' },
       { version: '0.18', date: '2026-07-11', label: '기준경비율 추계소득 계산 엔진·안내', detail: '국세청 추계신고(기준경비율) 작성사례의 공식 계산식을 검증된 엔진으로 구현했습니다. 소득금액 = min(기준소득금액, 비교소득금액)이며 복식부기의무자는 기준경비율 1/2·비교 3.4배, 간편장부대상자는 전체·2.8배를 적용합니다. 리포트 화면에 계산 방법과 복식부기의무자 추계 시 가산세 경고를 검토용으로 안내합니다.' },
@@ -797,6 +806,48 @@
       '원천거래': '실제로 발생한 거래 사실의 원본 기록입니다. 앱은 이 기록에서 복식 전표를 만듭니다.',
       '전표': '한 거래를 차변과 대변으로 나누어 적은 회계 기록입니다.',
       'canonical_version': '여러 기기 중 어느 데이터가 최종본인지 표시하는 번호입니다. 번호가 바뀌면 다른 기기는 클라우드 최종본에 맞춥니다.'
+    });
+
+    // 주요 세법 용어사전 — 각 용어의 법적 정의(근거 조문 포함)와 초등학생 눈높이 설명을 함께 담는다.
+    // 법적 정의의 SSOT는 docs/skills/accounting-legal-basis-reference-skill.md. 확정 신고 판단이 아닌 이해용.
+    const TAX_TERMS = Object.freeze([
+      { term: '복식부기', cat: '장부·기장', law: '한 거래를 차변·대변 양쪽에 이중으로 기록하는 정식 부기 방식. 소득세법 제160조 제1항은 사업자가 원칙적으로 복식부기로 장부를 기록·관리하도록 정한다.', kid: '용돈을 쓸 때 "얼마 나갔는지"와 "왜 나갔는지"를 양쪽에 같이 적는 거예요. 두 쪽 금액이 항상 똑같아서 틀리면 바로 알 수 있어요.' },
+      { term: '간편장부', cat: '장부·기장', law: '규모가 작은 사업자가 쓰도록 국세청이 정한 쉬운 장부. 날짜·거래내용·수입·비용·자산 증감을 적으며 소득세법 제160조 제2항·시행령 제208조 제9항에 근거한다.', kid: '가계부처럼 "언제, 무엇을, 얼마"만 적으면 되는 쉬운 장부예요. 작은 가게는 이걸로도 돼요.' },
+      { term: '복식부기의무자', cat: '장부·기장', law: '간편장부대상자가 아닌 사업자로서 복식부기로 장부를 갖춰야 하는 사업자(소득세법 제160조 제3항). 직전 과세기간 수입금액이 업종별 기준(가 3억·나 1.5억·다 7,500만원) 이상이면 해당한다.', kid: '어느 정도 규모가 커진 사장님이에요. 이제부터는 쉬운 장부 말고 정식 장부(복식부기)를 써야 해요.' },
+      { term: '간편장부대상자', cat: '장부·기장', law: '업종별 일정 규모 미만이어서 간편장부를 쓸 수 있는 사업자(소득세법 제160조 제3항, 시행령 제208조 제5항). 신규개시자도 포함된다.', kid: '아직 규모가 작아서 쉬운 장부(간편장부)를 써도 되는 사장님이에요. 그해에 새로 시작한 사장님도 여기에 들어가요.' },
+      { term: '기장의무', cat: '장부·기장', law: '사업자가 소득을 계산할 수 있도록 장부를 갖춰 기록할 의무(소득세법 제160조). 규모에 따라 간편장부 또는 복식부기로 나뉜다.', kid: '"돈이 얼마 들어오고 나갔는지 장부에 적어두세요"라는 약속이에요. 크기에 따라 쉬운 장부/정식 장부로 나뉘어요.' },
+      { term: '계정과목', cat: '장부·기장', law: '수입·비용·자산을 성격이 같은 것끼리 묶어 부르는 이름(예: 매출, 소모품비, 비품). 간편장부는 국세청 계정과목 분류표를 따른다.', kid: '돈이 왜 들어오고 나갔는지 비슷한 것끼리 묶은 이름표예요. "밥값", "교통비"처럼요.' },
+      { term: '차변', cat: '장부·기장', law: '복식부기에서 자산의 증가나 비용의 발생을 적는 왼쪽 자리. 대변 합계와 항상 같아야 한다.', kid: '정식 장부의 왼쪽 칸이에요. 물건이 늘거나 돈을 쓴 걸 적어요.' },
+      { term: '대변', cat: '장부·기장', law: '복식부기에서 부채·자본의 증가나 수입의 발생을 적는 오른쪽 자리. 차변 합계와 항상 같아야 한다.', kid: '정식 장부의 오른쪽 칸이에요. 돈을 벌거나 빚이 생긴 걸 적어요. 왼쪽과 금액이 똑같아야 해요.' },
+      { term: '총수입금액', cat: '소득·세액', law: '사업에서 벌어들인 모든 수입의 합계(소득세법 제24조). 매출뿐 아니라 영업손실보상금, 일부 세액공제액 등도 산입될 수 있다.', kid: '장사해서 들어온 돈을 전부 더한 거예요. 물건 판 돈 말고도 받은 보상금 같은 것도 들어갈 수 있어요.' },
+      { term: '필요경비', cat: '소득·세액', law: '수입을 얻기 위해 쓴 비용으로 소득에서 빼주는 금액(소득세법 제27조). 증빙으로 확인되는 매입·임차료·인건비 등이 해당한다.', kid: '돈을 벌려고 쓴 돈이에요. 재료값, 가게 월세, 직원 월급처럼요. 번 돈에서 이걸 빼줘요.' },
+      { term: '소득금액', cat: '소득·세액', law: '총수입금액에서 필요경비를 뺀 금액(사업소득금액, 소득세법 제19조 제2항). 세금을 매기는 기초가 된다.', kid: '"번 돈 − 쓴 돈"이에요. 진짜로 남은 돈에 세금을 매겨요.' },
+      { term: '종합소득금액', cat: '소득·세액', law: '이자·배당·사업·근로·연금·기타 소득금액을 합한 금액(소득세법 제14조 제2항).', kid: '여기저기서 번 소득을 다 합친 거예요. 장사 소득, 월급 소득 같은 걸 모두 더해요.' },
+      { term: '소득공제', cat: '소득·세액', law: '과세표준을 계산할 때 종합소득금액에서 빼주는 금액(인적공제·연금보험료공제 등, 소득세법 제50조~제52조).', kid: '"가족이 있어요", "보험료 냈어요" 같은 사정을 봐주려고 세금 매기기 전에 빼주는 금액이에요.' },
+      { term: '과세표준', cat: '소득·세액', law: '세율을 곱하기 직전의 금액. 종합소득금액에서 종합소득공제를 뺀 금액이다(소득세법 제14조 제2항).', kid: '세금 계산의 진짜 기준 금액이에요. 여기에 세율을 곱해서 세금을 구해요.' },
+      { term: '산출세액', cat: '소득·세액', law: '과세표준에 세율을 곱해 계산한 세금(소득세법 제55조의 기본세율 적용).', kid: '기준 금액에 세율을 곱해서 나온 "일단 계산된 세금"이에요.' },
+      { term: '세액공제', cat: '소득·세액', law: '산출된 세금에서 직접 빼주는 금액(자녀세액공제·표준세액공제 등).', kid: '계산된 세금에서 바로 깎아주는 금액이에요. 소득공제가 "빼고 나서 곱하기"라면, 세액공제는 "곱한 다음 빼기"예요.' },
+      { term: '원천징수', cat: '소득·세액', law: '돈을 지급하는 사람이 세금을 미리 떼어 국가에 내는 제도. 인적용역 대가는 대개 3.3%를 원천징수한다.', kid: '돈을 줄 때 세금을 미리 조금 떼고 주는 거예요. 프리랜서가 100만 원 일하면 3.3만 원 떼고 96.7만 원을 받는 식이에요.' },
+      { term: '추계신고', cat: '경비율·추계', law: '장부가 없어 실제 경비를 알 수 없을 때 경비율로 소득을 추정해 신고하는 방법(소득세법 제80조 제3항, 시행령 제143조). 장부 기장이 원칙이며 추계는 예외다.', kid: '장부가 없을 때 "보통 이 정도 썼겠지" 하고 어림해서 신고하는 거예요. 원래는 장부를 쓰는 게 원칙이에요.' },
+      { term: '단순경비율', cat: '경비율·추계', law: '수입금액에 곱해 경비를 한 번에 추정하는 비율. 직전 수입금액이 업종별 기준(가 6,000만·나 3,600만·다 2,400만원) 미만인 사업자에게 적용된다(시행령 제143조 제4항).', kid: '작은 사업자에게 쓰는 쉬운 경비율이에요. "번 돈의 몇 %는 경비였을 거야"라고 한 번에 계산해요.' },
+      { term: '기준경비율', cat: '경비율·추계', law: '주요경비(매입·임차·인건비)는 증빙으로 빼고, 나머지 경비만 비율로 추정하는 방식. 직전 수입이 기준 이상이면 적용된다. 복식부기의무자는 기준경비율의 1/2만 적용한다(시행령 제143조 제3항).', kid: '조금 큰 사업자에게 쓰는 경비율이에요. 큰 비용(재료·월세·월급)은 영수증으로 인정받고, 나머지만 비율로 계산해요.' },
+      { term: '주요경비', cat: '경비율·추계', law: '기준경비율 추계에서 증빙으로 인정받는 핵심 경비. 매입비용, 사업용 고정자산 임차료, 종업원 인건비를 말한다(시행령 제143조 제3항 제1호).', kid: '기준경비율로 계산할 때 영수증만 있으면 인정받는 큰 비용이에요. 재료값·가게 월세·직원 월급이 여기 들어가요.' },
+      { term: '부가가치세', cat: '부가가치세', law: '재화·용역이 거래될 때 붙는 세금으로, 최종 소비자가 부담한다. 사업자는 매출세액에서 매입세액을 빼서 납부한다(부가가치세법 제37조).', kid: '물건을 살 때 값에 붙는 세금이에요. 결국 마지막에 사는 사람이 내고, 가게는 그 세금을 대신 모아 나라에 내요.' },
+      { term: '공급가액', cat: '부가가치세', law: '부가가치세를 빼기 전 상품·서비스 자체의 금액(부가가치세법 제29조). 여기에 10% 부가세가 더해져 소비자가 낸다.', kid: '세금을 빼고 순수하게 물건 값만 말하는 거예요. 여기에 10%를 더한 게 실제로 내는 돈이에요.' },
+      { term: '면세', cat: '부가가치세', law: '법이 정한 재화·용역에 부가가치세를 매기지 않는 것(부가가치세법 제26조). 미가공식료품·의료보건·교육·주택임대 등 필수·공익 성격의 공급이 해당한다.', kid: '꼭 필요한 것에는 부가세를 안 붙여주는 거예요. 쌀·병원·학교·집 월세처럼요.' },
+      { term: '정규증빙', cat: '증빙·경비', law: '경비를 인정받기 위해 갖춰야 하는 적격 증빙. 세금계산서, 계산서, 신용카드매출전표, 현금영수증을 말한다.', kid: '"이만큼 진짜 썼어요"를 증명하는 제대로 된 영수증이에요. 이게 있어야 비용으로 인정받아요.' },
+      { term: '감가상각비', cat: '증빙·경비', law: '건물·기계·비품처럼 여러 해 쓰는 자산의 가치 감소분을 해마다 나누어 비용으로 처리하는 것. 내용연수·상각률은 세법으로 정해져 있다.', kid: '오래 쓰는 비싼 물건(컴퓨터·기계)은 산 해에 한 번에 비용 처리하지 않고, 쓰는 동안 조금씩 나눠서 비용으로 적는 거예요.' },
+      { term: '가산세', cat: '증빙·경비', law: '신고·납부·기장 의무를 어겼을 때 본세에 더해 물리는 세금. 복식부기의무자가 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 큰 금액이 부과된다.', kid: '약속(신고·장부)을 안 지키면 세금에 얹어서 더 내는 벌금 같은 거예요. 그래서 장부를 잘 써두는 게 이득이에요.' },
+      { term: '업종코드', cat: '증빙·경비', law: '사업의 종류를 나타내는 국세청 코드(6자리). 경비율·기장의무 판단의 기준이 된다.', kid: '무슨 장사를 하는지 번호로 나타낸 거예요. 이 번호에 따라 경비율이나 장부 종류가 정해져요.' }
+    ]);
+    const TermService = Object.freeze({
+      all() { return TAX_TERMS; },
+      find(name) { const q = String(name || '').trim(); return TAX_TERMS.find(t => t.term === q) || null; },
+      search(query, limit = 20) {
+        const q = String(query || '').trim().toLowerCase();
+        if (!q) return [];
+        return TAX_TERMS.filter(t => `${t.term} ${t.cat} ${t.law} ${t.kid}`.toLowerCase().includes(q)).slice(0, limit);
+      }
     });
 
     const DOMAIN_GUARDIANS = Object.freeze([
@@ -1948,6 +1999,11 @@
           <div class="metric-card"><div class="metric-head"><span class="metric-label">미첨부 증빙</span><span class="metric-icon warm">${icon('paperclip')}</span></div><div class="metric-value">${allSummary.missingEvidence}건</div><div class="metric-foot">전체 거래 기준</div></div>
           <div class="metric-card"><div class="metric-head"><span class="metric-label">동기화 대기</span><span class="metric-icon">${icon('refresh-cw')}</span></div><div class="metric-value">${state.queue.length}건</div><div class="metric-foot">canonical v${Number(state.config.canonicalVersion || 0)}</div></div>
         </div>
+        <section class="panel card-panel">
+          <div class="panel-head"><div><h2 class="section-title">세법 용어 검색</h2><p class="section-help">모르는 세법 용어를 검색하면 법적 정의와 초등학생 눈높이 설명을 보여드립니다.</p></div><button class="button small" type="button" data-open-guide-topic="tax-terms">${icon('book-a')}전체 용어 보기</button></div>
+          <input class="input" id="termSearch" type="search" autocomplete="off" placeholder="예: 필요경비, 복식부기, 부가가치세, 경비율, 원천징수">
+          <div id="termSearchResults" class="term-results"></div>
+        </section>
         <div class="layout-two">
           <section class="panel card-panel">
             <div class="panel-head"><div><h2 class="section-title">최근 거래</h2><p class="section-help">원천거래 기준으로 표시합니다.</p></div><button class="button small" type="button" data-route="ledger">장부 보기</button></div>
@@ -2299,7 +2355,8 @@
       { id: 'google-cloud', icon: 'cloud-cog', title: '구글클라우드 연결방법', note: 'Google 로그인부터 Supabase 연결과 앱 진단까지 한 단계씩 확인합니다.' },
       { id: 'bookkeeping-duty', icon: 'book-open-check', title: '기장의무 판단 (간편장부·복식부기)', note: '내 사업이 간편장부인지 복식부기인지 근거 법령과 함께 설명합니다.' },
       { id: 'vat-exemption', icon: 'badge-percent', title: '부가가치세 면세', note: '어떤 공급이 면세인지 부가가치세법 근거와 함께 설명합니다.' },
-      { id: 'estimate-expense-rate', icon: 'calculator', title: '추계신고와 경비율', note: '장부 없이 신고할 때 단순·기준경비율과 소득 계산법을 설명합니다.' }
+      { id: 'estimate-expense-rate', icon: 'calculator', title: '추계신고와 경비율', note: '장부 없이 신고할 때 단순·기준경비율과 소득 계산법을 설명합니다.' },
+      { id: 'tax-terms', icon: 'book-a', title: '주요 세법 용어사전', note: '세법 용어의 법적 정의와 초등학생 눈높이 설명을 함께 봅니다. 대시보드에서도 검색됩니다.' }
     ]);
     function guideTopicButtons() {
       return GUIDE_TOPICS.map(t => { const open = state.guideTopic === t.id; return `<button class="guide-topic-button ${open ? 'active' : ''}" type="button" data-guide-topic="${t.id}" aria-expanded="${open}"><span class="guide-topic-icon">${icon(t.icon)}</span><span class="guide-topic-copy"><span class="guide-topic-title">${t.title}</span><span class="guide-topic-note">${t.note}</span></span><span class="guide-topic-arrow">${icon(open ? 'chevron-up' : 'chevron-right')}</span></button>`; }).join('');
@@ -2308,8 +2365,18 @@
       const header = `${pageHeader('가이드','필요한 주제를 선택하면 쉬운 설명과 법적 근거를 함께 보여드립니다.')}<div class="guide-topic-list">${guideTopicButtons()}</div>`;
       const topic = state.guideTopic;
       if (topic === 'google-cloud') return `${header}${googleCloudGuideHtml()}`;
+      if (topic === 'tax-terms') return `${header}${termsGuideHtml()}`;
       if (topic === 'bookkeeping-duty' || topic === 'vat-exemption' || topic === 'estimate-expense-rate') return `${header}${legalGuideHtml(topic)}`;
       return header;
+    }
+    function termCardHtml(t) {
+      return `<div class="term-card"><div class="term-card-name">${Utils.escape(t.term)}</div><div class="term-card-kid">${icon('smile')}<span>${Utils.escape(t.kid)}</span></div><div class="term-card-law"><strong>법적 정의</strong> · ${Utils.escape(t.law)}</div></div>`;
+    }
+    function termsGuideHtml() {
+      const cats = [];
+      TAX_TERMS.forEach(t => { if (!cats.includes(t.cat)) cats.push(t.cat); });
+      const groups = cats.map(cat => `<div class="term-group"><h3 class="term-group-title">${Utils.escape(cat)}</h3>${TAX_TERMS.filter(t => t.cat === cat).map(termCardHtml).join('')}</div>`).join('');
+      return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">주요 세법 용어사전</h2><p class="section-help">각 용어의 법적 정의와 초등학생도 이해하기 쉬운 설명을 함께 담았습니다. 대시보드 검색창에서도 찾을 수 있습니다.</p></div>${badge(`${TAX_TERMS.length}개 용어`,'info')}</div>${groups}</section>`;
     }
     function googleCloudGuideHtml() {
       const status = GuideService.status();
@@ -2398,6 +2465,20 @@
         state.guideTopic = state.guideTopic === button.dataset.guideTopic ? null : button.dataset.guideTopic;
         render();
       }));
+      document.querySelectorAll('[data-open-guide-topic]').forEach(button => button.addEventListener('click', () => {
+        state.guideTopic = button.dataset.openGuideTopic;
+        routeTo('guide');
+      }));
+      const termSearch = el('termSearch');
+      if (termSearch) {
+        const box = el('termSearchResults');
+        termSearch.addEventListener('input', () => {
+          const q = termSearch.value.trim();
+          if (!q) { box.innerHTML = ''; return; }
+          const matches = TermService.search(q, 20);
+          box.innerHTML = matches.length ? matches.map(termCardHtml).join('') : `<div class="notice info">${icon('search')}<div>일치하는 용어가 없습니다. 다른 낱말로 검색해 보세요.</div></div>`;
+        });
+      }
       document.querySelectorAll('[data-copy-value]').forEach(button => button.addEventListener('click', async () => {
         const value = button.dataset.copyValue || '';
         try {
@@ -2677,7 +2758,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, TermService, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

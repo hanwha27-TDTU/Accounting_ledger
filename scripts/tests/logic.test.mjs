@@ -50,7 +50,15 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, TermService, APP_INFO } = api;
+
+  // 세법 용어사전 — 법적 정의(근거 조문) + 초딩 설명, 대시보드 검색용
+  ok(TermService.all().length === 28, 'TermService has 28 terms');
+  ok(TermService.find('필요경비') && /제27조/.test(TermService.find('필요경비').law), 'TermService 필요경비 -> 법적 정의에 소득세법 §27');
+  ok(TermService.find('복식부기') && TermService.find('복식부기').kid.length > 0, 'TermService 복식부기 has kid-level explanation');
+  ok(TermService.search('경비율').some(t => t.term === '기준경비율'), 'TermService search 경비율 -> 기준경비율');
+  ok(TermService.search('원천').some(t => t.term === '원천징수'), 'TermService search 원천 -> 원천징수');
+  ok(TermService.search('').length === 0 && TermService.find('없는용어') === null, 'TermService empty search -> [], missing -> null');
 
   // 단순경비율 vs 기준경비율 적용 판정 (소득세법 시행령 §143④2호): 가 6,000만·나 3,600만·다 2,400만
   ok(ExpenseRateMethod.thresholdOf('552101') === 36000000, 'ExpenseRateMethod 552101 음식점 -> 나목 3,600만');
