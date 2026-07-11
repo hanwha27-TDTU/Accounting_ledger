@@ -485,7 +485,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.03',
+      version: '0.04',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -500,7 +500,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.03', date: '2026-07-11', label: '최신 · 연결 가이드와 실로그인', detail: 'Google OAuth 실로그인을 검증하고 앱 설정값과 진단 상태에 자동 연동되는 연결 가이드를 추가했습니다.' },
+      { version: '0.04', date: '2026-07-11', label: '최신 · 사업자 CRUD·RLS 왕복 검증', detail: '로그인한 소유자 권한으로 businesses 테이블에 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 왕복 검증하고 결과를 설정과 개발 기록에 표시합니다.' },
+      { version: '0.03', date: '2026-07-11', label: '연결 가이드와 실로그인', detail: 'Google OAuth 실로그인을 검증하고 앱 설정값과 진단 상태에 자동 연동되는 연결 가이드를 추가했습니다.' },
       { version: '0.02', date: '2026-07-11', label: 'Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
       { version: '0.01', date: '2026-07-11', label: '첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
     ]);
@@ -931,6 +932,49 @@
         const rows = await this.raw('accounting_sync_meta?select=key,value,updated_at');
         return Object.fromEntries((rows || []).map(row => [row.key, row]));
       }
+      // Authenticated round-trip that proves businesses CRUD and RLS with the owner's own session.
+      // Uses an isolated probe row (never stored locally) and always cleans it up.
+      async businessRoundtrip() {
+        const ownerUserId = state.session?.user?.id;
+        if (!ownerUserId) throw new Error('AUTH_REQUIRED');
+        const probeId = Utils.uuid();
+        const now = Utils.now();
+        const probe = {
+          id: probeId, owner_user_id: ownerUserId, business_type: 'individual',
+          name: '__rls_probe__ 연결검증', registration_number: null, representative_name: null,
+          tax_profile_status: 'draft', created_at: now, updated_at: now, deleted_at: null
+        };
+        const steps = { create: 'skip', read: 'skip', update: 'skip', softDeleteHidden: 'skip', cleanup: 'skip' };
+        let detail = null;
+        try {
+          const inserted = await this.raw('businesses', { method: 'POST', body: [probe], prefer: 'return=representation' });
+          steps.create = Array.isArray(inserted) && inserted[0]?.id === probeId && inserted[0]?.owner_user_id === ownerUserId ? 'pass' : 'fail';
+
+          const readRows = await this.raw(`businesses?id=eq.${probeId}&select=id,owner_user_id,name,deleted_at`);
+          steps.read = Array.isArray(readRows) && readRows.length === 1 && readRows[0].owner_user_id === ownerUserId ? 'pass' : 'fail';
+
+          const renamed = '__rls_probe__ 갱신확인';
+          const updated = await this.raw(`businesses?id=eq.${probeId}`, { method: 'PATCH', body: { name: renamed, updated_at: Utils.now() }, prefer: 'return=representation' });
+          steps.update = Array.isArray(updated) && updated[0]?.name === renamed ? 'pass' : 'fail';
+
+          await this.raw(`businesses?id=eq.${probeId}`, { method: 'PATCH', body: { deleted_at: Utils.now(), updated_at: Utils.now() }, prefer: 'return=minimal' });
+          const afterSoftDelete = await this.raw(`businesses?id=eq.${probeId}&select=id`);
+          steps.softDeleteHidden = Array.isArray(afterSoftDelete) && afterSoftDelete.length === 0 ? 'pass' : 'fail';
+        } catch (error) {
+          detail = String(error?.message || error);
+        } finally {
+          try {
+            await this.raw(`businesses?id=eq.${probeId}`, { method: 'DELETE', prefer: 'return=minimal' });
+            steps.cleanup = 'pass';
+          } catch (error) {
+            steps.cleanup = 'fail';
+            detail = detail || String(error?.message || error);
+          }
+        }
+        const order = ['create', 'read', 'update', 'softDeleteHidden', 'cleanup'];
+        const status = order.every(key => steps[key] === 'pass') ? 'pass' : 'error';
+        return { status, steps, checkedAt: Utils.now(), detail };
+      }
     }
 
     // 6. Application state and services
@@ -959,6 +1003,7 @@
       session: null,
       allowedUser: null,
       connectionDiagnostics: { status: 'idle', api: 'unknown', anonymousIsolation: 'unknown', googleProvider: 'unknown', checkedAt: null, detail: null },
+      businessRoundtrip: { status: 'idle', steps: {}, checkedAt: null, detail: null },
       online: navigator.onLine,
       syncStatus: 'idle',
       syncError: null,
@@ -1281,6 +1326,16 @@
         } finally {
           renderShellStatus();
         }
+      },
+
+      async runBusinessRoundtrip() {
+        if (!state.session) throw new Error('AUTH_REQUIRED');
+        try {
+          state.businessRoundtrip = await remote.businessRoundtrip();
+        } catch (error) {
+          state.businessRoundtrip = { status: 'error', steps: state.businessRoundtrip.steps || {}, checkedAt: Utils.now(), detail: error.message };
+        }
+        return state.businessRoundtrip;
       }
     });
 
@@ -1457,6 +1512,39 @@
         <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">${year}년 장부</span>${badge(closed.some(row=>row.period_start.startsWith(year))?'마감 기록 있음':'열림','info')}</div><div class="status-item-body">거래 ${activeTransactions().filter(row=>row.transaction_date.startsWith(year)).length}건 · 검토 필요 ${AccountingDomain.summarize(activeTransactions().filter(row=>row.transaction_date.startsWith(year))).review}건</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">신고 준비</span>${badge('검토 필요','warning')}</div><div class="status-item-body">법정서식 스냅샷과 증빙 누락을 먼저 확인해야 합니다.</div></div></div>`;
     }
 
+    const ROUNDTRIP_STEPS = Object.freeze([
+      ['create', '생성 (Create)', '소유자 권한으로 INSERT가 허용되는지 확인합니다.'],
+      ['read', '조회 (Read)', 'owner_user_id가 일치하는 자기 행만 SELECT되는지 확인합니다.'],
+      ['update', '수정 (Update)', '이름 변경 UPDATE가 반영되는지 확인합니다.'],
+      ['softDeleteHidden', '소프트삭제 격리', 'deleted_at 설정 후 SELECT에서 제외되는지 확인합니다.'],
+      ['cleanup', '정리 (Delete)', '검증용 임시 행을 DELETE로 정리했는지 확인합니다.']
+    ]);
+
+    function roundtripStepBadge(status) {
+      if (status === 'pass') return badge('통과', 'success');
+      if (status === 'fail') return badge('실패', 'danger');
+      if (status === 'checking') return badge('확인 중', 'info');
+      return badge('대기', '');
+    }
+
+    function renderBusinessRoundtrip() {
+      if (!state.session) return '';
+      const rt = state.businessRoundtrip;
+      const headBadge = rt.status === 'pass' ? badge('왕복 통과', 'success')
+        : rt.status === 'error' ? badge('확인 필요', 'danger')
+        : rt.status === 'checking' ? badge('확인 중', 'info')
+        : badge('미실행', '');
+      const stepRows = rt.status === 'idle' ? '' : ROUNDTRIP_STEPS.map(([key, title, note]) =>
+        `<div class="task-row"><div class="task-main"><div class="task-title">${title}</div><div class="task-note">${note}</div></div>${roundtripStepBadge(rt.status === 'checking' ? 'checking' : rt.steps?.[key])}</div>`
+      ).join('');
+      const detailNote = rt.detail ? `<div class="notice danger" style="margin-top:12px">${icon('shield-alert')}<div><strong>진단 정보</strong><br>${Utils.escape(rt.detail.slice(0, 200))}</div></div>` : '';
+      return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">사업자 CRUD·RLS 왕복 검증</h2><p class="section-help">로그인한 소유자 권한으로 businesses 테이블에 임시 행을 만들어 실제 RLS 왕복을 확인하고 자동으로 정리합니다.</p></div>${headBadge}</div>
+        <div class="notice info">${icon('info')}<div>검증용 임시 행(<code>__rls_probe__</code>)은 로컬 장부에 저장하지 않으며, 검증이 끝나면 삭제합니다. 실제 사업자 정보는 바뀌지 않습니다.</div></div>
+        ${stepRows ? `<div class="task-list" style="margin-top:8px">${stepRows}</div>` : ''}
+        ${detailNote}
+        <div class="inline-actions" style="margin-top:16px"><button class="button primary" id="businessRoundtripButton" type="button" ${rt.status === 'checking' ? 'disabled' : ''}>${icon('list-checks')}왕복 검증 실행</button>${rt.checkedAt ? `<span class="field-help">마지막 검증 ${new Date(rt.checkedAt).toLocaleString('ko-KR')}</span>` : ''}</div></section>`;
+    }
+
     function renderSettings() {
       const b = state.business || {};
       const s = state.site || {};
@@ -1491,6 +1579,7 @@
           </div>
           <form id="supabaseForm" class="form-grid"><div class="field"><label for="supabaseUrl">Project URL</label><input class="input" id="supabaseUrl" type="url" value="${Utils.escape(state.config.supabaseUrl)}"></div><div class="field"><label for="supabaseKey">Publishable key</label><input class="input" id="supabaseKey" type="password" autocomplete="off" value="${Utils.escape(state.config.supabaseKey || '')}" placeholder="sb_publishable_..."><div class="field-help">service role, secret key, OAuth client secret은 입력하지 마세요.</div></div><div class="field full"><div class="form-actions"><button class="button" id="saveSupabaseButton" type="submit">설정 저장</button><button class="button" id="connectionDiagnosticButton" type="button" ${diagnostic.status === 'checking' ? 'disabled' : ''}>${icon('activity')}연결 진단</button>${diagnostic.googleProvider === 'disabled' ? `<a class="button" href="https://supabase.com/dashboard/project/ihxiywffzmvrwmqvatzt/auth/providers" target="_blank" rel="noopener">${icon('external-link')}Supabase에서 설정</a>` : ''}${state.session?`<button class="button danger" id="logoutButton" type="button">${icon('log-out')}로그아웃</button><button class="button primary" id="syncNowButton" type="button">${icon('refresh-cw')}지금 동기화</button>`:`<button class="button primary" id="googleLoginButton" type="button" ${providerReady ? '' : 'disabled'}>${icon('log-in')}Google로 로그인</button>`}</div></div></form>
         </section>
+        ${renderBusinessRoundtrip()}
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">백업과 복원</h2><p class="section-help">암호화되지 않은 JSON 파일이므로 안전한 위치에 보관하세요.</p></div>${state.config.lastBackupAt?badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'),'success'):badge('백업 없음','warning')}</div><div class="inline-actions"><button class="button" id="backupButton" type="button">${icon('download')}JSON 백업</button><button class="button" id="restoreButton" type="button">${icon('upload')}JSON 복원</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div></section>`;
     }
 
@@ -1543,7 +1632,7 @@
       const statusKind = { implemented:'success', manual_only:'warning', planned:'', blocked:'danger' };
       const registry = [...DOMAIN_GUARDIANS, ...ARCH_GUARDIANS, ...GOVERNANCE_AGENTS];
       return `${pageHeader('개발 기록','앱 버전, 저장소 계약, Guardian의 실제 구현 상태를 확인합니다.')}
-        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">앱 버전</span>${badge(`v${APP_INFO.version}`,'info')}</div><div class="status-item-body">DB schema ${APP_INFO.schemaVersion} · Backup ${APP_INFO.backupSchemaVersion} · Posting ${APP_INFO.postingRuleVersion}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">로컬 저장소</span>${badge(state.ready?'정상':'확인 필요',state.ready?'success':'danger')}</div><div class="status-item-body">IndexedDB <code>${storage.name}</code> · ${LOCAL_STORES.length} stores</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">동기화</span>${badge(state.syncStatus,state.syncStatus==='error'?'danger':'info')}</div><div class="status-item-body">canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건 · RLS ${state.connectionDiagnostics.anonymousIsolation === 'pass' ? '격리 확인' : '미확인'} · Google ${state.connectionDiagnostics.googleProvider === 'ready' ? '준비' : state.connectionDiagnostics.googleProvider === 'disabled' ? '비활성' : '미확인'}${state.syncError?`<br>진단: ${Utils.escape(state.syncError.slice(0,180))}`:''}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">릴리스 기록</span>${badge(UPDATE_HISTORY[0].label,'success')}</div><div class="status-item-body">${UPDATE_HISTORY[0].date} · ${Utils.escape(UPDATE_HISTORY[0].detail)}</div></div></div>
+        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">앱 버전</span>${badge(`v${APP_INFO.version}`,'info')}</div><div class="status-item-body">DB schema ${APP_INFO.schemaVersion} · Backup ${APP_INFO.backupSchemaVersion} · Posting ${APP_INFO.postingRuleVersion}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">로컬 저장소</span>${badge(state.ready?'정상':'확인 필요',state.ready?'success':'danger')}</div><div class="status-item-body">IndexedDB <code>${storage.name}</code> · ${LOCAL_STORES.length} stores</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">동기화</span>${badge(state.syncStatus,state.syncStatus==='error'?'danger':'info')}</div><div class="status-item-body">canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건 · RLS ${state.connectionDiagnostics.anonymousIsolation === 'pass' ? '격리 확인' : '미확인'} · Google ${state.connectionDiagnostics.googleProvider === 'ready' ? '준비' : state.connectionDiagnostics.googleProvider === 'disabled' ? '비활성' : '미확인'} · CRUD 왕복 ${state.businessRoundtrip.status === 'pass' ? '통과' : state.businessRoundtrip.status === 'error' ? '확인 필요' : state.businessRoundtrip.status === 'checking' ? '확인 중' : '미실행'}${state.syncError?`<br>진단: ${Utils.escape(state.syncError.slice(0,180))}`:''}</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">릴리스 기록</span>${badge(UPDATE_HISTORY[0].label,'success')}</div><div class="status-item-body">${UPDATE_HISTORY[0].date} · ${Utils.escape(UPDATE_HISTORY[0].detail)}</div></div></div>
         <section class="panel"><div class="panel-head"><div><h2 class="section-title">Guardian 레지스트리</h2><p class="section-help">설계 목록과 실제 구현 상태를 구분합니다. 표시 자체가 테스트 통과를 뜻하지는 않습니다.</p></div>${badge(`${registry.length}개`)}</div><div class="developer-grid">${registry.map(([id,name,status,role])=>`<article class="guardian-item"><div class="guardian-head"><div class="guardian-name">${Utils.escape(name)}</div>${badge(statusText[status],statusKind[status])}</div><div class="guardian-role">${Utils.escape(role)}<br><code>${id}</code></div></article>`).join('')}</div></section>`;
     }
 
@@ -1654,6 +1743,17 @@
       el('googleLoginButton')?.addEventListener('click', async () => { try { await remote.signIn(); } catch (error) { diagnostic(error); } });
       el('logoutButton')?.addEventListener('click', async () => { try { await remote.signOut(); state.session=null; state.allowedUser=null; toast('로그아웃했습니다. 로컬 데이터는 유지됩니다.','success'); render(); } catch(error){ diagnostic(error); } });
       el('syncNowButton')?.addEventListener('click', async () => { try { await SyncService.connectAndSync(); toast('클라우드 동기화를 완료했습니다.','success'); render(); } catch(error){ diagnostic(error); } });
+      el('businessRoundtripButton')?.addEventListener('click', async () => {
+        if (!confirm('클라우드 businesses 테이블에 임시 검증용 행을 만들어 생성·조회·수정·소프트삭제·정리를 확인한 뒤 자동으로 삭제합니다. 계속하시겠습니까?')) return;
+        state.businessRoundtrip = { status: 'checking', steps: {}, checkedAt: null, detail: null };
+        render();
+        try {
+          const result = await SyncService.runBusinessRoundtrip();
+          if (result.status === 'pass') toast('사업자 CRUD와 RLS 왕복 검증을 통과했습니다.', 'success');
+          else toast('사업자 왕복 검증에서 확인이 필요한 항목이 있습니다. 단계별 결과를 확인해 주세요.', 'error');
+        } catch (error) { diagnostic(error); }
+        render();
+      });
       el('backupButton')?.addEventListener('click', async () => {
         if (!confirm('백업 파일에는 거래처와 세무자료가 포함될 수 있습니다. 안전한 위치에 보관하시겠습니까?')) return;
         try {

@@ -1,6 +1,6 @@
 > 기준일: 2026-07-11
-> 앱 버전: `0.03`
-> 상태: Google OAuth owner 실로그인·초기 동기화 완료, 설정 SSOT 기반 연결 가이드 구현
+> 앱 버전: `0.04`
+> 상태: 인증 owner 기준 `businesses` CRUD와 Supabase RLS 왕복 자가검증 구현·DB 정책 확인 완료
 
 # Claude Handoff
 
@@ -42,13 +42,14 @@
 | 앱 0.01 | 단일 HTML 업무 대시보드, 사업자 설정, 거래 입력, 자동 복식분개, 장부·전표 검토, IndexedDB, JSON 백업·복원, Supabase/Auth adapter, 개발자 Guardian 레지스트리 구현 |
 | 앱 0.02 | 운영 Supabase URL과 publishable key 기본 연결, Data API 응답·익명 `businesses` RLS 격리·Google provider 활성 상태 진단, provider 비활성 시 로그인 차단 구현 |
 | 앱 0.03 | Google OAuth owner 실로그인과 Google identity·active owner allowlist 확인, 앱 설정·진단 state에 연동되는 단계별 연결 가이드와 복사 기능 구현 |
-| 최근 기준 커밋 | `3013904 feat: add Supabase connection diagnostics for app 0.02`. 앱 0.03 변경은 현재 작업 트리 기준 |
+| 앱 0.04 | 로그인한 owner 권한으로 `businesses`에 격리된 임시 행을 만들어 생성·조회·수정·소프트삭제 격리·정리를 실제 RLS로 왕복 검증하는 설정 자가검증과 개발 기록 상태 표시 구현. 임시 행은 로컬 장부에 저장하지 않고 검증 종료 시 삭제 |
+| 최근 기준 커밋 | `a76c478 feat: add dynamic Google connection guide for app 0.03`. 앱 0.04 변경은 `claude/businesses-crud-rls-validation-v5dzbu` 브랜치 기준 |
 
 ## 다음 구현 우선순위
 
-앱 `0.04`는 아래 순서로 진행한다.
+다음 사용자 영향 변경은 앱 `0.05`이며 아래 순서로 진행한다.
 
-1. 사업자 정보를 저장한 뒤 인증 사용자 기준 `businesses` CRUD와 RLS 왕복 검증
+1. (완료 · 0.04) 인증 사용자 기준 `businesses` CRUD와 RLS 왕복 검증
 2. 비허용 Google 계정 차단과 owner 허용 사용자 관리 흐름 검증
 3. 일반 동기화와 canonical version 변경 수렴의 다기기 자동 테스트
 4. Cloudinary 이미지/PDF 업로드와 증빙 파일 메타·삭제 상태 연결
@@ -56,7 +57,9 @@
 6. 거래 수정·soft delete·마감 후 변경 통제와 감사로그 고도화
 7. 법정서식 스냅샷과 리포트 필드 매핑
 
-현재 0.03에서 운영 Supabase의 Data API 연결, 로그인 전 회계자료 격리, Google provider 활성, owner OAuth 왕복, Auth 사용자·Google identity·active owner allowlist를 검증했다. 사업자 row가 아직 없으므로 인증 후 `businesses` CRUD RLS 왕복은 다음 단계다. Cloudinary, Excel, 법정서식 출력도 아직 완료 기능이 아니다.
+0.04에서 로그인한 owner 세션의 access token으로 `businesses` INSERT·SELECT·UPDATE·soft delete·DELETE를 실제 REST로 왕복하는 자가검증을 구현했다. Supabase `businesses` 정책은 SELECT `owner_user_id = auth.uid() and deleted_at is null`, INSERT `owner_user_id = auth.uid() and accounting_is_allowed_user()`, UPDATE·DELETE `owner_user_id = auth.uid()`로 확인했고(RLS 4/4), owner allowlist는 `hanwha27@gmail.com:owner:active`, canonical_version은 `0`이다. owner uid `c9ff5188-51a7-4c01-b653-b6e1d73d0790`로 시뮬레이션한 인증 세션에서 create·read·update 왕복이 통과했으며, soft delete 격리와 정리는 확인된 SELECT/DELETE 정책의 직접 결과다. 실제 브라우저 owner 로그인 왕복은 수동 체크리스트로 남는다. Cloudinary, Excel, 법정서식 출력은 아직 완료 기능이 아니다.
+
+다음 단계로는 비허용 계정 차단과 owner allowlist 관리 흐름(#2)을 진행한다.
 
 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI는 만들지 않는다.
 

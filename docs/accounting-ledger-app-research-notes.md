@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.14** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.15** · 개정 2026-07-11
 
 # Accounting Ledger App Research Notes
 
@@ -339,3 +339,37 @@ advisor 잔여 항목:
 1. 사업자 정보를 저장한 뒤 인증 사용자 기준 `businesses` 생성·조회·수정 RLS 왕복을 확인한다.
 2. 비허용 Google 계정의 접근 차단과 로그아웃을 확인한다.
 3. GitHub Pages에 앱 0.03을 배포한 뒤 배포 URL에서 OAuth·가이드·모바일 화면을 다시 확인한다.
+
+## 2026-07-11 앱 0.04 businesses CRUD·RLS 왕복 자가검증
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.04` |
+| schema_version | `0.03` (DB 스키마·migration 변경 없음) |
+| note_type | `feature_release`, `security_review` |
+| 제목 | 인증 owner 기준 `businesses` CRUD와 Supabase RLS 왕복 자가검증 |
+| 사용자 변화 | 로그인 상태에서 `설정 → 사업자 CRUD·RLS 왕복 검증`을 실행하면 생성·조회·수정·소프트삭제 격리·정리 5단계 결과를 확인 가능 |
+| 구현 | `SupabaseAdapter.businessRoundtrip`가 owner 세션 access token으로 격리된 임시 행(`__rls_probe__`)을 REST INSERT·SELECT·PATCH·soft delete·DELETE로 왕복하고, `SyncService.runBusinessRoundtrip`가 state에 결과를 저장, 설정·개발 기록에 표시 |
+| 데이터 안전 | 임시 행은 IndexedDB·로컬 state에 저장하지 않고, `finally`에서 항상 DELETE로 정리. 실제 사업자 row는 변경하지 않음 |
+| 스킬 버전 | `Sub_auth-login_0.03`, `Sub_domain-guardians_0.04`, `Sub_code-architecture-guardians_0.03`, `Sub_harness-quality-gate_0.06`, `Sub_app-research-notes_0.15` |
+
+원격 read-only 확인 결과(`ihxiywffzmvrwmqvatzt`):
+
+1. `businesses` RLS 활성, 정책 4개. SELECT `owner_user_id = auth.uid() and deleted_at is null`, INSERT with_check `owner_user_id = auth.uid() and accounting_is_allowed_user()`, UPDATE using·with_check `owner_user_id = auth.uid()`, DELETE using `owner_user_id = auth.uid()`.
+2. owner allowlist `hanwha27@gmail.com:owner:active`, `accounting_sync_meta.canonical_version = 0`, `businesses` 실제 row 0건.
+3. owner uid `c9ff5188-51a7-4c01-b653-b6e1d73d0790`, `auth.users` 1건 확인.
+4. owner uid·email claim으로 시뮬레이션한 `authenticated` 세션(모두 `rollback` 트랜잭션)에서 `auth.uid()`·`auth.jwt()->>'email'`·`accounting_is_allowed_user()`가 기대값을 반환하고, 임시 행 create·read(자기 행 1건)·update(이름 반영) 왕복이 통과했다.
+5. soft delete 격리(`deleted_at` 설정 후 SELECT 제외)와 cleanup(DELETE)은 확인된 SELECT `deleted_at is null`·DELETE `owner_user_id = auth.uid()` 정책의 직접 결과다.
+6. 모든 시뮬레이션 쓰기는 롤백되어 실제 `businesses`에 잔존 행이 없음을 재확인했다(총 0건, probe 0건).
+
+설계 판단:
+
+1. 왕복 검증은 owner 실데이터를 건드리지 않도록 별도 probe id를 쓰고 로컬에 저장하지 않는다. CRUD 전 단계(생성·조회·수정·삭제)를 포함하되 정리까지 자동화한다.
+2. soft delete는 삭제 실패가 아니라 SELECT 정책에서 제외되는 정상 동작으로 검증한다. 완전 삭제 동기화(tombstone)와 canonical 수렴은 이후 단계 과제로 남긴다.
+3. adapter 계층만 REST I/O를 담당하고 도메인·UI는 상태와 표시에만 관여한다.
+
+수동 확인(브라우저):
+
+1. 운영 URL에서 owner Google 로그인 후 왕복 검증 5단계가 모두 `통과`인지 확인한다.
+2. 검증 후 클라우드 `businesses`에 `__rls_probe__` 잔존 행이 없는지 확인한다.
+3. 비허용 계정·비로그인 상태에서는 버튼이 노출되지 않거나 `AUTH_REQUIRED`로 차단되는지 확인한다.
