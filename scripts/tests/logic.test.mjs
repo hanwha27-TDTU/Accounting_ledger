@@ -50,7 +50,16 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, SimpleBookAccounts, APP_INFO } = api;
+  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, EstimatedIncome, SimpleBookAccounts, APP_INFO } = api;
+
+  // 기준경비율 추계소득금액 (국세청 추계신고 작성사례: 한식점 552101, 복식부기의무자)
+  // 총수입 120,000,000 · 주요경비 92,960,000 · 기준경비율 9.7% · 단순경비율 89.7%
+  const est = EstimatedIncome.byStandardRate({ revenue: 120000000, mainCosts: 92960000, stdRate: 9.7, simpleRate: 89.7, isDoubleEntry: true });
+  ok(est.primary === 21220000, 'EstimatedIncome 기준소득금액 = 21,220,000 (복식부기 기준경비율 1/2)');
+  ok(est.comparison === 42024000, 'EstimatedIncome 비교소득금액 = 42,024,000 (복식부기 3.4배)');
+  ok(est.income === 21220000 && est.necessaryExpense === 98780000, 'EstimatedIncome 소득금액 = min = 21,220,000, 필요경비 98,780,000');
+  const estSimple = EstimatedIncome.byStandardRate({ revenue: 120000000, mainCosts: 92960000, stdRate: 9.7, simpleRate: 89.7, isDoubleEntry: false });
+  ok(estSimple.comparison === 34608000 && estSimple.primary === 15400000, 'EstimatedIncome 간편장부: 비교 2.8배(34,608,000), 기준경비율 전체(기준소득 15,400,000)');
 
   // 간편장부 계정과목 분류표 (국세청 간편장부 작성요령) — 간편장부 view/import 매핑의 기준
   ok(SimpleBookAccounts.all().length === 25, 'SimpleBookAccounts has 25 accounts (2 수입 + 16 비용 + 3 제조 + 4 자산)');

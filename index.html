@@ -524,7 +524,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.17',
+      version: '0.18',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -539,7 +539,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.17', date: '2026-07-11', label: '최신 · 간편장부 계정과목 분류표', detail: '국세청 간편장부 작성요령의 계정과목 분류표(수입·비용·제조비용·자산 25개 계정과목과 공식 설명)를 앱에 담아, 가져오기 화면에서 간편장부 수입·비용·자산 열 대응 기준으로 보여줍니다. 이후 Excel 가져오기의 계정과목 매핑 기준이 됩니다.' },
+      { version: '0.18', date: '2026-07-11', label: '최신 · 기준경비율 추계소득 계산 엔진·안내', detail: '국세청 추계신고(기준경비율) 작성사례의 공식 계산식을 검증된 엔진으로 구현했습니다. 소득금액 = min(기준소득금액, 비교소득금액)이며 복식부기의무자는 기준경비율 1/2·비교 3.4배, 간편장부대상자는 전체·2.8배를 적용합니다. 리포트 화면에 계산 방법과 복식부기의무자 추계 시 가산세 경고를 검토용으로 안내합니다.' },
+      { version: '0.17', date: '2026-07-11', label: '간편장부 계정과목 분류표', detail: '국세청 간편장부 작성요령의 계정과목 분류표(수입·비용·제조비용·자산 25개 계정과목과 공식 설명)를 앱에 담아, 가져오기 화면에서 간편장부 수입·비용·자산 열 대응 기준으로 보여줍니다. 이후 Excel 가져오기의 계정과목 매핑 기준이 됩니다.' },
       { version: '0.16', date: '2026-07-11', label: '기장의무·면세 근거 자동 표시', detail: '업종코드를 고르면 기장의무 기준(소득세법 시행령 §208⑤: 3억/1.5억/7,500만원)과 부가세 면세 가능성(부가가치세법 §26①)을 근거 조문과 함께 후보로 보여줍니다. 면세는 공급 성질로 판단하므로 개별 판단이 필요함을 명시합니다.' },
       { version: '0.15', date: '2026-07-11', label: '경비율 자동 표시', detail: '국세청 2025 귀속 단순·기준경비율 1,542개를 담아, 업종코드를 고르면 해당 경비율(단순·기준, 초과율 포함)이 자동으로 표시됩니다. 확정이 아니라 후보이며 귀속연도·출처를 함께 보여줍니다.' },
       { version: '0.14', date: '2026-07-11', label: '입력 자동화(휴먼에러 방지)', detail: '사업자등록번호를 검증(체크섬)해 오타를 막고, 대표자명은 Google 이름으로 자동 채우며, 업종코드를 고르면 큰 업종이 자동 설정됩니다. 추가 자료 없이 되는 자동화부터 적용했습니다.' },
@@ -657,6 +658,26 @@
         if (isNew) obligation = '간편장부대상자';
         else if (Number.isFinite(Number(priorRevenue))) obligation = Number(priorRevenue) >= threshold ? '복식부기의무자' : '간편장부대상자';
         return { basis: this.basis, threshold, obligation };
+      }
+    });
+
+    // 기준경비율 추계소득금액 계산 — 국세청 추계신고(기준경비율) 작성사례 기준.
+    // 소득금액 = min(① 기준소득금액, ② 비교소득금액). 복식부기의무자는 기준경비율 1/2·비교배율 3.4배,
+    // 간편장부대상자는 기준경비율 전체·비교배율 2.8배를 적용한다. 검토용 후보이며 확정 신고값이 아니다.
+    const EstimatedIncome = Object.freeze({
+      source: '국세청 추계신고(기준경비율) 작성사례',
+      // revenue 총수입금액, mainCosts 주요경비(매입+임차+인건), stdRate 기준경비율(%), simpleRate 단순경비율(%)
+      byStandardRate({ revenue, mainCosts, stdRate, simpleRate, isDoubleEntry }) {
+        const rev = Number(revenue) || 0;
+        const costs = Number(mainCosts) || 0;
+        const sr = Number(stdRate) || 0;
+        const simp = Number(simpleRate) || 0;
+        const rateFactor = isDoubleEntry ? 0.5 : 1;       // 복식부기의무자는 기준경비율 1/2
+        const compareFactor = isDoubleEntry ? 3.4 : 2.8;  // 비교소득금액 배율
+        const primary = Math.round(rev - costs - (rev * (sr / 100) * rateFactor));
+        const comparison = Math.round(rev * (1 - simp / 100) * compareFactor);
+        const income = Math.min(primary, comparison);
+        return { primary, comparison, income, necessaryExpense: rev - income, source: this.source };
       }
     });
 
@@ -1990,6 +2011,7 @@
       const legalReady = false;
       return `${pageHeader('리포트','검토용 집계와 법정 신고서식 출력을 명확히 구분합니다.')}
         <div class="metric-grid"><div class="metric-card"><div class="metric-label">누적 수입</div><div class="metric-value">${Utils.won(summary.income)}</div></div><div class="metric-card"><div class="metric-label">누적 비용</div><div class="metric-value">${Utils.won(summary.expense)}</div></div><div class="metric-card"><div class="metric-label">사업용 자산</div><div class="metric-value">${Utils.won(summary.assets)}</div></div><div class="metric-card"><div class="metric-label">검토 필요</div><div class="metric-value">${summary.review}건</div></div></div>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">추계소득금액 계산 방법(기준경비율)</h2><p class="section-help">장부 없이 추계신고할 때 소득금액을 정하는 방법입니다. 국세청 추계신고 작성사례 기준 · 검토용 안내.</p></div>${badge('검토용','info')}</div><div class="notice">${icon('info')}<div>소득금액 = <strong>min(①, ②)</strong><br>① 기준소득금액 = 수입금액 − 주요경비(매입·임차·인건) − (수입금액 × 기준경비율 × <strong>복식부기 ½</strong>)<br>② 비교소득금액 = 수입금액 × (1 − 단순경비율) × <strong>복식부기 3.4배 / 간편장부 2.8배</strong><br><span class="major">주요경비는 정규증빙(세금계산서·계산서·신용카드·현금영수증)을 갖춰야 인정됩니다.</span></div></div><div class="notice danger">${icon('shield-alert')}<div><strong>복식부기의무자</strong>가 장부 없이 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 <strong>큰 금액</strong>이 부과됩니다. 추계는 최후 수단이며 장부 기장이 원칙입니다.</div></div></section>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">법정 신고서식</h2><p class="section-help">국가법령정보센터의 최신 서식 스냅샷과 필드 매핑이 있어야 확정 출력할 수 있습니다.</p></div>${badge(legalReady?'출력 가능':'출력 차단',legalReady?'success':'danger')}</div><div class="notice danger">${icon('shield-alert')}<div>현재 앱에는 검증된 <code>form_snapshot_id</code>가 연결되지 않았습니다. 간편장부소득금액계산서와 필요경비명세서는 확정 신고서식으로 출력하지 않습니다.</div></div><button class="button" type="button" disabled>${icon('download')}법정서식 내보내기</button></section>`;
     }
 
@@ -2508,7 +2530,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, SimpleBookAccounts, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, VatExemption, EstimatedIncome, SimpleBookAccounts, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>
