@@ -165,6 +165,23 @@ if (api) {
   const credit = lines.reduce((s, l) => s + Number(l.credit_amount || 0), 0);
   ok(debit === credit && debit === 11000, 'buildPosting income lines balance (debit==credit==total)');
 
+  // 월별 사용현황 — 계정과목(열) × 월(행) 집계
+  const usageAccounts = [{ id: 'a1', account_name: '소모품비', account_type: 'expense' }, { id: 'a2', account_name: '매출', account_type: 'revenue' }];
+  const usageTx = [
+    { transaction_date: '2025-01-05', account_id: 'a1', total_amount: 1000 },
+    { transaction_date: '2025-01-20', account_id: 'a1', total_amount: 500 },
+    { transaction_date: '2025-02-01', account_id: 'a2', total_amount: 10000 },
+    { transaction_date: '2025-01-10', account_id: 'a2', total_amount: 3000 }
+  ];
+  const matrix = AccountingDomain.monthlyAccountMatrix(usageTx, usageAccounts);
+  ok(matrix.months.join(',') === '2025-01,2025-02', 'monthlyAccountMatrix months sorted ascending');
+  ok(matrix.accounts.length === 2, 'monthlyAccountMatrix collects distinct accounts used');
+  const jan = matrix.matrix.find(r => r.month === '2025-01');
+  ok(jan.cells.a1 === 1500 && jan.cells.a2 === 3000 && jan.total === 4500, 'monthlyAccountMatrix sums per account per month (소모품비 1500, 매출 3000)');
+  ok(matrix.colTotals.a1 === 1500 && matrix.colTotals.a2 === 13000, 'monthlyAccountMatrix column totals across months');
+  ok(matrix.grandTotal === 14500, 'monthlyAccountMatrix grand total = sum of all rows');
+  ok(AccountingDomain.monthlyAccountMatrix([], usageAccounts).months.length === 0, 'monthlyAccountMatrix empty transactions -> no months');
+
   // Business registration number checksum (2208162517 = valid Samsung Electronics; flip last digit -> invalid)
   ok(AccountingDomain.isValidBusinessNumber('2208162517') === true, 'isValidBusinessNumber accepts a valid number');
   ok(AccountingDomain.isValidBusinessNumber('2208162518') === false, 'isValidBusinessNumber rejects a bad check digit');

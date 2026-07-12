@@ -374,6 +374,15 @@
     .review-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
     .review-label { flex: 1 1 220px; font-size: 13px; line-height: 1.5; }
     .review-fix .select { flex: 0 1 220px; }
+    .usage-table { max-height: 60vh; overflow: auto; margin-top: 12px; }
+    .usage-table table { border-collapse: collapse; font-size: 12.5px; }
+    .usage-table th, .usage-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .usage-table th.number, .usage-table td.number { text-align: right; font-variant-numeric: tabular-nums; }
+    .usage-table thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+    .usage-table .sticky-col { position: sticky; left: 0; background: var(--surface); font-weight: 600; z-index: 2; }
+    .usage-table thead .sticky-col { z-index: 3; }
+    .usage-table .total-col { background: var(--brand-soft); color: var(--brand-strong); font-weight: 700; }
+    .usage-table tfoot th { border-top: 2px solid var(--line-strong); background: var(--surface-soft); }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -543,6 +552,7 @@
         </div>
         <div class="topbar-actions">
           <div class="sync-chip" id="syncChip"><span class="status-dot" id="syncDot"></span><span id="syncLabel">로컬 전용</span></div>
+          <button class="button" id="monthlyUsageButton" type="button"><i data-lucide="calendar-range"></i><span class="button-label">월별 사용현황</span></button>
           <button class="button" id="quickAddButton" type="button"><i data-lucide="plus"></i><span class="button-label">거래 입력</span></button>
         </div>
       </header>
@@ -562,7 +572,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.30',
+      version: '0.31',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -577,7 +587,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.30', date: '2026-07-12', label: '최신 · 통화 선택 목록', detail: '해외 거래 통화 칸에 자동완성 목록을 추가했습니다. 미국 달러·유로·엔·파운드·위안 등 기축·주요 통화와 우즈베키스탄 숨(UZS) 등 지역 통화를 골라 넣을 수 있고, 목록에 없는 통화도 3글자 코드로 직접 입력할 수 있습니다.' },
+      { version: '0.31', date: '2026-07-12', label: '최신 · 월별 사용현황', detail: '상단에 "월별 사용현황" 버튼을 추가했습니다. 계정과목별로 매달 얼마나 썼는지·벌었는지를 표로 한눈에 볼 수 있습니다. 법정서식이 아니라 이해를 돕는 검토용이며, 간편장부·복식부기 어느 관점이든 같은 표로 확인할 수 있습니다.' },
+      { version: '0.30', date: '2026-07-12', label: '통화 선택 목록', detail: '해외 거래 통화 칸에 자동완성 목록을 추가했습니다. 미국 달러·유로·엔·파운드·위안 등 기축·주요 통화와 우즈베키스탄 숨(UZS) 등 지역 통화를 골라 넣을 수 있고, 목록에 없는 통화도 3글자 코드로 직접 입력할 수 있습니다.' },
       { version: '0.29', date: '2026-07-12', label: '해외 거래 구조화 저장', detail: '해외 거래의 통화·외화 금액·환율·해외 여부를 거래에 구조화된 값으로 저장하도록 했습니다(스키마에 컬럼 추가). 장부에서 해외 거래에 표시가 붙고, 앞으로 통화별 집계와 대리납부 자동 계산의 토대가 됩니다.' },
       { version: '0.28', date: '2026-07-12', label: '거래 입력 해외 거래 연동', detail: '거래 입력에 “해외 거래” 선택을 추가했습니다. 통화·외화 금액·환율을 넣으면 원화 총 금액이 자동으로 채워지고, 면세사업자가 해외 비용을 입력하면 대리납부 주의 안내가 뜹니다. 해외 거래는 내용에 통화·환율이 함께 기록됩니다.' },
       { version: '0.27', date: '2026-07-12', label: '해외 구매·수입 처리 안내', detail: '가이드에 "해외 구매·수입 처리" 안내를 추가했습니다. 해외 물품 수입(수입부가세), 해외 용역·구독(면세사업자의 대리납부), 해외 현지 소비를 부가가치세법 제4조·제52조 근거로 구분해 설명하고, 수입부가세·대리납부·기준환율 용어를 용어사전에 담았습니다.' },
@@ -1139,6 +1150,44 @@
     // 3. Accounting domain layer: no DOM, storage, or remote calls
     const AccountingDomain = Object.freeze({
       fxToKrw(amount, rate) { return Math.round(Utils.number(amount) * Utils.number(rate)); },
+
+      // 계정과목(열) × 월(행) 사용금액 집계 — 간편장부·복식부기 어느 관점이든 같은 계정과목 이름을
+      // 쓰므로 별도 분기 없이 하나의 표로 둘 다 지원한다. 순수 함수(전기 엔진과 무관).
+      monthlyAccountMatrix(transactions, accounts) {
+        const accountById = new Map(accounts.map(a => [a.id, a]));
+        const monthsSet = new Set();
+        const accountsUsed = new Map();
+        const cell = new Map();
+        for (const tx of transactions) {
+          const month = String(tx.transaction_date || '').slice(0, 7);
+          if (!month) continue;
+          monthsSet.add(month);
+          const key = tx.account_id || 'unassigned';
+          if (!accountsUsed.has(key)) {
+            const acct = accountById.get(tx.account_id);
+            accountsUsed.set(key, { id: key, name: acct ? acct.account_name : '미분류', type: acct ? acct.account_type : 'unknown' });
+          }
+          const cellKey = `${month}|${key}`;
+          cell.set(cellKey, (cell.get(cellKey) || 0) + Number(tx.total_amount || 0));
+        }
+        const months = [...monthsSet].sort();
+        const accountList = [...accountsUsed.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        const rowTotals = {}, colTotals = {};
+        let grandTotal = 0;
+        const matrix = months.map(month => {
+          const row = { month, cells: {}, total: 0 };
+          for (const acct of accountList) {
+            const amt = cell.get(`${month}|${acct.id}`) || 0;
+            row.cells[acct.id] = amt;
+            row.total += amt;
+            colTotals[acct.id] = (colTotals[acct.id] || 0) + amt;
+          }
+          rowTotals[month] = row.total;
+          grandTotal += row.total;
+          return row;
+        });
+        return { months, accounts: accountList, matrix, rowTotals, colTotals, grandTotal };
+      },
 
       calculateAmounts(totalInput, vatType) {
         const total = Math.max(0, Math.round(Utils.number(totalInput)));
@@ -2457,6 +2506,27 @@
       });
     }
 
+    // 월별 사용현황 — 계정과목(열) × 월(행) 사용금액을 쉬운 표로 보여준다. 법정서식과 달리
+    // 검토·이해용이며, 간편장부·복식부기 어느 관점이든 같은 계정과목 이름으로 통일해 보여준다.
+    function renderMonthlyUsageModal() {
+      const year = state.monthlyUsageYear || 'all';
+      const rows = activeTransactions().filter(row => year === 'all' || row.transaction_date.startsWith(year));
+      const years = [...new Set(activeTransactions().map(row => row.transaction_date.slice(0, 4)))].sort().reverse();
+      const m = AccountingDomain.monthlyAccountMatrix(rows, state.accounts);
+      const yearOptions = `<option value="all" ${year === 'all' ? 'selected' : ''}>전체 기간</option>${years.map(y => `<option value="${y}" ${year === y ? 'selected' : ''}>${y}년</option>`).join('')}`;
+      const table = m.months.length ? `<div class="table-wrap usage-table"><table><thead><tr><th class="sticky-col">월</th>${m.accounts.map(a => `<th class="number">${Utils.escape(a.name)}</th>`).join('')}<th class="number total-col">합계</th></tr></thead><tbody>${m.matrix.map(row => `<tr><td class="sticky-col">${Utils.escape(row.month)}</td>${m.accounts.map(a => `<td class="number">${row.cells[a.id] ? Utils.won(row.cells[a.id]) : ''}</td>`).join('')}<td class="number total-col">${Utils.won(row.total)}</td></tr>`).join('')}</tbody><tfoot><tr><th class="sticky-col">합계</th>${m.accounts.map(a => `<th class="number">${Utils.won(m.colTotals[a.id] || 0)}</th>`).join('')}<th class="number total-col">${Utils.won(m.grandTotal)}</th></tr></tfoot></table></div>` : `<div class="notice info">${icon('info')}<div>표시할 거래가 없습니다. 거래를 입력하면 월별 사용현황이 여기에 쌓입니다.</div></div>`;
+      const body = `<div class="modal-head"><h3 class="modal-title">월별 사용현황</h3><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
+        <div class="modal-body">
+          <p class="section-help">계정과목별로 매달 얼마나 썼는지(또는 벌었는지) 한눈에 보는 표입니다. 법정서식이 아니라 <strong>이해를 돕는 검토용</strong>입니다.</p>
+          <select class="select" id="monthlyUsageYear" aria-label="기간 선택">${yearOptions}</select>
+          ${table}
+        </div>
+        <div class="modal-actions"><button class="button" type="button" data-modal-close>닫기</button></div>`;
+      openModal(body);
+      el('monthlyUsageYear').addEventListener('change', event => { state.monthlyUsageYear = event.target.value; renderMonthlyUsageModal(); });
+      el('modalRoot').querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', closeModal));
+    }
+
     function importSummaryHtml(res) {
       const c = res.counts || {};
       const unknown = res.unknownAccounts || [];
@@ -3152,6 +3222,7 @@
     });
     el('mobileMenuButton').addEventListener('click', () => el('sidebar').classList.toggle('open'));
     el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
+    el('monthlyUsageButton').addEventListener('click', () => { if (!state.business) return toast('먼저 사업자 정보를 설정해 주세요.', 'error'); renderMonthlyUsageModal(); });
     window.addEventListener('hashchange', () => { state.route = (location.hash || '#dashboard').slice(1); render(); });
     window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 동기화할 수 있습니다.','success'); });
     window.addEventListener('offline', () => { state.online=false; renderShellStatus(); toast('오프라인입니다. 거래는 이 기기에 계속 저장됩니다.'); });
