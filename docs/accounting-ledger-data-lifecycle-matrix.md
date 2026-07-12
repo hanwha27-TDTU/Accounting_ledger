@@ -25,7 +25,7 @@
 | businesses | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓(가드) | ⊘ | V1 단일 사업자, 삭제 흐름 없음 |
 | business_sites | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 사업장 삭제 후속 |
 | ledger_period_settings | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | state 미보관, setupBusiness에서 ad-hoc 읽기 |
-| accounts | ✓ | ✓ | ✓ | ✓ | ✓(remoteSafe) | ✓ | ✓ | ⊘ | local_key/설명은 remote 제외 |
+| accounts | ✓ | ✓ | ✓ | ✓ | ✓(remoteSafe) | ✓ | ✓ | ✓ | local_key/설명은 remote 제외. 0.33에서 사용자 추가 계정과목 비활성화(소프트삭제) 배선 |
 | counterparties | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | 거래처 삭제 미구현(낮음) |
 | source_transactions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 기준 도메인(전 노드) |
 | journal_entries | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |

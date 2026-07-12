@@ -201,6 +201,27 @@ if (api) {
   ok(IndustryCodes.find('940600') && IndustryCodes.find('940600').name.includes('자문'), 'industry find 940600 -> 인적용역 자문');
   ok(IndustryCodes.search('', 5).length === 0, 'industry search empty -> []');
 
+  // 개인 가계부 모드 — 계정과목 템플릿 세트와 accountChoices 일반화 (0.33)
+  ok(api.ACCOUNT_TEMPLATES.length === 15, 'ACCOUNT_TEMPLATES (business) unchanged at 15 (regression guard)');
+  ok(api.CORE_ACCOUNT_TEMPLATES.length === 6 && api.CORE_ACCOUNT_KEYS.length === 6, 'CORE_ACCOUNT_TEMPLATES has the 6 plumbing accounts (cash/bank/receivable/vat_receivable/payable/vat_payable)');
+  const personalTemplates = api.PERSONAL_ACCOUNT_TEMPLATES;
+  ok(personalTemplates.length === 18, 'PERSONAL_ACCOUNT_TEMPLATES has 18 categories (3 수입 + 12 비용 + 3 자산)');
+  ok(personalTemplates.filter(t => t.account_type === 'revenue').length === 3 && personalTemplates.filter(t => t.account_type === 'expense').length === 12 && personalTemplates.filter(t => t.account_type === 'asset').length === 3, 'PERSONAL_ACCOUNT_TEMPLATES splits 3/12/3 by type');
+  ok(personalTemplates.every(t => t.account_code.startsWith('P')), 'PERSONAL_ACCOUNT_TEMPLATES codes all start with P (no collision with business codes)');
+
+  // accountChoices 일반화: 자산구입은 '자산 유형이면서 배관용 계정이 아닌 것' 전부 선택 가능해야 한다
+  // (사업용 비품, 개인용 예금/적금, 사용자가 새로 만든 자산 계정 모두 포함; 배관용 현금/예금은 제외)
+  const mixedAccounts = [
+    { id: 'eq', account_type: 'asset', local_key: 'equipment' },
+    { id: 'cash', account_type: 'asset', local_key: 'cash' },
+    { id: 'bank', account_type: 'asset', local_key: 'bank' },
+    { id: 'savings', account_type: 'asset', local_key: 'p_savings' },
+    { id: 'custom', account_type: 'asset', local_key: null }
+  ];
+  const assetChoiceIds = AccountingDomain.accountChoices(mixedAccounts, 'asset_purchase').map(a => a.id);
+  ok(assetChoiceIds.includes('eq') && assetChoiceIds.includes('savings') && assetChoiceIds.includes('custom'), 'accountChoices asset_purchase: 비품·개인자산·사용자추가 계정 모두 선택 가능');
+  ok(!assetChoiceIds.includes('cash') && !assetChoiceIds.includes('bank'), 'accountChoices asset_purchase: 배관용 현금/예금 계정은 선택 목록에서 제외');
+
   // Version markers (defensive)
   ok(/^\d+\.\d{2}$/.test(APP_INFO.version), 'APP_INFO.version is two-decimal');
 }
