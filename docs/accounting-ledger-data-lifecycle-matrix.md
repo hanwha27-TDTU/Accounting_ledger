@@ -22,7 +22,7 @@
 
 | 도메인 | 로컬저장 | 로드(state) | 백업 | 복원 | push | merge | 최종본 | 삭제→tombstone | 비고 |
 |---|---|---|---|---|---|---|---|---|---|
-| businesses | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓(가드) | ⊘ | 0.36부터 사용자당 여러 개(가계부 추가) 가능. `state.config.activeBusinessId`(로컬)로 "지금 보는" 가계부만 고르고, 나머지 도메인은 `reload()`가 그 가계부 id로 필터링. 가계부 삭제 흐름은 아직 없음 |
+| businesses | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓(가드) | ✓ | 0.36부터 사용자당 여러 개(가계부 추가) 가능. `state.config.activeBusinessId`(로컬)로 "지금 보는" 가계부만 고르고, 나머지 도메인은 `reload()`가 그 가계부 id로 필터링. 0.38에서 `AppService.deleteLedger`가 배선(businesses+그 가계부의 business_sites/ledger_period_settings/accounts/counterparties/source_transactions/journal_entries/journal_entry_lines/evidence_files/period_closings까지 함께 소프트삭제·tombstone — audit_logs는 append-only라 제외) |
 | business_sites | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 사업장 삭제 후속 |
 | ledger_period_settings | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | state 미보관, setupBusiness에서 ad-hoc 읽기 |
 | accounts | ✓ | ✓ | ✓ | ✓ | ✓(remoteSafe) | ✓ | ✓ | ✓ | local_key/설명은 remote 제외. 0.33에서 사용자 추가 계정과목 비활성화(소프트삭제) 배선 |
