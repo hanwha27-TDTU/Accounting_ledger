@@ -121,6 +121,7 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/accounting-ledger-v1-detailed-design.md',
     'docs/accounting-ledger-data-lifecycle-matrix.md',
     'docs/accounting-ledger-term-ledger.md',
+    'docs/accounting-ledger-concept-ledger.md',
     'docs/skills/accounting-legal-basis-reference-skill.md',
     'scripts/tests/logic.test.mjs',
     'docs/skills/accounting-domain-guardians-skill.md',
@@ -366,6 +367,41 @@ addGate('legal-ssot-contract', 'REQUIRED', () => {
     throw new Error(`legal-basis reference doc missing values: ${absent.join(', ')}`);
   }
   return { detail: 'statutory thresholds + 추계 multipliers locked in code and mirrored in legal-basis SSOT doc' };
+});
+
+addGate('concept-ledger-contract', 'REQUIRED', () => {
+  const ledgerPath = 'docs/accounting-ledger-concept-ledger.md';
+  if (!existsSync(absolute(ledgerPath))) {
+    return { status: 'BASELINE', detail: 'concept ledger doc not present yet' };
+  }
+  const ledger = readText(ledgerPath);
+  const rows = [...ledger.matchAll(/^\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|$/gm)]
+    .map((m) => ({ concept: m[1].trim(), enforcement: m[4].trim() }))
+    .filter((row) => row.concept && row.concept !== '개념' && !/^-+$/.test(row.concept));
+  if (rows.length === 0) {
+    throw new Error('concept ledger doc parsed to zero rows (table format changed?)');
+  }
+  const anchors = [];
+  for (const row of rows) {
+    const tokens = [...row.enforcement.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+    if (tokens.length === 0) {
+      throw new Error(`concept "${row.concept}" has no backtick-quoted enforcement anchor`);
+    }
+    for (const token of tokens) anchors.push({ concept: row.concept, token });
+  }
+  // search every anchor across the repo's OTHER text files (docs/code/config), excluding this
+  // ledger itself — otherwise a typo'd anchor would "exist" merely by being typed into this row,
+  // defeating the whole point of the check.
+  const haystack = textFiles(workspaceFiles())
+    .filter((file) => file !== ledgerPath)
+    .map((file) => readText(file))
+    .join('\n---FILE-BOUNDARY---\n');
+  const missing = anchors.filter(({ token }) => !haystack.includes(token));
+  if (missing.length > 0) {
+    const detail = missing.map(({ concept, token }) => `${concept} -> \`${token}\``).join('; ');
+    throw new Error(`concept ledger anchors not found anywhere in the repo: ${detail}`);
+  }
+  return { detail: `${rows.length} concepts with ${anchors.length} enforcement anchors verified to exist` };
 });
 
 addGate('browser-roundtrip', 'MANUAL', () => {
