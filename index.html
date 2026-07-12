@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.34',
+      version: '0.35',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.34', date: '2026-07-12', label: '최신 · 거래처 관리 · Excel 읽기 기능탐지', detail: '설정에 "거래처 관리" 패널을 추가했습니다. 거래 입력 시 이름으로 자동 등록된 거래처를 더 이상 안 쓸 때 계정과목과 같은 방식으로 비활성화할 수 있습니다(소프트삭제, 과거 거래의 거래처명은 그대로 남습니다). 또한 간편장부 Excel 업로드 시 브라우저가 압축 해제 기능(DecompressionStream)을 지원하지 않으면 알 수 없는 오류 대신 "최신 브라우저로 다시 시도해 주세요" 안내 메시지를 보여주도록 했습니다.' },
+      { version: '0.35', date: '2026-07-12', label: '최신 · 기기간 자동 동기화(기본값)', detail: '지금까지는 설정에서 "동기화" 버튼을 직접 눌러야만 다른 기기와 자료가 맞춰졌습니다. 이제 로그인·화면 복귀(포커스·탭 전환)·인터넷 재연결·30초 주기 타이머 중 어느 하나만 일어나도 자동으로 클라우드와 맞춥니다. 거래 입력·설정·가져오기처럼 입력 중일 수 있는 화면은 자동 동기화가 끝나도 화면을 다시 그리지 않아 입력 중이던 값이 사라지지 않습니다. "지금 동기화" 버튼은 즉시 반영이 필요할 때를 위해 그대로 남아 있습니다.' },
+      { version: '0.34', date: '2026-07-12', label: '거래처 관리 · Excel 읽기 기능탐지', detail: '설정에 "거래처 관리" 패널을 추가했습니다. 거래 입력 시 이름으로 자동 등록된 거래처를 더 이상 안 쓸 때 계정과목과 같은 방식으로 비활성화할 수 있습니다(소프트삭제, 과거 거래의 거래처명은 그대로 남습니다). 또한 간편장부 Excel 업로드 시 브라우저가 압축 해제 기능(DecompressionStream)을 지원하지 않으면 알 수 없는 오류 대신 "최신 브라우저로 다시 시도해 주세요" 안내 메시지를 보여주도록 했습니다.' },
       { version: '0.33', date: '2026-07-12', label: '개인 가계부 모드', detail: '처음 시작할 때 개인 가계부 모드와 사업자 모드 중 고를 수 있습니다. 개인 가계부는 사업자 등록 없이 식비·교통비 같은 카테고리로 수입·지출을 관리하며, 세금 계산·법정서식 같은 사업자 전용 화면은 보이지 않습니다. 계정과목(카테고리)은 언제든 직접 추가하거나 비활성화할 수 있고, 설정에서 모드를 바꿀 수 있습니다.' },
       { version: '0.32', date: '2026-07-12', label: '계정과목 선택 가이드', detail: '가이드에 계정과목 선택 가이드를 추가했습니다. 25개 계정과목마다 국세청 법적 정의와 초등학생 눈높이 설명, 실제 예시를 담았고, 소모품비 vs 비품처럼 헷갈리기 쉬운 것을 구분하는 방법도 안내합니다. 거래 입력 화면 계정과목 옆에서도 바로 열어볼 수 있습니다.' },
       { version: '0.31', date: '2026-07-12', label: '월별 사용현황', detail: '상단에 "월별 사용현황" 버튼을 추가했습니다. 계정과목별로 매달 얼마나 썼는지·벌었는지를 표로 한눈에 볼 수 있습니다. 법정서식이 아니라 이해를 돕는 검토용이며, 간편장부·복식부기 어느 관점이든 같은 표로 확인할 수 있습니다.' },
@@ -653,6 +654,10 @@
     // 개인 가계부 모드에서 숨기는 메뉴 — 사업자·세무 전용 흐름(전표 검토, 간편장부 가져오기, 마감).
     // 라우트 자체는 남아 있고 네비게이션 노출만 줄인다(기능을 지우지 않음).
     const PERSONAL_HIDDEN_NAV = Object.freeze(['journals', 'imports', 'closing']);
+
+    // 백그라운드 자동 동기화가 끝나도 전체 재렌더를 건너뛰는 화면 — 자유 텍스트 입력 폼이 있어
+    // render()가 #app을 통째로 다시 그리면 사용자가 입력 중이던 값이 사라질 수 있다.
+    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports']);
 
     const ACCOUNT_TEMPLATES = Object.freeze([
       { key: 'cash', account_code: '101', account_name: '현금', account_type: 'asset', explanation: '사업을 하면서 손에 보관하거나 바로 쓸 수 있는 현금입니다.' },
@@ -1685,6 +1690,8 @@
       filters: { query: '', type: 'all', year: 'all' },
       ready: false
     };
+    // 백그라운드 자동 동기화 디바운스 타이머 — SyncService.scheduleAutoSync/runAutoSync 전용.
+    let autoSyncTimer = null;
 
     const GuideService = Object.freeze({
       supabaseUrl() {
@@ -2235,6 +2242,26 @@
         }
       },
 
+      // 기기간 자동 동기화(기본값) — 로그인·포커스 복귀·온라인 복귀·주기적 타이머가 이 메서드를 호출한다.
+      // 여러 이벤트가 짧은 간격으로 겹쳐도 한 번만 돌도록 디바운스한다(예: 온라인 복귀 직후 포커스도 같이 옴).
+      scheduleAutoSync(delayMs = 2000) {
+        if (autoSyncTimer) clearTimeout(autoSyncTimer);
+        autoSyncTimer = setTimeout(() => { autoSyncTimer = null; this.runAutoSync(); }, delayMs);
+      },
+
+      async runAutoSync() {
+        if (!state.session || !remote.isConfigured() || !state.online || state.syncStatus === 'syncing') return;
+        try {
+          await this.connectAndSync();
+          // 거래 입력·설정·가져오기 화면은 사용자가 타이핑 중일 수 있어 전체 재렌더를 건너뛴다.
+          // 다음 화면 전환 시 최신 state가 자연스럽게 반영된다. 다른 화면은 새로 받은 자료를 바로 보여준다.
+          if (!AUTO_SYNC_UNSAFE_ROUTES.includes(state.route)) render();
+        } catch {
+          // 실패는 이미 connectAndSync 내부에서 state.syncStatus='error'로 기록되고 상태 배지에 반영된다.
+          // 배경 동기화 실패마다 토스트를 띄우면 사용자를 방해하므로 조용히 넘어간다.
+        }
+      },
+
       // Delete convergence: upload local tombstones the cloud lacks, pull cloud tombstones,
       // and apply every tombstone as a local soft-delete so a delete on one device reaches all devices.
       // RLS hides soft-deleted rows from pullTable, so tombstones are the only cross-device delete signal.
@@ -2426,7 +2453,7 @@
       const tasks = [
         !state.business && [isPersonalMode() ? '가계부 기본정보를 등록하세요' : '사업자 정보를 등록하세요', '장부 시작연도와 업종을 먼저 설정합니다.', 'settings', '필수'],
         allSummary.missingEvidence > 0 && [`증빙 미첨부 ${allSummary.missingEvidence}건`, '이미지·PDF 업로드는 Cloudinary 설정 후 연결됩니다.', 'evidence', '확인'],
-        state.queue.length > 0 && [`동기화 대기 ${state.queue.length}건`, state.session ? '지금 동기화할 수 있습니다.' : 'Google 로그인 후 클라우드에 반영됩니다.', 'settings', '대기'],
+        state.queue.length > 0 && [`동기화 대기 ${state.queue.length}건`, state.session ? '곧 자동으로 동기화됩니다(지금 바로 반영하려면 눌러서 확인).' : 'Google 로그인 후 클라우드에 반영됩니다.', 'settings', '대기'],
         !state.config.lastBackupAt && ['첫 JSON 백업을 만드세요', '로컬 데이터의 별도 복구 파일을 준비합니다.', 'settings', '권장'],
         !isPersonalMode() && (!state.config.vatPayerType || state.config.vatPayerType === 'unconfirmed') ? ['과세유형 확인이 필요합니다', '현재 VAT 계산은 검토 후보로 표시됩니다.', 'settings', '세무'] : null
       ].filter(Boolean);
@@ -2925,9 +2952,9 @@
             badge(state.ready ? '자동 저장 중' : '준비 중', state.ready ? 'success' : ''),
             `저장소 <code>${storage.name}</code> · ${LOCAL_STORES.length} stores<br>거래 ${activeCount}건 · 동기화 대기 ${state.queue.length}건 · canonical v${Number(state.config.canonicalVersion || 0)}`,
             `<button class="button" id="dataReloadButton" type="button">${icon('refresh-cw')}저장 상태 새로고침</button>`)}
-          ${dataCard('클라우드 동기화', '로그인한 소유자만 Supabase와 동기화합니다.',
-            badge(connected ? '연결됨' : '로그인 필요', connected ? 'success' : 'warning'),
-            `마지막 동기화 ${lastSync} · canonical v${Number(state.config.canonicalVersion || 0)}<br>${connected ? '지금 로컬 변경을 클라우드에 반영할 수 있습니다.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}${owner ? '<br><strong>최종본 지정</strong>은 다른 기기의 로컬 전용 변경을 이 기기 기준으로 덮어씁니다.' : ''}`,
+          ${dataCard('클라우드 동기화', '로그인한 소유자는 이 화면을 열지 않아도 자동으로 동기화됩니다.',
+            badge(connected ? '연결됨 · 자동 동기화' : '로그인 필요', connected ? 'success' : 'warning'),
+            `마지막 동기화 ${lastSync} · canonical v${Number(state.config.canonicalVersion || 0)}<br>${connected ? '로그인·화면 복귀·온라인 복귀 시 자동으로 맞춰집니다. 지금 바로 반영하려면 아래 버튼을 누르세요.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}${owner ? '<br><strong>최종본 지정</strong>은 다른 기기의 로컬 전용 변경을 이 기기 기준으로 덮어씁니다.' : ''}`,
             `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button>${owner ? `<button class="button danger" id="dataCanonicalButton" type="button" ${connected ? '' : 'disabled'}>${icon('crown')}이 기기를 최종본으로</button>` : ''}`)}
           ${dataCard('JSON 백업', '암호화되지 않은 파일이므로 안전한 위치에 보관하세요.',
             state.config.lastBackupAt ? badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'), 'success') : badge('백업 없음', 'warning'),
@@ -3441,8 +3468,13 @@
     el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
     el('monthlyUsageButton').addEventListener('click', () => { if (!state.business) return toast('먼저 사업자 정보를 설정해 주세요.', 'error'); renderMonthlyUsageModal(); });
     window.addEventListener('hashchange', () => { state.route = (location.hash || '#dashboard').slice(1); render(); });
-    window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 동기화할 수 있습니다.','success'); });
+    window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 자동으로 동기화합니다.','success'); SyncService.scheduleAutoSync(500); });
     window.addEventListener('offline', () => { state.online=false; renderShellStatus(); toast('오프라인입니다. 거래는 이 기기에 계속 저장됩니다.'); });
+    // 기기간 자동 동기화 트리거 — 이 화면으로 돌아오거나(포커스·탭 전환) 일정 시간이 지나면
+    // 사용자가 버튼을 누르지 않아도 클라우드와 맞춘다(기본값). 세부 규칙은 SyncService.runAutoSync 참고.
+    window.addEventListener('focus', () => SyncService.scheduleAutoSync());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SyncService.scheduleAutoSync(); });
+    setInterval(() => SyncService.scheduleAutoSync(0), 30000);
 
     async function init() {
       try {
@@ -3454,6 +3486,9 @@
         await SyncService.runConnectionDiagnostics();
         await SyncService.initializeAuth();
         render();
+        // 로그인 세션이 이미 있으면(이전에 로그인한 기기) 사용자가 동기화 버튼을 누르지 않아도
+        // 자동으로 클라우드와 맞춘다 — 이게 기본 동작이다. 수동 "동기화" 버튼은 즉시 실행용으로 남긴다.
+        if (state.session) SyncService.scheduleAutoSync(300);
         if (!state.business) setTimeout(() => toast('사업자 정보를 설정하면 거래 입력을 시작할 수 있습니다.'), 500);
       } catch (error) {
         state.ready = false;
@@ -3462,7 +3497,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

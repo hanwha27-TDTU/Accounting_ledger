@@ -37,7 +37,7 @@ function loadApp() {
     navigator: { onLine: true }, location: { hash: '#dashboard', origin: 'http://x', pathname: '/', href: 'http://x/' },
     localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
     indexedDB: { open: () => ({}) },
-    crypto: webcrypto, console, setTimeout, clearTimeout, Intl, Date, Math, JSON
+    crypto: webcrypto, console, setTimeout, clearTimeout, setInterval, clearInterval, Intl, Date, Math, JSON
   };
   vm.runInNewContext(script, sandbox, { timeout: 5000 });
   const api = windowStub.__ACCOUNTING_APP_TEST__;
@@ -275,6 +275,13 @@ function removeEvidence(evidenceFiles, transactions, id) {
 {
   ok(removeEvidence([{ id: 'e1', source_transaction_id: 't1', deleted_at: null }], [{ id: 't1' }], 'e1').detached === 1, 'removeEvidence: last evidence detaches transaction');
   ok(removeEvidence([{ id: 'e1', source_transaction_id: 't1', deleted_at: null }, { id: 'e2', source_transaction_id: 't1', deleted_at: null }], [{ id: 't1' }], 'e1').detached === 0, 'removeEvidence: transaction stays attached when other evidence remains');
+}
+
+// auto-sync render safety — regression guard: if this list shrinks, a background sync could
+// force a full re-render mid-typing on that screen and wipe unsaved input (see SyncService.runAutoSync).
+{
+  const unsafe = api.AUTO_SYNC_UNSAFE_ROUTES;
+  ok(Array.isArray(unsafe) && ['transactions', 'settings', 'imports'].every(r => unsafe.includes(r)), 'AUTO_SYNC_UNSAFE_ROUTES: skips re-render on screens with free-text input forms');
 }
 
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
