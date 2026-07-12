@@ -562,7 +562,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.29',
+      version: '0.30',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -577,7 +577,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.29', date: '2026-07-12', label: '최신 · 해외 거래 구조화 저장', detail: '해외 거래의 통화·외화 금액·환율·해외 여부를 거래에 구조화된 값으로 저장하도록 했습니다(스키마에 컬럼 추가). 장부에서 해외 거래에 표시가 붙고, 앞으로 통화별 집계와 대리납부 자동 계산의 토대가 됩니다.' },
+      { version: '0.30', date: '2026-07-12', label: '최신 · 통화 선택 목록', detail: '해외 거래 통화 칸에 자동완성 목록을 추가했습니다. 미국 달러·유로·엔·파운드·위안 등 기축·주요 통화와 우즈베키스탄 숨(UZS) 등 지역 통화를 골라 넣을 수 있고, 목록에 없는 통화도 3글자 코드로 직접 입력할 수 있습니다.' },
+      { version: '0.29', date: '2026-07-12', label: '해외 거래 구조화 저장', detail: '해외 거래의 통화·외화 금액·환율·해외 여부를 거래에 구조화된 값으로 저장하도록 했습니다(스키마에 컬럼 추가). 장부에서 해외 거래에 표시가 붙고, 앞으로 통화별 집계와 대리납부 자동 계산의 토대가 됩니다.' },
       { version: '0.28', date: '2026-07-12', label: '거래 입력 해외 거래 연동', detail: '거래 입력에 “해외 거래” 선택을 추가했습니다. 통화·외화 금액·환율을 넣으면 원화 총 금액이 자동으로 채워지고, 면세사업자가 해외 비용을 입력하면 대리납부 주의 안내가 뜹니다. 해외 거래는 내용에 통화·환율이 함께 기록됩니다.' },
       { version: '0.27', date: '2026-07-12', label: '해외 구매·수입 처리 안내', detail: '가이드에 "해외 구매·수입 처리" 안내를 추가했습니다. 해외 물품 수입(수입부가세), 해외 용역·구독(면세사업자의 대리납부), 해외 현지 소비를 부가가치세법 제4조·제52조 근거로 구분해 설명하고, 수입부가세·대리납부·기준환율 용어를 용어사전에 담았습니다.' },
       { version: '0.26', date: '2026-07-12', label: '가져오기 검증·수정 모달', detail: '간편장부 Excel을 올리면 검증 창이 자동으로 열려 오류(날짜·금액)와 경고(미분류 계정과목, 부가세 불일치)를 찾아 보여줍니다. 미분류 계정과목은 표준 계정과목으로 바꾸고, 부가세가 총액 기준일 때 공급가액을 다시 계산하는 등 수정을 제안하되, 값 변경은 사용자가 승인해야 반영됩니다. 오류 행은 반영에서 자동 제외됩니다.' },
@@ -2283,6 +2284,17 @@
         </div>`;
     }
 
+    // 통화 자동완성 목록(ISO 4217). datalist라 목록에 없는 통화도 직접 입력할 수 있다.
+    // 기축·주요 통화 + 요청 통화(UZS 우즈베키스탄 숨) + 교역이 잦은 지역 통화를 담는다.
+    const CURRENCIES = Object.freeze([
+      ['USD', '미국 달러'], ['EUR', '유로'], ['JPY', '일본 엔'], ['GBP', '영국 파운드'], ['CNY', '중국 위안'],
+      ['CHF', '스위스 프랑'], ['HKD', '홍콩 달러'], ['AUD', '호주 달러'], ['CAD', '캐나다 달러'], ['SGD', '싱가포르 달러'],
+      ['NZD', '뉴질랜드 달러'], ['SEK', '스웨덴 크로나'], ['KRW', '대한민국 원'], ['UZS', '우즈베키스탄 숨'], ['KZT', '카자흐스탄 텡게'],
+      ['RUB', '러시아 루블'], ['VND', '베트남 동'], ['THB', '태국 바트'], ['INR', '인도 루피'], ['IDR', '인도네시아 루피아'],
+      ['MYR', '말레이시아 링깃'], ['PHP', '필리핀 페소'], ['TWD', '대만 달러'], ['AED', '아랍에미리트 디르함'], ['TRY', '튀르키예 리라'],
+      ['BRL', '브라질 헤알'], ['MXN', '멕시코 페소'], ['SAR', '사우디 리얄']
+    ].map(([code, name]) => ({ code, name })));
+
     // 해외 거래 안내 — 거래유형·과세유형에 따라 대리납부/수입부가세 처리를 알린다(부가세법 §4·§52).
     function overseasNoteHtml() {
       if (state.formType === 'income') return `<div class="notice info">${icon('info')}<div>해외에서 받은 수입입니다. 영세율·국외공급 여부는 개별 확인이 필요합니다.</div></div>`;
@@ -2310,7 +2322,7 @@
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="isOverseas" name="isOverseas"><span>해외 거래입니다(외화).<br><span class="field-help">외화 금액과 환율을 넣으면 원화 총 금액이 자동으로 채워집니다.</span></span></label></div>
             <div class="field full" id="overseasBox" hidden>
               <div class="form-grid">
-                <div class="field third"><label for="fxCurrency">통화</label><input class="input" id="fxCurrency" value="USD" maxlength="3" autocomplete="off"></div>
+                <div class="field third"><label for="fxCurrency">통화</label><input class="input" id="fxCurrency" value="USD" maxlength="3" autocomplete="off" list="fxCurrencyList" placeholder="예: USD, UZS"><datalist id="fxCurrencyList">${CURRENCIES.map(c => `<option value="${c.code}">${Utils.escape(c.name)}</option>`).join('')}</datalist><div class="field-help">목록에서 고르거나 3글자 통화 코드를 직접 입력하세요.</div></div>
                 <div class="field third"><label for="fxAmount">외화 금액</label><input class="input" id="fxAmount" inputmode="decimal" autocomplete="off" placeholder="예: 100"></div>
                 <div class="field third"><label for="fxRate">환율 (1단위당 원)</label><input class="input" id="fxRate" inputmode="decimal" autocomplete="off" placeholder="예: 1350"></div>
               </div>
@@ -3162,7 +3174,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>

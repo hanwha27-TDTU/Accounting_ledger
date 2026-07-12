@@ -147,6 +147,10 @@ if (api) {
 
   // 해외 거래 환율 환산 (외화 × 환율 -> 원화, 반올림)
   ok(AccountingDomain.fxToKrw('100', '1350') === 135000, 'fxToKrw 100 USD @1350 -> 135,000원');
+  // 통화 목록: 기축통화 + 요청하신 UZS(우즈베키스탄 숨) 포함, 모두 3글자 ISO 코드
+  ok(api.CURRENCIES.some(c => c.code === 'UZS' && c.name.includes('우즈베키스탄')), 'CURRENCIES includes UZS (우즈베키스탄 숨)');
+  ok(['USD', 'EUR', 'JPY', 'GBP', 'CNY'].every(code => api.CURRENCIES.some(c => c.code === code)), 'CURRENCIES includes reserve currencies USD/EUR/JPY/GBP/CNY');
+  ok(api.CURRENCIES.every(c => /^[A-Z]{3}$/.test(c.code)), 'CURRENCIES codes are all 3-letter ISO 4217');
   ok(AccountingDomain.fxToKrw('9.99', '1350') === 13487 && AccountingDomain.fxToKrw('', '1350') === 0, 'fxToKrw rounds, empty -> 0');
 
   const balanced = [{ account_id: 'a', debit_amount: 100, credit_amount: 0 }, { account_id: 'b', debit_amount: 0, credit_amount: 100 }];

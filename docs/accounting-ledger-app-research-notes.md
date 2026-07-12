@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.41** · 개정 2026-07-12
+> **📌 Sub_app-research-notes_0.42** · 개정 2026-07-12
 
 # Accounting Ledger App Research Notes
 
@@ -924,3 +924,23 @@ advisor 잔여 항목:
 2. `simple_book_rows` view는 통화 컬럼 미노출(간편장부 표시엔 불필요). 필요 시 후속.
 3. 대리납부 세액 자동계산·통화별 리포트·환율 자동 조회(API)는 후속 — 이번은 저장 구조까지.
 4. import(간편장부) 경로는 해외 필드를 세팅하지 않음(전부 원화 국내 전제) — 필요 시 import에도 확장.
+
+## 2026-07-12 앱 0.30 해외 거래 통화 선택 목록
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.30` |
+| schema_version | `0.04` (변경 없음) |
+| note_type | `feature_release`, `ux` |
+| 제목 | 통화 입력을 ISO 4217 datalist 자동완성으로(기축통화 + UZS 포함) |
+| 배경(사용자 질문) | "통화 환율에 기축통화와 우즈베키스탄 숨이 포함되어 있지?" → 기존 통화칸은 목록 없는 자유입력(USD 기본, 3글자)이었음을 정직히 확인 |
+| 구현 | `CURRENCIES` 상수(ISO 4217 28개: 기축 USD/EUR/JPY/GBP/CHF, 주요 CNY/HKD/AUD/CAD/SGD/NZD/SEK, 중앙아 **UZS**/KZT/RUB, 동남아 VND/THB/IDR/MYR/PHP/TWD, 기타 INR/AED/TRY/BRL/MXN/SAR). 통화 입력칸에 `list="fxCurrencyList"` + `<datalist>` 렌더 — 목록 선택 또는 3글자 직접 입력 병행(목록 밖 통화 계속 허용). `CURRENCIES` 테스트 훅 노출 |
+| 검증 | 헤드리스: datalist 연결·28개 옵션·`UZS:우즈베키스탄 숨` 존재·기축통화 존재, 앱 JS 에러 0. 로직 테스트 +3(UZS 포함·기축통화 5종 포함·전부 3글자 대문자 ISO, 총 76) |
+| 정확성 | 목록은 편의(자동완성)일 뿐 입력을 제한하지 않음 — 어떤 통화든 3글자 코드로 입력 가능 |
+| 스킬 버전 | `Sub_app-research-notes_0.42` |
+
+남은 위험/미완:
+
+1. 환율 값은 여전히 사용자 직접 입력 — 자동 환율 조회(API)는 후속(외부 네트워크 정책·기준환율 출처 필요).
+2. 통화 코드 검증(입력값이 ISO 4217 실존 코드인지)은 미적용 — datalist는 제안만 하고 자유입력 허용.
+3. 통화 이름(한글)은 대표 표기 — 정식 통화명·기호는 후속.
