@@ -368,6 +368,11 @@
     .import-preview th, .import-preview td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
     .import-preview th { position: sticky; top: 0; background: var(--surface); }
     .import-preview td.number, .import-preview th.number { text-align: right; font-variant-numeric: tabular-nums; }
+    .review-section { margin-top: 14px; }
+    .review-title { margin: 0 0 8px; font-size: 14px; color: var(--brand-strong); }
+    .review-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .review-label { flex: 1 1 220px; font-size: 13px; line-height: 1.5; }
+    .review-fix .select { flex: 0 1 220px; }
 
     .term-button { border: 0; border-bottom: 1px dashed #7b918a; padding: 0; background: transparent; color: inherit; font-weight: inherit; }
     .tooltip {
@@ -556,7 +561,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.25',
+      version: '0.26',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -571,7 +576,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.25', date: '2026-07-11', label: '최신 · 간편장부 가져오기 장부 반영', detail: '미리보기한 간편장부 거래를 복식부기 원장에 실제로 반영합니다. 각 거래는 균형 전표로 기록되고, 없는 계정과목·거래처는 자동으로 만들어집니다. 같은 파일을 다시 반영해도 내용 기반 식별로 중복(좀비 데이터) 없이 덮어씁니다.' },
+      { version: '0.26', date: '2026-07-12', label: '최신 · 가져오기 검증·수정 모달', detail: '간편장부 Excel을 올리면 검증 창이 자동으로 열려 오류(날짜·금액)와 경고(미분류 계정과목, 부가세 불일치)를 찾아 보여줍니다. 미분류 계정과목은 표준 계정과목으로 바꾸고, 부가세가 총액 기준일 때 공급가액을 다시 계산하는 등 수정을 제안하되, 값 변경은 사용자가 승인해야 반영됩니다. 오류 행은 반영에서 자동 제외됩니다.' },
+      { version: '0.25', date: '2026-07-11', label: '간편장부 가져오기 장부 반영', detail: '미리보기한 간편장부 거래를 복식부기 원장에 실제로 반영합니다. 각 거래는 균형 전표로 기록되고, 없는 계정과목·거래처는 자동으로 만들어집니다. 같은 파일을 다시 반영해도 내용 기반 식별로 중복(좀비 데이터) 없이 덮어씁니다.' },
       { version: '0.24', date: '2026-07-11', label: '간편장부 Excel 미리보기(가져오기)', detail: '국세청 간편장부(.xlsx)를 외부 라이브러리 없이 브라우저에서 직접 읽어 미리보기합니다. 「장부」 시트의 월·일·계정과목·거래내용·거래처·수입/비용/자산 금액을 원본 그대로 표로 보여주고, 계정과목이 분류표에 있는지 확인합니다. 아직 장부에 반영하지 않는 안전한 미리보기 단계입니다.' },
       { version: '0.23', date: '2026-07-11', label: '용어 대장 강제 + 툴팁 단일화', detail: '세법 용어사전을 단일 출처로 삼아 거래 화면 용어 툴팁도 같은 정의를 쓰도록 통합했습니다(중복 제거). 또한 용어가 늘어날 때마다 법적 근거와 대장 등록을 하네스가 강제하고(용어 대장), 기장의무·경비율 기준금액이 코드와 법령 문서에서 일치하는지 자동 검증하는 게이트를 추가했습니다.' },
       { version: '0.22', date: '2026-07-11', label: '세법 용어사전 + 대시보드 검색', detail: '가이드에 주요 세법 용어사전(28개)을 추가했습니다. 복식부기·필요경비·과세표준·경비율·원천징수 등 용어마다 법적 정의(근거 조문)와 초등학생 눈높이 설명을 함께 담았고, 대시보드 검색창에서 바로 찾아볼 수 있습니다.' },
@@ -862,6 +868,51 @@
         return [month, day].filter(v => v != null && v !== '').join('/');
       },
       classify(income, expense, asset) { return income ? 'income' : expense ? 'expense' : asset ? 'asset' : 'unknown'; },
+      // 미분류 계정과목에 가장 가까운 표준 간편장부 계정과목을 제안(자동 적용 아님, 사용자 승인용).
+      suggestAccount(name) {
+        const q = String(name || '').trim();
+        const all = SimpleBookAccounts.all();
+        const hit = (q && (all.find(a => a.name === q) || all.find(a => a.name.includes(q) || q.includes(a.name)))) || null;
+        return hit ? hit.name : '기타(비용)';
+      },
+      // 오류(error)·경고(warn) 탐지. 값은 바꾸지 않고 문제만 보고한다(제안+승인 원칙).
+      validate(rows) {
+        const errors = [], warns = [], acctCount = {}, vatSuspects = [];
+        rows.forEach((r, i) => {
+          const amt = r.kind === 'income' ? r.income : r.kind === 'asset' ? r.asset : r.expense;
+          const vat = r.kind === 'income' ? r.incomeVat : r.kind === 'asset' ? r.assetVat : r.expenseVat;
+          const nonzero = [r.income, r.expense, r.asset].filter(x => x > 0).length;
+          const dm = /^20\d{2}-(\d{2})-(\d{2})$/.exec(r.date);
+          if (!dm || +dm[1] < 1 || +dm[1] > 12 || +dm[2] < 1 || +dm[2] > 31) errors.push({ i, code: 'bad_date', msg: '날짜가 올바르지 않습니다' });
+          if (nonzero === 0) errors.push({ i, code: 'no_amount', msg: '금액이 없습니다' });
+          if ([r.income, r.expense, r.asset, r.incomeVat, r.expenseVat, r.assetVat].some(x => x < 0)) errors.push({ i, code: 'negative', msg: '음수 금액이 있습니다' });
+          if (nonzero > 1) warns.push({ i, code: 'ambiguous_kind', msg: '수입·비용·자산 중 둘 이상에 금액이 있습니다' });
+          if (r.account && !r.knownAccount) acctCount[r.account] = (acctCount[r.account] || 0) + 1;
+          if (vat > 0 && amt > 0) {
+            const tol = Math.max(2, Math.round(amt * 0.005));
+            if (Math.abs(vat - Math.round(amt / 10)) > tol && Math.abs(vat - Math.round(amt / 11)) <= tol) vatSuspects.push(i);
+          }
+        });
+        const accounts = Object.entries(acctCount).map(([name, count]) => ({ name, count, suggestion: this.suggestAccount(name) }));
+        const errorRows = new Set(errors.map(e => e.i));
+        return { errors, warns, accounts, vatSuspects, errorCount: errorRows.size, cleanCount: rows.length - errorRows.size, errorRowSet: errorRows };
+      },
+      // 미분류 계정과목을 사용자가 고른 계정과목으로 일괄 치환(승인 후).
+      remapAccount(rows, from, to) {
+        return rows.map(r => r.account === from ? { ...r, account: to, knownAccount: !!SimpleBookAccounts.find(to) } : r);
+      },
+      // "금액"을 부가세 포함 총액으로 보고 공급가액 = 금액 − 부가세로 재계산(승인 후, 부가세 값은 유지).
+      recomputeVatInclusive(rows, indices) {
+        const set = new Set(indices);
+        return rows.map((r, i) => {
+          if (!set.has(i)) return r;
+          const c = { ...r };
+          if (r.kind === 'income') c.income = r.income - r.incomeVat;
+          else if (r.kind === 'asset') c.asset = r.asset - r.assetVat;
+          else c.expense = r.expense - r.expenseVat;
+          return c;
+        });
+      },
       normalizeRow(cells, year, sourceRow) {
         const g = k => cells[this.COL[k]];
         const num = v => Utils.number(v);
@@ -2309,6 +2360,60 @@
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">간편장부 계정과목 분류표</h2><p class="section-help">${Utils.escape(SimpleBookAccounts.source)}. 가져오기와 장부 입력 시 이 분류를 기준으로 수입·비용·자산 열에 대응합니다.</p></div>${badge('국세청 기준','info')}</div><div class="coa-ref">${simpleBookAccountsHtml()}</div></section>`;
     }
 
+    function openModal(html) { const root = el('modalRoot'); root.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`; root.hidden = false; }
+    function closeModal() { const root = el('modalRoot'); root.hidden = true; root.innerHTML = ''; }
+
+    // 가져오기 검증·수정 모달 — 오류/경고를 탐지해 보여주고, 값 변경은 사용자가 승인(적용)해야 반영된다.
+    function renderImportReview() {
+      const rv = state.importReview;
+      if (!rv) return;
+      const v = SimpleBookImport.validate(rv.rows);
+      const accountsHtml = v.accounts.length ? `<div class="review-section"><h4 class="review-title">미분류 계정과목 ${v.accounts.length}종 — 표준 계정과목으로 바꾸기</h4>${v.accounts.map(a => `<div class="review-fix"><span class="review-label">${Utils.escape(a.name)} <span class="major">${a.count}건</span></span><select class="select" data-remap-from="${Utils.escape(a.name)}">${SimpleBookAccounts.all().map(sa => `<option value="${Utils.escape(sa.name)}" ${sa.name === a.suggestion ? 'selected' : ''}>${Utils.escape(sa.name)} · ${Utils.escape(sa.groupLabel)}</option>`).join('')}</select><button class="button small" type="button" data-remap-apply="${Utils.escape(a.name)}">적용</button></div>`).join('')}</div>` : '';
+      const vatHtml = v.vatSuspects.length ? `<div class="review-section"><h4 class="review-title">부가세 확인 ${v.vatSuspects.length}건</h4><div class="review-fix"><span class="review-label">부가세가 금액의 10%가 아니라 <strong>금액÷11</strong>에 가깝습니다. “금액”을 부가세 포함 총액으로 보고 공급가액(=금액−부가세)을 다시 계산할까요?</span><button class="button small" type="button" data-vat-fix>일괄 적용</button></div></div>` : '';
+      const errHtml = v.errors.length ? `<div class="review-section"><h4 class="review-title">오류 ${v.errorCount}건 (반영에서 자동 제외)</h4><div class="table-wrap import-preview"><table><thead><tr><th>행</th><th>일자</th><th>계정과목</th><th>내용</th><th>문제</th></tr></thead><tbody>${v.errors.slice(0, 50).map(e => { const r = rv.rows[e.i]; return `<tr><td>${r.sourceRow || ''}</td><td>${Utils.escape(r.date)}</td><td>${Utils.escape(r.account)}</td><td>${Utils.escape(r.description)}</td><td>${Utils.escape(e.msg)}</td></tr>`; }).join('')}</tbody></table></div></div>` : '';
+      const warnCount = v.warns.length + v.accounts.reduce((s, a) => s + a.count, 0) + v.vatSuspects.length;
+      const clean = !v.accounts.length && !v.vatSuspects.length && !v.errors.length && !v.warns.length;
+      const body = `<div class="modal-head"><h3 class="modal-title">가져오기 검증 · ${Utils.escape(rv.fileName || '')}</h3><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
+        <div class="modal-body">
+          <div class="notice ${v.errorCount ? '' : 'info'}">${icon(v.errorCount ? 'triangle-alert' : 'circle-check')}<div>정상 <strong>${v.cleanCount}</strong>건 · 경고 <strong>${warnCount}</strong>건 · 오류 <strong>${v.errorCount}</strong>건${v.errorCount ? ' — 오류 행은 반영에서 자동 제외됩니다.' : ''}</div></div>
+          ${accountsHtml}${vatHtml}${errHtml}
+          ${clean ? `<div class="notice info">${icon('circle-check')}<div>발견된 문제가 없습니다. 바로 반영할 수 있습니다.</div></div>` : ''}
+        </div>
+        <div class="modal-actions"><button class="button" type="button" data-modal-close>닫기</button><button class="button primary" type="button" data-review-post>${v.errorCount ? `오류 제외하고 반영(${v.cleanCount}건)` : `장부에 반영(${rv.rows.length}건)`}</button></div>`;
+      openModal(body);
+      bindReviewEvents();
+    }
+    function bindReviewEvents() {
+      const root = el('modalRoot');
+      root.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', closeModal));
+      root.querySelectorAll('[data-remap-apply]').forEach(b => b.addEventListener('click', () => {
+        const from = b.dataset.remapApply;
+        const sel = root.querySelector(`[data-remap-from="${CSS.escape(from)}"]`);
+        state.importReview.rows = SimpleBookImport.remapAccount(state.importReview.rows, from, sel.value);
+        renderImportReview();
+      }));
+      const vatBtn = root.querySelector('[data-vat-fix]');
+      if (vatBtn) vatBtn.addEventListener('click', () => {
+        const v = SimpleBookImport.validate(state.importReview.rows);
+        state.importReview.rows = SimpleBookImport.recomputeVatInclusive(state.importReview.rows, v.vatSuspects);
+        renderImportReview();
+      });
+      const postBtn = root.querySelector('[data-review-post]');
+      if (postBtn) postBtn.addEventListener('click', async () => {
+        const rv = state.importReview;
+        const v = SimpleBookImport.validate(rv.rows);
+        const valid = rv.rows.filter((r, i) => !v.errorRowSet.has(i));
+        if (!valid.length) return toast('반영할 정상 거래가 없습니다.', 'error');
+        postBtn.disabled = true; postBtn.textContent = '반영 중…';
+        try {
+          const out = await AppService.importSimpleBook(valid);
+          closeModal();
+          toast(`장부 반영 완료 · 신규 ${out.created}건 / 갱신 ${out.replaced}건${out.unbalanced ? ` / 불균형 제외 ${out.unbalanced}건` : ''}`, 'success');
+          state.importReview = null; routeTo('ledger');
+        } catch (error) { diagnostic(error); postBtn.disabled = false; postBtn.textContent = '장부에 반영'; }
+      });
+    }
+
     function importSummaryHtml(res) {
       const c = res.counts || {};
       const unknown = res.unknownAccounts || [];
@@ -2316,7 +2421,7 @@
       const canPost = Boolean(state.business);
       return `<div class="notice info">${icon('circle-check')}<div><strong>${res.rows.length}건</strong> 읽음${res.year ? ` · ${Utils.escape(res.year)}년 귀속` : ''} · 수입 ${c.income || 0}건 / 비용 ${c.expense || 0}건 / 자산 ${c.asset || 0}건<br>합계 — 수입 <strong>${Utils.won(res.totals.income)}</strong> · 비용 <strong>${Utils.won(res.totals.expense)}</strong> · 자산 <strong>${Utils.won(res.totals.asset)}</strong></div></div>${warn}
         ${canPost ? '' : `<div class="notice">${icon('info')}<div>먼저 설정에서 사업자 정보를 저장하면 장부에 반영할 수 있습니다.</div></div>`}
-        <div class="form-actions"><button class="button primary" type="button" id="importPostButton" ${canPost ? '' : 'disabled'}>${icon('database')}장부에 반영(${res.rows.length}건)</button><span class="section-help">같은 파일을 다시 반영해도 중복으로 쌓이지 않습니다.</span></div>`;
+        <div class="form-actions"><button class="button primary" type="button" data-open-review ${canPost ? '' : 'disabled'}>${icon('list-checks')}검증·반영 창 열기</button><span class="section-help">업로드하면 자동으로 검증 창이 열립니다. 같은 파일을 다시 반영해도 중복되지 않습니다.</span></div>`;
     }
     function importPreviewHtml(res) {
       const cap = 200;
@@ -2702,31 +2807,21 @@
           preview.innerHTML = '';
           try {
             const res = await SimpleBookImport.parse(await file.arrayBuffer());
-            state.pendingImport = res;
-            if (!res.rows.length) { status.innerHTML = `<div class="notice">${icon('info')}<div>「장부」 시트에서 읽을 거래 행을 찾지 못했습니다(4행부터 확인).</div></div>`; return; }
+            if (!res.rows.length) { state.importReview = null; status.innerHTML = `<div class="notice">${icon('info')}<div>「장부」 시트에서 읽을 거래 행을 찾지 못했습니다(4행부터 확인).</div></div>`; return; }
+            state.importReview = { rows: res.rows, fileName: file.name };
             status.innerHTML = importSummaryHtml(res);
             preview.innerHTML = importPreviewHtml(res);
-            bindImportPost();
+            bindImportOpen();
+            if (state.business) renderImportReview();
           } catch (error) {
-            state.pendingImport = null;
+            state.importReview = null;
             status.innerHTML = `<div class="notice danger">${icon('shield-alert')}<div>${Utils.escape(error.message || '파일을 읽지 못했습니다.')}</div></div>`;
           }
         });
       }
-      function bindImportPost() {
-        const btn = el('importPostButton');
-        if (!btn || !state.pendingImport) return;
-        btn.addEventListener('click', async () => {
-          const res = state.pendingImport;
-          if (!confirm(`간편장부 ${res.rows.length}건을 장부에 반영합니다.\n같은 파일을 다시 반영해도 중복되지 않습니다. 계속할까요?`)) return;
-          btn.disabled = true; btn.textContent = '반영 중…';
-          try {
-            const out = await AppService.importSimpleBook(res.rows);
-            toast(`장부 반영 완료 · 신규 ${out.created}건 / 갱신 ${out.replaced}건${out.unbalanced ? ` / 불균형 제외 ${out.unbalanced}건` : ''}${out.skipped ? ` / 건너뜀 ${out.skipped}건` : ''}`, 'success');
-            state.pendingImport = null;
-            routeTo('ledger');
-          } catch (error) { diagnostic(error); btn.disabled = false; btn.textContent = '장부에 반영'; }
-        });
+      function bindImportOpen() {
+        const btn = el('importStatus')?.querySelector('[data-open-review]');
+        if (btn && !btn.disabled) btn.addEventListener('click', () => { if (state.importReview) renderImportReview(); });
       }
       const termSearch = el('termSearch');
       if (termSearch) {

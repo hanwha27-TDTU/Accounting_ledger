@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.37** · 개정 2026-07-11
+> **📌 Sub_app-research-notes_0.38** · 개정 2026-07-12
 
 # Accounting Ledger App Research Notes
 
@@ -835,3 +835,26 @@ advisor 잔여 항목:
 2. 파일을 수정 후 재반영하면 변경 행은 새 id로 추가(구 행은 잔존) — "같은 파일" 멱등만 보장. 배치 교체(기존 임포트분 삭제 후 재반영) UI는 후속.
 3. 자동 생성 계정과목 코드는 `SB-`+해시 — 표준 계정코드 체계와 별개(장부 명칭은 정확). 표준코드 매핑은 후속.
 4. 945건 단일 putMany는 대량이지만 일회성 — 성능 관찰 대상. 반영은 헤드리스로만 구동 검증(실기기 체감은 수동).
+
+## 2026-07-12 앱 0.26 가져오기 검증·수정 모달 (제안+승인)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.26` |
+| schema_version | `0.03` (DB·migration 변경 없음) |
+| note_type | `feature_release`, `import`, `data_integrity`, `ux` |
+| 제목 | 업로드 시 자동 오픈되는 검증 모달로 오류·경고 탐지 후 사용자 승인 수정 |
+| 사용자 결정 | "자동 수정" 강도 = **제안+승인**(AskUserQuestion). 값 변경은 사용자 승인, 무손실 정규화만 자동 |
+| 비판적 검토(반대 포함) | 금융·세무 데이터의 **침묵 자동수정은 North Star(정확성) 위배** — 자동 탐지+제안, 값 변경은 승인으로 설계. 945행 전체를 모달에 넣지 않고 **문제 행만** 노출 |
+| 검증 엔진(순수) | `validate(rows)`: 오류 bad_date(월 1–12·일 1–31 실검증)·no_amount·negative, 경고 unknown_account(+`suggestAccount` 최근접 제안)·ambiguous_kind·vat suspect(부가세가 금액×10%와 다르고 금액÷11에 가까우면 "금액=총액" 오입력 의심). 수정 헬퍼: `remapAccount`(계정과목 일괄 치환), `recomputeVatInclusive`(공급가액=금액−부가세). 전부 값 미변경/불변 반환 |
+| 모달 | 기존 미사용 `#modalRoot`+`.modal-*` CSS 활용. `openModal/closeModal/renderImportReview/bindReviewEvents`. 업로드 핸들러가 `state.importReview={rows,fileName}` 세팅 후 자동 오픈. 미분류 계정과목은 `SimpleBookAccounts` 드롭다운으로 치환·적용, 부가세 의심은 일괄 적용, 오류 행 목록(반영 자동 제외). 각 수정 후 재검증·재렌더. 반영은 모달에서 `AppService.importSimpleBook(정상행)` |
+| 검증(정직·실데이터) | 헤드리스 Chromium: 사업자 생성→실 샘플 업로드→**모달 자동 오픈, 정상 945·경고 512(부가세)·오류 0**. `일괄 적용`→경고 0(512행 공급가액 재계산)→반영 **945건 균형(차변=대변), debit 80,131,728**(수정 전 81,651,988에서 감소, 승인 수정이 실제 반영됨을 확인). 앱 JS 에러 0. 로직 테스트 +6(validate·suggest·remap·recompute, 총 70) |
+| 정확성(North Star) | 값 변경은 전부 사용자 승인. 부가세 의심은 강한 경고지만 자동 변경 금지. 오류 행 자동 제외로 잘못된 데이터가 원장에 들어가지 않음 |
+| 스킬 버전 | `Sub_import-export_0.04`, `Sub_app-research-notes_0.38` |
+
+남은 위험/미완:
+
+1. 오류 행(날짜·금액) 인라인 셀 편집은 미구현 — 현재는 목록 표시 후 반영 제외. 편집 후 포함은 후속.
+2. 부가세 재계산은 "총액→공급가액" 한 방향만(면세·복합 케이스는 개별 확인). ambiguous_kind는 경고만.
+3. `suggestAccount`는 포함관계 기반 근사(형태소 유사도 아님) — 대부분 `기타(비용)` 폴백.
+4. 모달 시각·모바일 레이아웃은 수동 확인 대상(로직·플로우는 헤드리스 검증).

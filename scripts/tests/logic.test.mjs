@@ -70,6 +70,20 @@ if (api) {
   ok(idA !== idC, 'deterministicId differs when source row differs (distinguishes identical-content rows)');
   ok(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(idA), 'deterministicId is a valid UUID (v5-format)');
 
+  // 가져오기 검증 엔진 (제안+승인: 값 변경 없이 탐지만)
+  const mkRow = (o) => ({ sourceRow: o.r || 4, date: o.date || '2025-01-01', account: o.account || '기타(비용)', description: o.desc || 'x', counterparty: '', income: o.income || 0, incomeVat: 0, expense: o.expense || 0, expenseVat: o.expenseVat || 0, asset: 0, assetVat: 0, note: '', kind: o.income ? 'income' : o.asset ? 'asset' : 'expense', knownAccount: SimpleBookImport && !!SimpleBookAccounts.find(o.account || '기타(비용)') });
+  const vBad = SimpleBookImport.validate([mkRow({ date: '2025-13-40', expense: 100 }), mkRow({ account: '없는계정', expense: 0 })]);
+  ok(vBad.errors.some(e => e.code === 'bad_date') && vBad.errors.some(e => e.code === 'no_amount'), 'validate flags bad_date + no_amount');
+  ok(vBad.accounts.some(a => a.name === '없는계정'), 'validate reports unknown account');
+  ok(SimpleBookImport.suggestAccount('없는계정') === '기타(비용)', 'suggestAccount fallback -> 기타(비용)');
+  // vat suspect: 금액 4900, 부가세 445 (=4900/11, not 490=4900/10) -> flagged
+  const vVat = SimpleBookImport.validate([mkRow({ expense: 4900, expenseVat: 445 })]);
+  ok(vVat.vatSuspects.length === 1, 'validate flags vat suspect (금액÷11)');
+  const fixed = SimpleBookImport.recomputeVatInclusive([mkRow({ expense: 4900, expenseVat: 445 })], [0]);
+  ok(fixed[0].expense === 4455, 'recomputeVatInclusive -> 공급가액 = 금액 − 부가세 (4900-445=4455)');
+  const remapped = SimpleBookImport.remapAccount([mkRow({ account: '없는계정', expense: 100 })], '없는계정', '소모품비');
+  ok(remapped[0].account === '소모품비' && remapped[0].knownAccount === true, 'remapAccount -> 소모품비, knownAccount true');
+
   // 세법 용어사전 — 법적 정의(근거 조문) + 초딩 설명, 대시보드 검색용
   ok(TermService.all().length === 28, 'TermService has 28 terms');
   ok(TermService.find('필요경비') && /제27조/.test(TermService.find('필요경비').law), 'TermService 필요경비 -> 법적 정의에 소득세법 §27');
