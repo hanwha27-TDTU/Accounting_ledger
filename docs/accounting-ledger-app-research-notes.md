@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.40** · 개정 2026-07-12
+> **📌 Sub_app-research-notes_0.41** · 개정 2026-07-12
 
 # Accounting Ledger App Research Notes
 
@@ -901,3 +901,26 @@ advisor 잔여 항목:
 2. 대리납부 세액 자동 계산·부가세 신고자료 반영, 수입부가세 자동 분리는 후속.
 3. 물품 수입/해외 용역 자동 구분 없음(대리납부 경고는 면세사업자 비용 전반에 노출) — 사용자 판단 안내.
 4. 시각·모바일 레이아웃은 수동 확인 대상(플로우·계산은 헤드리스 검증).
+
+## 2026-07-12 앱 0.29 해외 거래 구조화 저장 (스키마 확장·프로덕션 마이그레이션)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `0.29` |
+| schema_version | `0.03 → 0.04` (마이그레이션 적용) |
+| note_type | `feature_release`, `schema_migration`, `data_integrity` |
+| 제목 | 해외 거래의 통화·외화·환율·해외여부를 source_transactions 구조화 컬럼으로 저장 |
+| 마이그레이션 | `supabase/migrations/20260712000500_accounting_v1_overseas_fields.sql`: `source_transactions`에 `is_overseas`(boolean not null default false)·`foreign_currency`(text)·`foreign_amount`(numeric 18,2)·`exchange_rate`(numeric 18,6) **ADD COLUMN IF NOT EXISTS** + `last_schema_version` 0.04 + 스키마 리뷰 노트. **additive·nullable/default·RLS 무변경·파괴적 아님** |
+| 프로덕션 적용(하드룰 증거) | 사용자 명시 승인("2번, 마이그레이션"). **BEFORE**: 대상 4컬럼 미존재·`source_transactions` 0행(빈 테이블 → 기존 데이터 영향 0). `apply_migration`(project ihxiywffzmvrwmqvatzt) `{success:true}`. **read-back**: 4컬럼 존재 확인(is_overseas NOT NULL default false, 나머지 nullable), `last_schema_version`=0.04 |
+| 앱 구현 | `saveTransaction`이 input.isOverseas 등으로 구조화 필드 저장(0.28의 description 부기 제거). 거래폼 submit이 구조화 필드 전달. 장부 행에 `🌐 해외` 배지(title=통화·외화·환율). 동기화는 전체 row 업로드(designateCanonical 등)라 새 컬럼 자동 반영 — 컬럼이 먼저 생겼으므로 upsert 실패 없음. 라이브(0.26) 앱은 새 컬럼을 모르지만 nullable이라 무해(하위호환) |
+| 하네스 | `expectedMigrations` 5개로 갱신(migration-contract 통과). migration-contract는 첫 마이그레이션의 RLS·canonical 마커만 검사하므로 신규 파일은 존재만 확인 |
+| 검증 | 헤드리스: 면세사업자 해외 비용(AWS 서버비, USD 100 @1350) 저장 → IndexedDB 트랜잭션 `is_overseas:true, foreign_currency:"USD", foreign_amount:100, exchange_rate:1350, total:135000`, 내용 클린(부기 제거), 장부 `.fx-tag` 배지 1개. 앱 JS 에러 0. 로직 테스트 73 유지 |
+| 정확성(North Star) | 구조화로 향후 통화별 집계·대리납부 자동계산 토대 마련. 값은 사용자 입력 그대로 |
+| 스킬 버전 | `Sub_tax-vat-classification_0.06`, `Sub_v1-scope_0.02`, `Sub_app-research-notes_0.41` |
+
+남은 위험/미완:
+
+1. 마이그레이션은 프로덕션 적용됨. 앱(0.29)은 아직 브랜치 — 배포 전까지 이 컬럼을 쓰는 쪽은 없음(컬럼은 nullable로 대기). 배포 시 활성화.
+2. `simple_book_rows` view는 통화 컬럼 미노출(간편장부 표시엔 불필요). 필요 시 후속.
+3. 대리납부 세액 자동계산·통화별 리포트·환율 자동 조회(API)는 후속 — 이번은 저장 구조까지.
+4. import(간편장부) 경로는 해외 필드를 세팅하지 않음(전부 원화 국내 전제) — 필요 시 import에도 확장.

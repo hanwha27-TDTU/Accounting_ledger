@@ -10,7 +10,8 @@ const expectedMigrations = [
   '20260709000100_accounting_v1_initial_schema.sql',
   '20260709000200_accounting_v1_indexes_and_rls_tuning.sql',
   '20260709000300_accounting_v1_drop_duplicate_indexes.sql',
-  '20260709000400_accounting_v1_schema_meta_003.sql'
+  '20260709000400_accounting_v1_schema_meta_003.sql',
+  '20260712000500_accounting_v1_overseas_fields.sql'
 ];
 
 const referenceAssets = new Set([

@@ -350,6 +350,7 @@
     .est-judgement { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
     .est-tag { font-size: 12px; padding: 2px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-strong); }
     .est-tag:empty { display: none; }
+    .fx-tag { display: inline-block; padding: 0 6px; border-radius: 8px; background: var(--brand-soft); color: var(--brand-strong); font-size: 11px; white-space: nowrap; }
     .legal-basis { display: flex; gap: 10px; margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.6; }
     .legal-basis strong { color: var(--brand-strong); }
     .guide-why { display: flex; gap: 10px; margin-top: 12px; padding: 13px 15px; border-radius: 12px; background: var(--surface-warm); border: 1px solid var(--warning-soft); font-size: 13.5px; line-height: 1.75; }
@@ -561,7 +562,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.28',
+      version: '0.29',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -576,7 +577,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.28', date: '2026-07-12', label: '최신 · 거래 입력 해외 거래 연동', detail: '거래 입력에 “해외 거래” 선택을 추가했습니다. 통화·외화 금액·환율을 넣으면 원화 총 금액이 자동으로 채워지고, 면세사업자가 해외 비용을 입력하면 대리납부 주의 안내가 뜹니다. 해외 거래는 내용에 통화·환율이 함께 기록됩니다.' },
+      { version: '0.29', date: '2026-07-12', label: '최신 · 해외 거래 구조화 저장', detail: '해외 거래의 통화·외화 금액·환율·해외 여부를 거래에 구조화된 값으로 저장하도록 했습니다(스키마에 컬럼 추가). 장부에서 해외 거래에 표시가 붙고, 앞으로 통화별 집계와 대리납부 자동 계산의 토대가 됩니다.' },
+      { version: '0.28', date: '2026-07-12', label: '거래 입력 해외 거래 연동', detail: '거래 입력에 “해외 거래” 선택을 추가했습니다. 통화·외화 금액·환율을 넣으면 원화 총 금액이 자동으로 채워지고, 면세사업자가 해외 비용을 입력하면 대리납부 주의 안내가 뜹니다. 해외 거래는 내용에 통화·환율이 함께 기록됩니다.' },
       { version: '0.27', date: '2026-07-12', label: '해외 구매·수입 처리 안내', detail: '가이드에 "해외 구매·수입 처리" 안내를 추가했습니다. 해외 물품 수입(수입부가세), 해외 용역·구독(면세사업자의 대리납부), 해외 현지 소비를 부가가치세법 제4조·제52조 근거로 구분해 설명하고, 수입부가세·대리납부·기준환율 용어를 용어사전에 담았습니다.' },
       { version: '0.26', date: '2026-07-12', label: '가져오기 검증·수정 모달', detail: '간편장부 Excel을 올리면 검증 창이 자동으로 열려 오류(날짜·금액)와 경고(미분류 계정과목, 부가세 불일치)를 찾아 보여줍니다. 미분류 계정과목은 표준 계정과목으로 바꾸고, 부가세가 총액 기준일 때 공급가액을 다시 계산하는 등 수정을 제안하되, 값 변경은 사용자가 승인해야 반영됩니다. 오류 행은 반영에서 자동 제외됩니다.' },
       { version: '0.25', date: '2026-07-11', label: '간편장부 가져오기 장부 반영', detail: '미리보기한 간편장부 거래를 복식부기 원장에 실제로 반영합니다. 각 거래는 균형 전표로 기록되고, 없는 계정과목·거래처는 자동으로 만들어집니다. 같은 파일을 다시 반영해도 내용 기반 식별로 중복(좀비 데이터) 없이 덮어씁니다.' },
@@ -1738,6 +1740,10 @@
           transaction_type: input.transactionType, description: input.description.trim(),
           counterparty_id: counterparty?.id || null, account_id: input.accountId,
           supply_amount: amounts.supplyAmount, vat_amount: amounts.vatAmount, total_amount: amounts.totalAmount,
+          is_overseas: !!input.isOverseas,
+          foreign_currency: input.isOverseas ? ((input.foreignCurrency || '').trim().toUpperCase() || null) : null,
+          foreign_amount: input.isOverseas ? (Utils.number(input.foreignAmount) || null) : null,
+          exchange_rate: input.isOverseas ? (Utils.number(input.exchangeRate) || null) : null,
           vat_type: input.vatType, evidence_status: input.hasEvidence ? 'attached' : 'not_attached',
           payment_status: input.paymentStatus, review_status: reviewReasons.length ? 'requires_review' : 'normal',
           source_channel: 'manual', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion,
@@ -2333,7 +2339,7 @@
       return `
         ${pageHeader('장부', `국세청 간편장부 열 구조로 보는 원천거래입니다. 내부 기준은 ${term('복식부기')} 원장입니다.`, `<button class="button primary" type="button" data-route="transactions">${icon('plus')}거래 입력</button>`)}
         <div class="filter-bar"><input class="input" id="ledgerQuery" type="search" placeholder="내용·거래처 검색" value="${Utils.escape(state.filters.query)}"><select class="select" id="ledgerType"><option value="all">전체 유형</option><option value="income" ${state.filters.type==='income'?'selected':''}>수입</option><option value="expense" ${state.filters.type==='expense'?'selected':''}>비용</option><option value="asset_purchase" ${state.filters.type==='asset_purchase'?'selected':''}>자산</option></select><select class="select" id="ledgerYear"><option value="all">전체 연도</option>${years.map(year=>`<option value="${year}" ${state.filters.year===year?'selected':''}>${year}년</option>`).join('')}</select></div>
-        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${rows.length?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>`;
+        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}${row.is_overseas ? ` <span class="fx-tag" title="${Utils.escape([row.foreign_currency, row.foreign_amount, row.exchange_rate ? '@' + row.exchange_rate : ''].filter(Boolean).join(' '))}">🌐 해외</span>` : ''}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${rows.length?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>`;
     }
 
     function renderJournals() {
@@ -2909,16 +2915,13 @@
           event.preventDefault();
           transactionForm.querySelectorAll('[data-error]').forEach(node => node.textContent = '');
           try {
-            let description = el('description').value;
-            if (el('isOverseas')?.checked && Utils.number(el('fxAmount').value) > 0) {
-              const cur = (el('fxCurrency').value || '').trim().toUpperCase();
-              description = `${description} · 해외 ${cur} ${el('fxAmount').value}@${el('fxRate').value}`.trim();
-            }
+            const overseas = el('isOverseas')?.checked;
             const result = await AppService.saveTransaction({
               transactionDate: el('transactionDate').value, transactionType: state.formType,
-              description, counterpartyName: el('counterpartyName').value,
+              description: el('description').value, counterpartyName: el('counterpartyName').value,
               accountId: el('accountId').value, totalAmount: el('totalAmount').value,
-              vatType: el('vatType').value, paymentStatus: el('paymentStatus').value, hasEvidence: el('hasEvidence').checked
+              vatType: el('vatType').value, paymentStatus: el('paymentStatus').value, hasEvidence: el('hasEvidence').checked,
+              isOverseas: overseas, foreignCurrency: overseas ? el('fxCurrency').value : '', foreignAmount: overseas ? el('fxAmount').value : '', exchangeRate: overseas ? el('fxRate').value : ''
             });
             if (!result.ok) {
               for (const [name, message] of Object.entries(result.errors)) transactionForm.querySelector(`[data-error="${name}"]`)?.replaceChildren(message);
