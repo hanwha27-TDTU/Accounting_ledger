@@ -294,5 +294,27 @@ function removeEvidence(evidenceFiles, transactions, id) {
   ok(pick([], 'a') === null, 'pickActiveBusiness: null when there are no ledgers at all');
 }
 
+// period closing: AccountingDomain.isDateClosed (reversible month lock, not permanent deletion)
+{
+  const closings = [
+    { id: 'c1', status: 'closed', period_start: '2026-03-01', period_end: '2026-03-31', deleted_at: null },
+    { id: 'c2', status: 'open', period_start: '2026-02-01', period_end: '2026-02-28', deleted_at: null, reopened_at: '2026-04-01T00:00:00.000Z' },
+    { id: 'c3', status: 'closed', period_start: '2026-01-01', period_end: '2026-01-31', deleted_at: '2026-05-01T00:00:00.000Z' }
+  ];
+  const AD = api.AccountingDomain;
+  ok(AD.isDateClosed(closings, '2026-03-15') === true, 'isDateClosed: date inside a closed month is blocked');
+  ok(AD.isDateClosed(closings, '2026-03-01') === true && AD.isDateClosed(closings, '2026-03-31') === true, 'isDateClosed: closed-month boundary dates are inclusive');
+  ok(AD.isDateClosed(closings, '2026-04-01') === false, 'isDateClosed: date outside any closed period is not blocked');
+  ok(AD.isDateClosed(closings, '2026-02-15') === false, 'isDateClosed: a reopened period no longer blocks (status back to open)');
+  ok(AD.isDateClosed(closings, '2026-01-15') === false, 'isDateClosed: a soft-deleted closing record no longer blocks');
+  ok(AD.isDateClosed([], '2026-03-15') === false, 'isDateClosed: no closings at all -> never blocked');
+  ok(AD.isDateClosed(undefined, '2026-03-15') === false, 'isDateClosed: tolerates missing closings list');
+
+  const errClosed = AD.validateTransaction({ transactionDate: '2026-03-15', transactionType: 'expense', description: 'x', accountId: 'a1', totalAmount: '1000' }, closings);
+  ok(!!errClosed.transactionDate, 'validateTransaction: rejects a transaction dated inside a closed period');
+  const errOpen = AD.validateTransaction({ transactionDate: '2026-04-15', transactionType: 'expense', description: 'x', accountId: 'a1', totalAmount: '1000' }, closings);
+  ok(!errOpen.transactionDate, 'validateTransaction: allows a transaction dated in an open period');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

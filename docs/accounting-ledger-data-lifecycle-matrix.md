@@ -32,7 +32,7 @@
 | journal_entry_lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
 | evidence_files | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 0.12에서 증빙 제거(soft-delete+tombstone) 배선. Cloudinary 원본 삭제는 서명 필요라 후속 |
 | audit_logs | ✓ | ✓ | ✓ | ✓ | ✓(append) | ✓ | ✓ | ⊘ | append-only |
-| period_closings | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 마감 재개방은 별도 lifecycle |
+| period_closings | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 0.37에서 마감·마감해제 실동작 배선(`AppService.closePeriod`/`reopenPeriod`, `AccountingDomain.isDateClosed`가 저장·삭제를 실제로 막음). 삭제→tombstone은 의도적 제외 — 재개방은 행 삭제가 아니라 `status`를 다시 `'open'`으로 되돌리는 갱신이라 마감 이력(`closed_at`/`reopened_at`)이 감사 기록으로 남는다 |
 | tombstones | ✓ | ✗ | ✓ | ✓ | ✓ | ✓(apply) | ✓(apply) | ⊘ | 삭제 신호 자체 |
 | sync_queue | ✓ | ✓(개수) | ✓ | ✓ | ⊘ | ⊘ | superseded | ⊘ | 오프라인 대기열 |
 | app_research_notes | ✓ | ✗ | ✓ | ✓ | ⊘ | ⊘ | ⊘ | ⊘ | local-only |

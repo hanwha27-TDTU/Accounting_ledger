@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.36',
+      version: '0.37',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.36', date: '2026-07-12', label: '최신 · 가계부 여러 개 관리', detail: '가계부(사업자)를 하나만 쓰던 것에서, 목적이 다른 가계부(예: 개인 생활비, 유학 생활비, 부업)를 여러 개 만들어 전환할 수 있게 했습니다. 설정에 "가계부 관리" 패널이 추가됐고, 가계부마다 거래·계정과목·전표·개인/사업자 모드가 완전히 분리됩니다. "새 가계부 추가"로 이름과 종류만 정하면 바로 만들어지고, 목록에서 "전환" 버튼으로 오갈 수 있습니다.' },
+      { version: '0.37', date: '2026-07-12', label: '최신 · 마감·마감해제', detail: '"마감"이 이제 실제로 동작합니다. 원하는 달을 마감하면 그 달의 거래를 새로 넣거나 지울 수 없고, "마감 해제"를 누르면 다시 편집할 수 있습니다(영구 삭제가 아니라 되돌릴 수 있는 잠금입니다). 언제 마감·해제했는지는 기록에 남습니다. 개인 가계부 모드에서도 마감 메뉴를 쓸 수 있게 했습니다.' },
+      { version: '0.36', date: '2026-07-12', label: '가계부 여러 개 관리', detail: '가계부(사업자)를 하나만 쓰던 것에서, 목적이 다른 가계부(예: 개인 생활비, 유학 생활비, 부업)를 여러 개 만들어 전환할 수 있게 했습니다. 설정에 "가계부 관리" 패널이 추가됐고, 가계부마다 거래·계정과목·전표·개인/사업자 모드가 완전히 분리됩니다. "새 가계부 추가"로 이름과 종류만 정하면 바로 만들어지고, 목록에서 "전환" 버튼으로 오갈 수 있습니다.' },
       { version: '0.35', date: '2026-07-12', label: '기기간 자동 동기화(기본값)', detail: '지금까지는 설정에서 "동기화" 버튼을 직접 눌러야만 다른 기기와 자료가 맞춰졌습니다. 이제 로그인·화면 복귀(포커스·탭 전환)·인터넷 재연결·30초 주기 타이머 중 어느 하나만 일어나도 자동으로 클라우드와 맞춥니다. 거래 입력·설정·가져오기처럼 입력 중일 수 있는 화면은 자동 동기화가 끝나도 화면을 다시 그리지 않아 입력 중이던 값이 사라지지 않습니다. "지금 동기화" 버튼은 즉시 반영이 필요할 때를 위해 그대로 남아 있습니다.' },
       { version: '0.34', date: '2026-07-12', label: '거래처 관리 · Excel 읽기 기능탐지', detail: '설정에 "거래처 관리" 패널을 추가했습니다. 거래 입력 시 이름으로 자동 등록된 거래처를 더 이상 안 쓸 때 계정과목과 같은 방식으로 비활성화할 수 있습니다(소프트삭제, 과거 거래의 거래처명은 그대로 남습니다). 또한 간편장부 Excel 업로드 시 브라우저가 압축 해제 기능(DecompressionStream)을 지원하지 않으면 알 수 없는 오류 대신 "최신 브라우저로 다시 시도해 주세요" 안내 메시지를 보여주도록 했습니다.' },
       { version: '0.33', date: '2026-07-12', label: '개인 가계부 모드', detail: '처음 시작할 때 개인 가계부 모드와 사업자 모드 중 고를 수 있습니다. 개인 가계부는 사업자 등록 없이 식비·교통비 같은 카테고리로 수입·지출을 관리하며, 세금 계산·법정서식 같은 사업자 전용 화면은 보이지 않습니다. 계정과목(카테고리)은 언제든 직접 추가하거나 비활성화할 수 있고, 설정에서 모드를 바꿀 수 있습니다.' },
@@ -652,9 +653,10 @@
       { group: '관리', id: 'data', label: '데이터 관리', icon: 'database' },
       { group: '도움말', id: 'guide', label: '가이드', icon: 'circle-help' }
     ]);
-    // 개인 가계부 모드에서 숨기는 메뉴 — 사업자·세무 전용 흐름(전표 검토, 간편장부 가져오기, 마감).
-    // 라우트 자체는 남아 있고 네비게이션 노출만 줄인다(기능을 지우지 않음).
-    const PERSONAL_HIDDEN_NAV = Object.freeze(['journals', 'imports', 'closing']);
+    // 개인 가계부 모드에서 숨기는 메뉴 — 사업자·세무 전용 흐름(전표 검토, 간편장부 가져오기).
+    // 라우트 자체는 남아 있고 네비게이션 노출만 줄인다(기능을 지우지 않음). 마감은 개인 가계부에도
+    // 유용해(예: 지난달 정산 끝났으니 잠그기) 0.37부터 개인 모드에서도 노출한다.
+    const PERSONAL_HIDDEN_NAV = Object.freeze(['journals', 'imports']);
 
     // 백그라운드 자동 동기화가 끝나도 전체 재렌더를 건너뛰는 화면 — 자유 텍스트 입력 폼이 있어
     // render()가 #app을 통째로 다시 그리면 사용자가 입력 중이던 값이 사라질 수 있다.
@@ -1099,7 +1101,7 @@
       ['journal_entry_validator', '분개 입력 검증', 'implemented', '날짜, 금액, 계정과목, 분개라인 유효성을 확인합니다.'],
       ['chart_of_accounts_guardian', '계정과목 체계 검사', 'implemented', '거래유형에 맞는 계정과목 사용 여부를 확인합니다.'],
       ['ledger_reconciliation_agent', '원장 대사 검사', 'planned', '통장·카드·현금 잔액 대사는 다음 단계에서 구현합니다.'],
-      ['period_close_guardian', '기간 마감 관리', 'manual_only', '마감 상태를 표시하며 완전한 수정 통제는 후속 구현입니다.'],
+      ['period_close_guardian', '기간 마감 관리', 'implemented', '월 단위 마감·해제를 지원하며, 마감된 기간의 거래 저장·삭제를 실제로 막습니다(되돌릴 수 있는 잠금, 영구 삭제 아님).'],
       ['audit_trail_guardian', '변경 이력 보존', 'implemented', '거래와 설정 변경을 로컬 감사로그에 남깁니다.'],
       ['import_normalization_agent', '가져오기 정규화', 'planned', '국세청 Excel 원본 보존과 미리보기 흐름을 후속 구현합니다.'],
       ['financial_statement_generator', '재무·세무 리포트 생성', 'manual_only', '검토용 요약만 제공하며 법정 확정 출력은 차단합니다.'],
@@ -1315,9 +1317,16 @@
         return check === Number(d[9]);
       },
 
-      validateTransaction(input) {
+      // 마감된 기간(닫힌 기간)에 그 날짜가 들어가는지 확인 — 순수 함수. 재개방하면 status가 다시
+      // 'open'이 되므로 더 이상 막지 않는다(reopened_at은 언제 해제했는지 감사 기록으로만 남는다).
+      isDateClosed(closings, dateStr) {
+        return (closings || []).some(row => !row.deleted_at && row.status === 'closed' && dateStr >= row.period_start && dateStr <= row.period_end);
+      },
+
+      validateTransaction(input, closings) {
         const errors = {};
         if (!/^20\d{2}-\d{2}-\d{2}$/.test(input.transactionDate || '')) errors.transactionDate = '거래일을 확인해 주세요.';
+        else if (this.isDateClosed(closings, input.transactionDate)) errors.transactionDate = '이 날짜는 마감된 기간입니다. 먼저 마감을 해제해 주세요.';
         if (!['income', 'expense', 'asset_purchase'].includes(input.transactionType)) errors.transactionType = '거래 유형을 선택해 주세요.';
         if (!String(input.description || '').trim()) errors.description = '거래 내용을 입력해 주세요.';
         if (!input.accountId) errors.accountId = '계정과목을 선택해 주세요.';
@@ -1955,7 +1964,7 @@
 
       async saveTransaction(input) {
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
-        const errors = AccountingDomain.validateTransaction(input);
+        const errors = AccountingDomain.validateTransaction(input, state.closings);
         if (Object.keys(errors).length) return { ok: false, errors };
         const now = Utils.now();
         const amounts = AccountingDomain.calculateAmounts(input.totalAmount, input.vatType);
@@ -2091,6 +2100,7 @@
       async deleteTransaction(transactionId) {
         const transaction = state.transactions.find(row => row.id === transactionId && !row.deleted_at);
         if (!transaction) throw new Error('TRANSACTION_NOT_FOUND');
+        if (AccountingDomain.isDateClosed(state.closings, transaction.transaction_date)) throw new Error('PERIOD_CLOSED');
         const now = Utils.now();
         const soft = row => ({ ...row, deleted_at: now, updated_at: now });
         const journals = state.journals.filter(row => row.source_transaction_id === transactionId && !row.deleted_at);
@@ -2121,6 +2131,45 @@
         });
         await this.reload();
         return { deletedTransaction: 1, deletedJournals: deletedJournals.length, deletedLines: deletedLines.length };
+      },
+
+      // 월 마감 — "영구"가 아니라 되돌릴 수 있는 기간 잠금이다. 마감하면 그 달 안의 거래는 새로
+      // 만들거나 지울 수 없다(AccountingDomain.isDateClosed가 저장·삭제 시 막는다). 가계부별로 분리된다.
+      async closePeriod({ year, month, reason }) {
+        if (!state.business) throw new Error('BUSINESS_REQUIRED');
+        const y = Number(year), m = Number(month);
+        if (!y || !m || m < 1 || m > 12) throw new Error('CLOSING_PERIOD_INVALID');
+        const periodStart = `${y}-${String(m).padStart(2, '0')}-01`;
+        const periodEnd = `${y}-${String(m).padStart(2, '0')}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+        const existing = state.closings.find(row => !row.deleted_at && row.period_start === periodStart && row.period_end === periodEnd);
+        if (existing && existing.status === 'closed') throw new Error('CLOSING_OVERLAP');
+        const now = Utils.now();
+        const closing = {
+          id: existing?.id || Utils.uuid(), business_id: state.business.id, period_type: 'month',
+          period_start: periodStart, period_end: periodEnd, status: 'closed', closed_at: now,
+          reopened_at: existing?.reopened_at || null, reason: String(reason || '').trim() || null,
+          created_at: existing?.created_at || now, updated_at: now, deleted_at: null
+        };
+        const audit = this.audit('period_closing', closing.id, 'create', existing || null, closing, `${y}년 ${m}월 마감`);
+        const queueRows = [this.queue('period_closings', closing), this.queue('audit_logs', audit)];
+        await storage.putMany({ period_closings: [closing], audit_logs: [audit], sync_queue: queueRows });
+        await this.reload();
+        return closing;
+      },
+
+      // 마감 해제 — 잠갔던 기간을 다시 열어 거래를 저장·삭제할 수 있게 한다. closed_at은 그대로 두고
+      // reopened_at만 남겨, "언제 마감했다가 언제 다시 열었는지" 감사 기록이 사라지지 않는다.
+      async reopenPeriod(closingId, reason) {
+        const closing = state.closings.find(row => row.id === closingId && !row.deleted_at);
+        if (!closing) throw new Error('CLOSING_NOT_FOUND');
+        if (closing.status !== 'closed') throw new Error('CLOSING_ALREADY_OPEN');
+        const now = Utils.now();
+        const reopened = { ...closing, status: 'open', reopened_at: now, reason: String(reason || '').trim() || closing.reason, updated_at: now };
+        const audit = this.audit('period_closing', closing.id, 'update', closing, reopened, '마감 해제');
+        const queueRows = [this.queue('period_closings', reopened), this.queue('audit_logs', audit)];
+        await storage.putMany({ period_closings: [reopened], audit_logs: [audit], sync_queue: queueRows });
+        await this.reload();
+        return reopened;
       },
 
       // Bulk delete: clear every ledger store on this device. Connection settings and device id (localStorage) stay.
@@ -2456,6 +2505,10 @@
       if (code.includes('SECRET_KEY_NOT_ALLOWED')) return '비밀키 또는 service role 형태의 키는 이 앱에 저장할 수 없습니다.';
       if (code.includes('BUSINESS_REQUIRED')) return '사업자 정보를 먼저 설정해 주세요.';
       if (code.includes('TRANSACTION_NOT_FOUND')) return '삭제할 거래를 찾지 못했습니다. 목록을 새로고침해 주세요.';
+      if (code.includes('PERIOD_CLOSED')) return '이 거래의 날짜는 마감된 기간이라 삭제할 수 없습니다. 설정에서 마감을 먼저 해제해 주세요.';
+      if (code.includes('CLOSING_OVERLAP')) return '이미 마감된 기간과 겹칩니다. 기존 마감을 확인해 주세요.';
+      if (code.includes('CLOSING_NOT_FOUND')) return '마감 기록을 찾지 못했습니다. 목록을 새로고침해 주세요.';
+      if (code.includes('CLOSING_ALREADY_OPEN')) return '이미 열려 있는 기간입니다.';
       if (code.includes('EVIDENCE_NOT_FOUND')) return '제거할 증빙을 찾지 못했습니다. 목록을 새로고침해 주세요.';
       if (code.includes('ALLOWLIST_EMAIL_INVALID')) return '올바른 이메일 형식을 입력해 주세요.';
       if (code.includes('ALLOWLIST_OWNER_PROTECTED')) return '소유자 계정은 차단할 수 없습니다.';
@@ -2818,12 +2871,34 @@
         ${taxSections}`;
     }
 
+    // 마감 — "영구"가 아니라 되돌릴 수 있는 월 단위 잠금이다. 마감한 달은 거래를 새로 넣거나
+    // 지울 수 없고(AccountingDomain.isDateClosed), "마감 해제"로 언제든 다시 열 수 있다.
     function renderClosing() {
-      const year = Utils.today().slice(0,4);
-      const closed = state.closings.filter(row=>!row.deleted_at);
-      return `${pageHeader('마감','기간을 잠그기 전에 전표, 증빙, VAT 검토 항목을 확인합니다.')}
-        <div class="notice">${icon('lock-keyhole')}<div><strong>현재는 마감 준비 상태를 표시합니다.</strong><br>마감 후 수정 통제와 재개방 감사로그가 완성되기 전에는 실제 잠금 버튼을 활성화하지 않습니다.</div></div>
-        <div class="status-board"><div class="status-item"><div class="status-item-head"><span class="status-item-title">${year}년 장부</span>${badge(closed.some(row=>row.period_start.startsWith(year))?'마감 기록 있음':'열림','info')}</div><div class="status-item-body">거래 ${activeTransactions().filter(row=>row.transaction_date.startsWith(year)).length}건 · 검토 필요 ${AccountingDomain.summarize(activeTransactions().filter(row=>row.transaction_date.startsWith(year))).review}건</div></div><div class="status-item"><div class="status-item-head"><span class="status-item-title">신고 준비</span>${badge('검토 필요','warning')}</div><div class="status-item-body">법정서식 스냅샷과 증빙 누락을 먼저 확인해야 합니다.</div></div></div>`;
+      const today = Utils.today();
+      const currentYear = Number(today.slice(0, 4));
+      const currentMonth = Number(today.slice(5, 7));
+      const startYear = Math.min(Number(state.config.ledgerStartYear || currentYear), currentYear);
+      const years = [];
+      for (let y = startYear; y <= currentYear; y++) years.push(y);
+      const closings = state.closings.filter(row => !row.deleted_at).sort((a, b) => b.period_start.localeCompare(a.period_start));
+      const monthLabel = row => `${row.period_start.slice(0, 4)}년 ${Number(row.period_start.slice(5, 7))}월`;
+      const rows = closings.length ? closings.map(row => {
+        const isClosed = row.status === 'closed';
+        const txCount = activeTransactions().filter(t => t.transaction_date >= row.period_start && t.transaction_date <= row.period_end).length;
+        const dates = [`마감 ${new Date(row.closed_at).toLocaleDateString('ko-KR')}`, row.reopened_at ? `마지막 해제 ${new Date(row.reopened_at).toLocaleDateString('ko-KR')}` : null].filter(Boolean).join(' · ');
+        return `<div class="task-row"><div class="task-main"><div class="task-title">${monthLabel(row)} ${isClosed ? badge('마감됨', 'warning') : badge('열림', 'success')}</div><div class="task-note">거래 ${txCount}건 · ${dates}${row.reason ? ` · ${Utils.escape(row.reason)}` : ''}</div></div>${isClosed ? `<button class="button small danger" type="button" data-reopen-closing="${row.id}">${icon('lock-open')}마감 해제</button>` : ''}</div>`;
+      }).join('') : `<p class="section-help">아직 마감한 달이 없습니다.</p>`;
+      return `${pageHeader('마감', '한 달치 장부를 다 확인했으면 잠가서 실수로 안 바뀌게 합니다. 언제든 다시 열 수 있어요(영구 삭제가 아닙니다).')}
+        <div class="notice info">${icon('lock-keyhole')}<div><strong>마감은 되돌릴 수 있는 잠금입니다.</strong><br>마감한 달은 새 거래를 넣거나 지울 수 없지만, 아래 "마감 해제"를 누르면 다시 편집할 수 있습니다. 언제 마감·해제했는지는 감사 기록에 남습니다.</div></div>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">마감 기록</h2><p class="section-help">이 가계부의 거래를 월 단위로 관리합니다.</p></div></div>
+          <div class="task-list">${rows}</div>
+          <form id="closePeriodForm" class="form-grid" style="margin-top:14px">
+            <div class="field third"><label for="closeYear">연도</label><select class="select" id="closeYear">${years.map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}년</option>`).join('')}</select></div>
+            <div class="field third"><label for="closeMonth">월</label><select class="select" id="closeMonth">${Array.from({ length: 12 }, (_, i) => i + 1).map(m => `<option value="${m}" ${m === currentMonth ? 'selected' : ''}>${m}월</option>`).join('')}</select></div>
+            <div class="field third"><div class="form-actions" style="margin-top:22px"><button class="button primary" type="submit">${icon('lock-keyhole')}이 달 마감하기</button></div></div>
+            <div class="field full"><label for="closeReason">메모 <span class="label-optional">(선택)</span></label><input class="input" id="closeReason" maxlength="120" placeholder="예: 3월 정산 완료"></div>
+          </form>
+        </section>`;
     }
 
     function isBootstrapOwner() {
@@ -3263,6 +3338,19 @@
       });
       document.querySelectorAll('[data-switch-ledger]').forEach(button => button.addEventListener('click', async () => {
         try { await AppService.switchLedger(button.dataset.switchLedger); toast('가계부를 전환했습니다.', 'success'); render(); }
+        catch (error) { diagnostic(error); }
+      }));
+      el('closePeriodForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        try {
+          const year = el('closeYear').value, month = el('closeMonth').value;
+          await AppService.closePeriod({ year, month, reason: el('closeReason').value });
+          toast(`${year}년 ${month}월을 마감했습니다.`, 'success'); render();
+        } catch (error) { diagnostic(error); }
+      });
+      document.querySelectorAll('[data-reopen-closing]').forEach(button => button.addEventListener('click', async () => {
+        if (!confirm('이 달의 마감을 해제할까요? 다시 거래를 넣거나 지울 수 있게 됩니다.')) return;
+        try { await AppService.reopenPeriod(button.dataset.reopenClosing); toast('마감을 해제했습니다.', 'success'); render(); }
         catch (error) { diagnostic(error); }
       }));
       el('accountCreateForm')?.addEventListener('submit', async event => {
