@@ -49,3 +49,4 @@
 - 빈 클라우드 가드: canonical replace는 클라우드 businesses가 0이고 로컬에 있으면 중단(`EMPTY_CLOUD_GUARD`)해 wipe를 막는다. 일반 merge 경로는 로컬을 Map 기반으로 유지해 빈 응답에도 소실되지 않는다.
 - 삭제는 hard delete 금지: `deleted_at` + tombstone. 병합은 updated_at 최신 승리라 삭제(갱신된 updated_at)가 오래된 활성 행을 이긴다.
 - 백업은 `LOCAL_STORES` 기반이라 새 도메인이 자동 포함되고, tombstones·schemaVersion·canonicalVersion을 함께 담는다.
+- 0.39부터 정본은 클라우드(Supabase), 로컬 IndexedDB는 보조 캐시라는 원칙을 백업/복원에도 반영한다: `exportCloudBackup`이 로컬 캐시를 거치지 않고 클라우드에서 직접 스냅샷을 뜨고, `resetLocalFromCloud`가 canonical_version 비교 없이도 로컬을 클라우드 값으로 강제 재동기화한다. `restoreBackup`은 백업 파일에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes)를 비우지 않고 그대로 둔다 — 없다고 비우면 아직 안 올라간 로컬 변경이 사라진다.

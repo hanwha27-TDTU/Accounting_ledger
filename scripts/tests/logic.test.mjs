@@ -316,5 +316,36 @@ function removeEvidence(evidenceFiles, transactions, id) {
   ok(!errOpen.transactionDate, 'validateTransaction: allows a transaction dated in an open period');
 }
 
+// restore scope — mirrors AppService.restoreBackup's per-store inclusion rule (0.39 bugfix):
+// a store absent from the backup file must be LEFT UNTOUCHED, not wiped to empty. This matters
+// because a cloud-sourced backup deliberately omits local-only infra (sync_queue/app_research_notes),
+// and wiping those on restore would silently discard unsynced local changes.
+function restoreScope(localStores, backupTables) {
+  const recordsByStore = {};
+  for (const store of localStores) {
+    const rows = backupTables[store];
+    if (rows === undefined) continue;
+    if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
+    recordsByStore[store] = rows;
+  }
+  return recordsByStore;
+}
+{
+  const stores = ['businesses', 'sync_queue', 'app_research_notes'];
+  const cloudShaped = { businesses: [{ id: 'b1' }] }; // omits sync_queue/app_research_notes entirely
+  const scoped = restoreScope(stores, cloudShaped);
+  ok('businesses' in scoped, 'restoreScope: replaces a store present in the backup');
+  ok(!('sync_queue' in scoped), 'restoreScope: does NOT touch a store absent from the backup (local-only infra survives a cloud backup restore)');
+  ok(!('app_research_notes' in scoped), 'restoreScope: same for app_research_notes');
+
+  const fullLocal = { businesses: [], sync_queue: [], app_research_notes: [] };
+  const scopedFull = restoreScope(stores, fullLocal);
+  ok(Object.keys(scopedFull).length === 3 && scopedFull.sync_queue.length === 0, 'restoreScope: an explicit empty array IS applied (genuinely empty store), unlike a missing key');
+
+  let threw = false;
+  try { restoreScope(stores, { businesses: 'not-an-array' }); } catch (e) { threw = e.message.includes('BACKUP_TABLE_INVALID'); }
+  ok(threw, 'restoreScope: rejects a malformed (non-array) table instead of silently accepting it');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

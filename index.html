@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.38',
+      version: '0.39',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.38', date: '2026-07-12', label: '최신 · 가계부 삭제', detail: '설정의 "가계부 관리"에서 가계부를 삭제할 수 있게 했습니다. 삭제하면 그 가계부의 거래·계정과목·거래처·전표·증빙·마감 기록이 모두 함께 삭제되고, 화면에서 되돌릴 수 없습니다(감사 기록에는 남습니다). 지금 쓰던 가계부를 지우면 다른 가계부로 자동 전환되거나, 남은 가계부가 없으면 새로 만드는 화면으로 돌아갑니다.' },
+      { version: '0.39', date: '2026-07-12', label: '최신 · 클라우드가 정본, 백업·복원 완성', detail: '데이터 관리 화면을 "이 기기 저장소는 보조 캐시, 클라우드(Supabase)가 정본"이라는 원칙에 맞게 다시 정리했습니다. 클라우드에서 직접 백업 파일을 만들 수 있고("클라우드에서 백업"), 이 기기 캐시가 다른 기기와 달라 보이면 "클라우드 기준으로 새로고침"으로 바로 맞출 수 있습니다. 복원도 "이 기기만 복원"과 "복원 후 모든 기기에 반영"(소유자 전용) 두 가지로 나눠, 복원한 내용이 다른 기기에도 확실히 반영되게 했습니다. 백업 파일에 없는 항목은 함부로 비우지 않도록 고쳤습니다.' },
+      { version: '0.38', date: '2026-07-12', label: '가계부 삭제', detail: '설정의 "가계부 관리"에서 가계부를 삭제할 수 있게 했습니다. 삭제하면 그 가계부의 거래·계정과목·거래처·전표·증빙·마감 기록이 모두 함께 삭제되고, 화면에서 되돌릴 수 없습니다(감사 기록에는 남습니다). 지금 쓰던 가계부를 지우면 다른 가계부로 자동 전환되거나, 남은 가계부가 없으면 새로 만드는 화면으로 돌아갑니다.' },
       { version: '0.37', date: '2026-07-12', label: '마감·마감해제', detail: '"마감"이 이제 실제로 동작합니다. 원하는 달을 마감하면 그 달의 거래를 새로 넣거나 지울 수 없고, "마감 해제"를 누르면 다시 편집할 수 있습니다(영구 삭제가 아니라 되돌릴 수 있는 잠금입니다). 언제 마감·해제했는지는 기록에 남습니다. 개인 가계부 모드에서도 마감 메뉴를 쓸 수 있게 했습니다.' },
       { version: '0.36', date: '2026-07-12', label: '가계부 여러 개 관리', detail: '가계부(사업자)를 하나만 쓰던 것에서, 목적이 다른 가계부(예: 개인 생활비, 유학 생활비, 부업)를 여러 개 만들어 전환할 수 있게 했습니다. 설정에 "가계부 관리" 패널이 추가됐고, 가계부마다 거래·계정과목·전표·개인/사업자 모드가 완전히 분리됩니다. "새 가계부 추가"로 이름과 종류만 정하면 바로 만들어지고, 목록에서 "전환" 버튼으로 오갈 수 있습니다.' },
       { version: '0.35', date: '2026-07-12', label: '기기간 자동 동기화(기본값)', detail: '지금까지는 설정에서 "동기화" 버튼을 직접 눌러야만 다른 기기와 자료가 맞춰졌습니다. 이제 로그인·화면 복귀(포커스·탭 전환)·인터넷 재연결·30초 주기 타이머 중 어느 하나만 일어나도 자동으로 클라우드와 맞춥니다. 거래 입력·설정·가져오기처럼 입력 중일 수 있는 화면은 자동 동기화가 끝나도 화면을 다시 그리지 않아 입력 중이던 값이 사라지지 않습니다. "지금 동기화" 버튼은 즉시 반영이 필요할 때를 위해 그대로 남아 있습니다.' },
@@ -2275,12 +2276,14 @@
         return { detachedTransaction: tx && !stillAttached ? 1 : 0 };
       },
 
+      // 이 기기 로컬 캐시 스냅샷 — "정본"이 아니라 오프라인 대비·이 기기 복구용 보조 백업이다.
       async exportBackup() {
         const tables = await storage.snapshot();
         return {
           backupSchemaVersion: APP_INFO.backupSchemaVersion,
           appVersion: APP_INFO.version,
           schemaVersion: APP_INFO.schemaVersion,
+          source: 'local',
           createdAt: Utils.now(),
           deviceId: this.deviceId(),
           canonicalVersion: Number(state.config.canonicalVersion || 0),
@@ -2289,15 +2292,18 @@
         };
       },
 
+      // 백업 파일 안에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes 같은 이 기기
+      // 전용 인프라 테이블)는 건드리지 않는다 — 없다고 그냥 비우면 아직 못 올린 로컬 변경이 사라질 수 있다.
       async restoreBackup(backup) {
         if (!backup || backup.backupSchemaVersion !== APP_INFO.backupSchemaVersion || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
         const recordsByStore = {};
         for (const store of LOCAL_STORES) {
           const rows = backup.tables[store];
-          if (rows !== undefined && !Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
-          recordsByStore[store] = rows || [];
+          if (rows === undefined) continue;
+          if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
+          recordsByStore[store] = rows;
         }
-        for (const store of LOCAL_STORES) await storage.replaceStore(store, recordsByStore[store]);
+        for (const store of Object.keys(recordsByStore)) await storage.replaceStore(store, recordsByStore[store]);
         state.config.canonicalVersion = Number(backup.canonicalVersion || 0);
         ConfigAdapter.save(state.config);
         await this.reload();
@@ -2516,6 +2522,55 @@
           state.syncStatus = 'complete';
           await AppService.reload();
           return nextCanonical;
+        } catch (error) {
+          state.syncStatus = 'error'; state.syncError = error.message; throw error;
+        } finally {
+          renderShellStatus();
+        }
+      },
+
+      // 클라우드(Supabase, 정본)에서 직접 뜨는 스냅샷 — 이 기기 캐시 상태와 무관하게 "지금 클라우드가
+      // 진짜로 들고 있는 값"을 그대로 담는다. tombstones까지 포함해 삭제 상태도 정확히 복원할 수 있다.
+      async exportCloudBackup() {
+        if (!state.session) throw new Error('AUTH_REQUIRED');
+        const tables = {};
+        for (const table of SYNC_TABLE_ORDER) tables[table] = (await remote.pullTable(table)) || [];
+        tables.tombstones = (await remote.pullTombstones()) || [];
+        const meta = await remote.syncMeta();
+        return {
+          backupSchemaVersion: APP_INFO.backupSchemaVersion,
+          appVersion: APP_INFO.version,
+          schemaVersion: APP_INFO.schemaVersion,
+          source: 'cloud',
+          createdAt: Utils.now(),
+          deviceId: AppService.deviceId(),
+          canonicalVersion: Number(meta.canonical_version?.value || 0),
+          tables,
+          warnings: ['이 파일에는 거래처와 세무자료가 포함될 수 있습니다. 공개 저장소나 공유 폴더에 올리지 마세요.']
+        };
+      },
+
+      // 클라우드(정본) 기준으로 이 기기 로컬 캐시를 강제로 다시 맞춘다 — canonical_version이 같아도
+      // (syncNow의 LWW 경로만 타는 상황이라도) 무조건 클라우드 값으로 통째 교체해 기기별 드리프트를 없앤다.
+      // 아직 안 올라간 로컬 변경(sync_queue)은 버려진다 — 확인창에서 미리 경고한다.
+      async resetLocalFromCloud() {
+        if (!state.session) throw new Error('AUTH_REQUIRED');
+        state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
+        try {
+          const cloudByTable = {};
+          for (const table of SYNC_TABLE_ORDER) cloudByTable[table] = (await remote.pullTable(table)) || [];
+          const localBusinesses = await storage.getAll('businesses');
+          if (localBusinesses.some(row => !row.deleted_at) && cloudByTable.businesses.length === 0) throw new Error('EMPTY_CLOUD_GUARD');
+          for (const table of SYNC_TABLE_ORDER) await storage.replaceStore(table, cloudByTable[table]);
+          await storage.replaceStore('tombstones', (await remote.pullTombstones()) || []);
+          await storage.replaceStore('sync_queue', []);
+          const meta = await remote.syncMeta();
+          state.config.canonicalVersion = Number(meta.canonical_version?.value || 0);
+          state.config.lastSyncAt = Utils.now();
+          ConfigAdapter.save(state.config);
+          state.syncStatus = 'complete';
+          await AppService.reload();
+          return { resetFromCloud: true };
         } catch (error) {
           state.syncStatus = 'error'; state.syncError = error.message; throw error;
         } finally {
@@ -3179,24 +3234,24 @@
       const dataCard = (title, help, headBadge, body, actions) =>
         `<section class="panel card-panel data-card"><div class="panel-head"><div><h2 class="section-title">${title}</h2><p class="section-help">${help}</p></div>${headBadge}</div><div class="data-body">${body}</div><div class="data-actions">${actions}</div></section>`;
       return `${pageHeader('데이터 관리', '저장, 백업, 복원, 동기화, 삭제를 한 곳에서 관리합니다.')}
-        <div class="notice info">${icon('shield-check')}<div><strong>모든 입력은 이 기기에 자동 저장됩니다.</strong><br>삭제와 복원은 되돌리기 어렵습니다. 중요한 데이터는 먼저 JSON 백업을 만들어 두세요.</div></div>
+        <div class="notice info">${icon('shield-check')}<div><strong>정본은 클라우드(Supabase)이고, 이 기기 저장소는 오프라인에서도 바로 쓸 수 있게 하는 보조 캐시입니다.</strong><br>기기마다 자료가 달라 보이면 "클라우드 기준으로 새로고침"을 눌러 맞추세요. 삭제와 복원은 되돌리기 어려우니 중요한 데이터는 먼저 백업하세요.</div></div>
         <div class="data-grid">
-          ${dataCard('로컬 저장', '이 기기 IndexedDB에 자동으로 저장됩니다.',
+          ${dataCard('로컬 캐시', '이 기기 IndexedDB에 자동으로 저장되는 보조 캐시입니다(정본 아님).',
             badge(state.ready ? '자동 저장 중' : '준비 중', state.ready ? 'success' : ''),
             `저장소 <code>${storage.name}</code> · ${LOCAL_STORES.length} stores<br>거래 ${activeCount}건 · 동기화 대기 ${state.queue.length}건 · canonical v${Number(state.config.canonicalVersion || 0)}`,
             `<button class="button" id="dataReloadButton" type="button">${icon('refresh-cw')}저장 상태 새로고침</button>`)}
           ${dataCard('클라우드 동기화', '로그인한 소유자는 이 화면을 열지 않아도 자동으로 동기화됩니다.',
             badge(connected ? '연결됨 · 자동 동기화' : '로그인 필요', connected ? 'success' : 'warning'),
             `마지막 동기화 ${lastSync} · canonical v${Number(state.config.canonicalVersion || 0)}<br>${connected ? '로그인·화면 복귀·온라인 복귀 시 자동으로 맞춰집니다. 지금 바로 반영하려면 아래 버튼을 누르세요.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}${owner ? '<br><strong>최종본 지정</strong>은 다른 기기의 로컬 전용 변경을 이 기기 기준으로 덮어씁니다.' : ''}`,
-            `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button>${owner ? `<button class="button danger" id="dataCanonicalButton" type="button" ${connected ? '' : 'disabled'}>${icon('crown')}이 기기를 최종본으로</button>` : ''}`)}
-          ${dataCard('JSON 백업', '암호화되지 않은 파일이므로 안전한 위치에 보관하세요.',
+            `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button><button class="button" id="dataResetFromCloudButton" type="button" ${connected ? '' : 'disabled'}>${icon('rotate-ccw')}클라우드 기준으로 새로고침</button>${owner ? `<button class="button danger" id="dataCanonicalButton" type="button" ${connected ? '' : 'disabled'}>${icon('crown')}이 기기를 최종본으로</button>` : ''}`)}
+          ${dataCard('백업', '암호화되지 않은 파일이므로 안전한 위치에 보관하세요.',
             state.config.lastBackupAt ? badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'), 'success') : badge('백업 없음', 'warning'),
-            '전체 로컬 데이터를 하나의 JSON 파일로 내려받습니다. 거래처와 세무자료가 포함될 수 있습니다.',
-            `<button class="button" id="dataBackupButton" type="button">${icon('download')}백업 만들기</button>`)}
-          ${dataCard('JSON 복원', '현재 로컬 데이터를 파일 내용으로 교체합니다.',
+            `<strong>클라우드에서 백업</strong>은 정본(Supabase)에서 직접 내려받아 이 기기 캐시 상태와 무관하게 가장 정확합니다.<br>이 기기 백업은 오프라인이거나 로그인 전에도 만들 수 있는 보조 백업입니다.`,
+            `<button class="button primary" id="dataCloudBackupButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud-download')}클라우드에서 백업</button><button class="button" id="dataBackupButton" type="button">${icon('download')}이 기기 백업</button>`)}
+          ${dataCard('복원', '백업 파일로 데이터를 되돌립니다.',
             badge('주의', 'warning'),
-            '백업 파일을 선택하면 이 기기의 로컬 데이터를 파일 기준으로 덮어씁니다. 복원 전에 현재 데이터를 백업하세요.',
-            `<button class="button" id="dataRestoreButton" type="button">${icon('upload')}복원 파일 선택</button><input id="dataRestoreFile" type="file" accept="application/json,.json" hidden>`)}
+            '"이 기기만 복원"은 이 기기 캐시만 바꾸고, 다음 자동 동기화 때 클라우드 값으로 다시 덮일 수 있습니다.' + (owner ? ' 다른 기기에도 반영하려면 "복원 후 모든 기기에 반영"을 쓰세요(최종본 지정과 같은 효과).' : ''),
+            `<button class="button" id="dataRestoreButton" type="button">${icon('upload')}이 기기만 복원</button><input id="dataRestoreFile" type="file" accept="application/json,.json" hidden>${owner ? `<button class="button danger" id="dataRestoreCanonicalButton" type="button">${icon('upload-cloud')}복원 후 모든 기기에 반영</button><input id="dataRestoreCanonicalFile" type="file" accept="application/json,.json" hidden>` : ''}`)}
           ${dataCard('부분 삭제', '거래 한 건을 소프트 삭제합니다.',
             badge(`${activeCount}건`, activeCount ? 'info' : ''),
             activeCount
@@ -3686,20 +3741,47 @@
         if (!confirm('이 기기의 데이터를 클라우드 최종본으로 지정합니다. 다른 기기는 다음 동기화에서 로컬 전용 변경을 버리고 이 기기 기준으로 맞춰집니다. 계속하시겠습니까?')) return;
         try { const v = await SyncService.designateCanonical(); toast(`이 기기를 최종본(canonical v${v})으로 지정했습니다.`,'success'); render(); } catch(error){ diagnostic(error); }
       });
+      el('dataResetFromCloudButton')?.addEventListener('click', async () => {
+        const pendingNote = state.queue.length ? `\n\n주의: 아직 클라우드에 안 올라간 이 기기의 변경 ${state.queue.length}건이 사라집니다.` : '';
+        if (!confirm(`이 기기의 로컬 캐시를 지금 클라우드(정본) 값으로 완전히 다시 맞춥니다.${pendingNote}\n\n계속하시겠습니까?`)) return;
+        try { await SyncService.resetLocalFromCloud(); toast('클라우드 기준으로 이 기기를 새로고침했습니다.','success'); render(); } catch(error){ diagnostic(error); }
+      });
       el('dataBackupButton')?.addEventListener('click', async () => {
         if (!confirm('백업 파일에는 거래처와 세무자료가 포함될 수 있습니다. 안전한 위치에 보관하시겠습니까?')) return;
         try {
           const backup = await AppService.exportBackup();
           const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
-          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `accounting-ledger-backup-${Utils.today()}-v${APP_INFO.version}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-          state.config.lastBackupAt = Utils.now(); ConfigAdapter.save(state.config); toast('JSON 백업 파일을 만들었습니다.','success'); render();
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `accounting-ledger-backup-local-${Utils.today()}-v${APP_INFO.version}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+          state.config.lastBackupAt = Utils.now(); ConfigAdapter.save(state.config); toast('이 기기 백업 파일을 만들었습니다.','success'); render();
+        } catch(error){ diagnostic(error); }
+      });
+      el('dataCloudBackupButton')?.addEventListener('click', async () => {
+        if (!confirm('클라우드(정본)에서 직접 백업 파일을 만듭니다. 거래처와 세무자료가 포함될 수 있습니다. 안전한 위치에 보관하시겠습니까?')) return;
+        try {
+          const backup = await SyncService.exportCloudBackup();
+          const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `accounting-ledger-backup-cloud-${Utils.today()}-v${APP_INFO.version}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+          state.config.lastBackupAt = Utils.now(); ConfigAdapter.save(state.config); toast('클라우드 백업 파일을 만들었습니다.','success'); render();
         } catch(error){ diagnostic(error); }
       });
       el('dataRestoreButton')?.addEventListener('click', () => el('dataRestoreFile').click());
       el('dataRestoreFile')?.addEventListener('change', async event => {
         const file = event.target.files?.[0]; if (!file) return;
-        if (!confirm('현재 로컬 데이터를 백업 파일 내용으로 교체합니다. 계속하시겠습니까?')) return;
-        try { await AppService.restoreBackup(JSON.parse(await file.text())); toast('백업을 복원했습니다.','success'); render(); } catch(error){ diagnostic(error); }
+        if (!confirm('이 기기의 로컬 데이터를 백업 파일 내용으로 교체합니다(이 기기만, 다른 기기·클라우드는 그대로). 계속하시겠습니까?')) return;
+        try { await AppService.restoreBackup(JSON.parse(await file.text())); toast('이 기기에 백업을 복원했습니다.','success'); render(); }
+        catch(error){ diagnostic(error); }
+        finally { event.target.value = ''; }
+      });
+      el('dataRestoreCanonicalButton')?.addEventListener('click', () => el('dataRestoreCanonicalFile').click());
+      el('dataRestoreCanonicalFile')?.addEventListener('change', async event => {
+        const file = event.target.files?.[0]; if (!file) return;
+        if (!confirm('이 백업 내용으로 이 기기를 복원한 뒤, 클라우드 최종본으로 지정합니다. 다른 모든 기기는 다음 동기화에서 이 내용으로 맞춰지고, 각 기기의 로컬 전용 변경은 버려집니다. 계속하시겠습니까?')) return;
+        try {
+          await AppService.restoreBackup(JSON.parse(await file.text()));
+          const v = await SyncService.designateCanonical();
+          toast(`백업을 복원하고 모든 기기의 최종본(canonical v${v})으로 지정했습니다.`,'success'); render();
+        } catch(error){ diagnostic(error); }
+        finally { event.target.value = ''; }
       });
       el('dataPartialDeleteButton')?.addEventListener('click', async () => {
         const select = el('dataDeleteSelect'); const id = select?.value;
