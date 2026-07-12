@@ -85,7 +85,8 @@ if (api) {
   ok(remapped[0].account === '소모품비' && remapped[0].knownAccount === true, 'remapAccount -> 소모품비, knownAccount true');
 
   // 세법 용어사전 — 법적 정의(근거 조문) + 초딩 설명, 대시보드 검색용
-  ok(TermService.all().length === 28, 'TermService has 28 terms');
+  ok(TermService.all().length === 31, 'TermService has 31 terms');
+  ok(TermService.find('대리납부') && /제52조/.test(TermService.find('대리납부').law), 'TermService 대리납부 -> 부가가치세법 §52 (해외 용역)');
   ok(TermService.find('필요경비') && /제27조/.test(TermService.find('필요경비').law), 'TermService 필요경비 -> 법적 정의에 소득세법 §27');
   ok(TermService.find('복식부기') && TermService.find('복식부기').kid.length > 0, 'TermService 복식부기 has kid-level explanation');
   ok(TermService.search('경비율').some(t => t.term === '기준경비율'), 'TermService search 경비율 -> 기준경비율');
