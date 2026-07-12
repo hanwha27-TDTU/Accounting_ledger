@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.33',
+      version: '0.34',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.33', date: '2026-07-12', label: '최신 · 개인 가계부 모드', detail: '처음 시작할 때 개인 가계부 모드와 사업자 모드 중 고를 수 있습니다. 개인 가계부는 사업자 등록 없이 식비·교통비 같은 카테고리로 수입·지출을 관리하며, 세금 계산·법정서식 같은 사업자 전용 화면은 보이지 않습니다. 계정과목(카테고리)은 언제든 직접 추가하거나 비활성화할 수 있고, 설정에서 모드를 바꿀 수 있습니다.' },
+      { version: '0.34', date: '2026-07-12', label: '최신 · 거래처 관리 · Excel 읽기 기능탐지', detail: '설정에 "거래처 관리" 패널을 추가했습니다. 거래 입력 시 이름으로 자동 등록된 거래처를 더 이상 안 쓸 때 계정과목과 같은 방식으로 비활성화할 수 있습니다(소프트삭제, 과거 거래의 거래처명은 그대로 남습니다). 또한 간편장부 Excel 업로드 시 브라우저가 압축 해제 기능(DecompressionStream)을 지원하지 않으면 알 수 없는 오류 대신 "최신 브라우저로 다시 시도해 주세요" 안내 메시지를 보여주도록 했습니다.' },
+      { version: '0.33', date: '2026-07-12', label: '개인 가계부 모드', detail: '처음 시작할 때 개인 가계부 모드와 사업자 모드 중 고를 수 있습니다. 개인 가계부는 사업자 등록 없이 식비·교통비 같은 카테고리로 수입·지출을 관리하며, 세금 계산·법정서식 같은 사업자 전용 화면은 보이지 않습니다. 계정과목(카테고리)은 언제든 직접 추가하거나 비활성화할 수 있고, 설정에서 모드를 바꿀 수 있습니다.' },
       { version: '0.32', date: '2026-07-12', label: '계정과목 선택 가이드', detail: '가이드에 계정과목 선택 가이드를 추가했습니다. 25개 계정과목마다 국세청 법적 정의와 초등학생 눈높이 설명, 실제 예시를 담았고, 소모품비 vs 비품처럼 헷갈리기 쉬운 것을 구분하는 방법도 안내합니다. 거래 입력 화면 계정과목 옆에서도 바로 열어볼 수 있습니다.' },
       { version: '0.31', date: '2026-07-12', label: '월별 사용현황', detail: '상단에 "월별 사용현황" 버튼을 추가했습니다. 계정과목별로 매달 얼마나 썼는지·벌었는지를 표로 한눈에 볼 수 있습니다. 법정서식이 아니라 이해를 돕는 검토용이며, 간편장부·복식부기 어느 관점이든 같은 표로 확인할 수 있습니다.' },
       { version: '0.30', date: '2026-07-12', label: '통화 선택 목록', detail: '해외 거래 통화 칸에 자동완성 목록을 추가했습니다. 미국 달러·유로·엔·파운드·위안 등 기축·주요 통화와 우즈베키스탄 숨(UZS) 등 지역 통화를 골라 넣을 수 있고, 목록에 없는 통화도 3글자 코드로 직접 입력할 수 있습니다.' },
@@ -910,6 +911,7 @@
         const comp = bytes.subarray(start, start + e.compSize);
         if (e.method === 0) return new TextDecoder().decode(comp);
         if (e.method === 8) {
+          if (typeof DecompressionStream === 'undefined') throw new Error('이 브라우저는 Excel 압축 해제 기능(DecompressionStream)을 지원하지 않습니다. 최신 Chrome·Edge·Safari로 다시 시도해 주세요.');
           const stream = new Response(comp).body.pipeThrough(new DecompressionStream('deflate-raw'));
           return new TextDecoder().decode(new Uint8Array(await new Response(stream).arrayBuffer()));
         }
@@ -1841,6 +1843,21 @@
         return { deactivated: 1 };
       },
 
+      // 거래처 소프트삭제 — deactivateAccount와 동일 패턴. 과거 거래에 남은 거래처명은 그대로 보이고,
+      // 목록·자동완성에서만 사라진다(counterpartyName()이 deleted_at 여부로 걸러내지 않고 id로 이름을 찾으므로 과거 표시는 유지됨).
+      async deactivateCounterparty(counterpartyId) {
+        const counterparty = state.counterparties.find(row => row.id === counterpartyId && !row.deleted_at);
+        if (!counterparty) throw new Error('COUNTERPARTY_NOT_FOUND');
+        const now = Utils.now();
+        const deleted = { ...counterparty, deleted_at: now, updated_at: now };
+        const tombstones = [this.tombstone('counterparties', counterparty.id)];
+        const audit = this.audit('counterparty', counterparty.id, 'delete', counterparty, deleted, '거래처 비활성화');
+        const queueRows = [this.queue('counterparties', deleted), this.queue('audit_logs', audit)];
+        await storage.putMany({ counterparties: [deleted], audit_logs: [audit], tombstones, sync_queue: queueRows });
+        await this.reload();
+        return { deactivated: 1 };
+      },
+
       remoteSafeAccount(account) {
         const { local_key, local_explanation, ...safe } = account;
         return safe;
@@ -2768,6 +2785,17 @@
       </section>`;
     }
 
+    // 거래처 관리 — 거래 입력 시 이름으로 자동 생성된 거래처를 나중에 정리할 수 있게 한다.
+    // 새로 만드는 폼은 없다(거래 입력이 생성 경로다); 여기서는 비활성화만 한다.
+    function renderCounterpartyManagement() {
+      if (!state.business) return '';
+      const list = state.counterparties.filter(row => row.business_id === state.business.id && !row.deleted_at).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      const rows = list.length ? list.map(row => `<div class="task-row"><div class="task-main"><div class="task-title">${Utils.escape(row.name)}</div><div class="task-note">거래 입력 시 자동으로 만들어진 거래처입니다.</div></div><button class="button small danger" type="button" data-counterparty-deactivate="${row.id}">${icon('trash-2')}비활성화</button></div>`).join('') : `<p class="section-help">아직 등록된 거래처가 없습니다. 거래를 입력하면 거래처가 자동으로 추가됩니다.</p>`;
+      return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">거래처 관리</h2><p class="section-help">거래를 입력할 때 이름으로 자동 등록됩니다. 더 이상 안 쓰는 거래처는 비활성화할 수 있습니다(과거 거래에 남은 거래처명은 그대로 보입니다).</p></div></div>
+        ${rows}
+      </section>`;
+    }
+
     function renderAllowlist() {
       if (!isBootstrapOwner()) return '';
       const active = state.allowedUsers.filter(row => row.status === 'active' && !row.deleted_at).length;
@@ -2859,6 +2887,7 @@
           </form>
         </section>
         ${renderAccountManagement()}
+        ${renderCounterpartyManagement()}
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">Supabase 및 Google 로그인</h2><p class="section-help">publishable key만 저장할 수 있습니다. RLS가 실제 데이터 접근을 통제합니다.</p></div>${state.session?badge(Utils.normalizeEmail(state.session.user.email),'success'):badge(diagnosticLabel,diagnosticKind)}</div>
           ${diagnostic.googleProvider === 'disabled' ? `<div class="notice danger">${icon('shield-alert')}<div><strong>Google 로그인 제공자가 비활성입니다.</strong><br>Supabase Auth에 Google Client ID와 Secret을 등록하기 전에는 로그인을 시작하지 않습니다.</div></div>` : ''}
           <div class="task-list" style="margin-bottom:16px">
@@ -3093,6 +3122,11 @@
       document.querySelectorAll('[data-account-deactivate]').forEach(button => button.addEventListener('click', async () => {
         if (!confirm('이 계정과목을 비활성화할까요? 앞으로 새 거래에서 고를 수 없지만, 과거 거래의 계정명은 그대로 남습니다.')) return;
         try { await AppService.deactivateAccount(button.dataset.accountDeactivate); toast('계정과목을 비활성화했습니다.', 'success'); render(); }
+        catch (error) { diagnostic(error); }
+      }));
+      document.querySelectorAll('[data-counterparty-deactivate]').forEach(button => button.addEventListener('click', async () => {
+        if (!confirm('이 거래처를 비활성화할까요? 앞으로 새 거래에서 자동완성되지 않지만, 과거 거래의 거래처명은 그대로 남습니다.')) return;
+        try { await AppService.deactivateCounterparty(button.dataset.counterpartyDeactivate); toast('거래처를 비활성화했습니다.', 'success'); render(); }
         catch (error) { diagnostic(error); }
       }));
       document.querySelectorAll('[data-guide-topic]').forEach(button => button.addEventListener('click', () => {

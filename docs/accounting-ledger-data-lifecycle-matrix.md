@@ -26,7 +26,7 @@
 | business_sites | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 사업장 삭제 후속 |
 | ledger_period_settings | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | state 미보관, setupBusiness에서 ad-hoc 읽기 |
 | accounts | ✓ | ✓ | ✓ | ✓ | ✓(remoteSafe) | ✓ | ✓ | ✓ | local_key/설명은 remote 제외. 0.33에서 사용자 추가 계정과목 비활성화(소프트삭제) 배선 |
-| counterparties | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | 거래처 삭제 미구현(낮음) |
+| counterparties | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 0.34에서 거래처 비활성화(소프트삭제) 배선. `deactivateAccount`와 동일 패턴 |
 | source_transactions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 기준 도메인(전 노드) |
 | journal_entries | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
 | journal_entry_lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
@@ -40,7 +40,7 @@
 ## Gap 심각도순과 수정안 (형제 도메인 대조)
 
 1. ~~evidence_files 삭제→tombstone 미배선~~ **(0.12 해결)**. `AppService.removeEvidence`가 형제 `deleteTransaction`과 동일 규칙(soft-delete + tombstone + 감사 + 큐)으로 증빙 링크를 제거하고, 다른 증빙이 없으면 거래를 `not_attached`로 되돌린다. Cloudinary **원본** 삭제는 서명 API(secret) 필요라 브라우저 직접 불가 → `delete_status='unlinked'` 표시 후 Edge Function 후보.
-2. **counterparties 삭제 미배선** (낮음). 형제 대조상 soft-delete + tombstone 추가 가능. 사용 빈도 낮아 후속.
+2. ~~counterparties 삭제 미배선~~ **(0.34 해결)**. `AppService.deactivateCounterparty`가 형제 `deactivateAccount`와 동일 규칙으로 비활성화하고, 설정 화면 "거래처 관리" 패널에서 조작한다.
 3. **import 미리보기 부재** (중간, 백업/가져오기 대칭). `imports`는 placeholder다. 실제 구현 시 백업 5봉합점(백업 생성·읽기·적용·미리보기 계산·미리보기 표시)을 대칭으로 배선하고, 미리보기는 적용과 같은 규칙(id 키·merge/append/replace)으로 계산한다.
 4. **ledger_period_settings·tombstones·app_research_notes state 미보관** (낮음/의도적). ad-hoc 읽기 또는 infra라 reload state에 담지 않는다.
 
