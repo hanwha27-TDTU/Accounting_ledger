@@ -145,6 +145,10 @@ if (api) {
   const exempt = AccountingDomain.calculateAmounts('5000', 'exempt');
   ok(exempt.supplyAmount === 5000 && exempt.vatAmount === 0, 'calculateAmounts exempt -> no vat');
 
+  // 해외 거래 환율 환산 (외화 × 환율 -> 원화, 반올림)
+  ok(AccountingDomain.fxToKrw('100', '1350') === 135000, 'fxToKrw 100 USD @1350 -> 135,000원');
+  ok(AccountingDomain.fxToKrw('9.99', '1350') === 13487 && AccountingDomain.fxToKrw('', '1350') === 0, 'fxToKrw rounds, empty -> 0');
+
   const balanced = [{ account_id: 'a', debit_amount: 100, credit_amount: 0 }, { account_id: 'b', debit_amount: 0, credit_amount: 100 }];
   ok(AccountingDomain.validateJournal(balanced).status === 'pass', 'validateJournal balanced -> pass');
   const unbalanced = [{ account_id: 'a', debit_amount: 100, credit_amount: 0 }, { account_id: 'b', debit_amount: 0, credit_amount: 90 }];

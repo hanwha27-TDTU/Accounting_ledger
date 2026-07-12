@@ -561,7 +561,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.27',
+      version: '0.28',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -576,7 +576,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.27', date: '2026-07-12', label: '최신 · 해외 구매·수입 처리 안내', detail: '가이드에 "해외 구매·수입 처리" 안내를 추가했습니다. 해외 물품 수입(수입부가세), 해외 용역·구독(면세사업자의 대리납부), 해외 현지 소비를 부가가치세법 제4조·제52조 근거로 구분해 설명하고, 수입부가세·대리납부·기준환율 용어를 용어사전에 담았습니다.' },
+      { version: '0.28', date: '2026-07-12', label: '최신 · 거래 입력 해외 거래 연동', detail: '거래 입력에 “해외 거래” 선택을 추가했습니다. 통화·외화 금액·환율을 넣으면 원화 총 금액이 자동으로 채워지고, 면세사업자가 해외 비용을 입력하면 대리납부 주의 안내가 뜹니다. 해외 거래는 내용에 통화·환율이 함께 기록됩니다.' },
+      { version: '0.27', date: '2026-07-12', label: '해외 구매·수입 처리 안내', detail: '가이드에 "해외 구매·수입 처리" 안내를 추가했습니다. 해외 물품 수입(수입부가세), 해외 용역·구독(면세사업자의 대리납부), 해외 현지 소비를 부가가치세법 제4조·제52조 근거로 구분해 설명하고, 수입부가세·대리납부·기준환율 용어를 용어사전에 담았습니다.' },
       { version: '0.26', date: '2026-07-12', label: '가져오기 검증·수정 모달', detail: '간편장부 Excel을 올리면 검증 창이 자동으로 열려 오류(날짜·금액)와 경고(미분류 계정과목, 부가세 불일치)를 찾아 보여줍니다. 미분류 계정과목은 표준 계정과목으로 바꾸고, 부가세가 총액 기준일 때 공급가액을 다시 계산하는 등 수정을 제안하되, 값 변경은 사용자가 승인해야 반영됩니다. 오류 행은 반영에서 자동 제외됩니다.' },
       { version: '0.25', date: '2026-07-11', label: '간편장부 가져오기 장부 반영', detail: '미리보기한 간편장부 거래를 복식부기 원장에 실제로 반영합니다. 각 거래는 균형 전표로 기록되고, 없는 계정과목·거래처는 자동으로 만들어집니다. 같은 파일을 다시 반영해도 내용 기반 식별로 중복(좀비 데이터) 없이 덮어씁니다.' },
       { version: '0.24', date: '2026-07-11', label: '간편장부 Excel 미리보기(가져오기)', detail: '국세청 간편장부(.xlsx)를 외부 라이브러리 없이 브라우저에서 직접 읽어 미리보기합니다. 「장부」 시트의 월·일·계정과목·거래내용·거래처·수입/비용/자산 금액을 원본 그대로 표로 보여주고, 계정과목이 분류표에 있는지 확인합니다. 아직 장부에 반영하지 않는 안전한 미리보기 단계입니다.' },
@@ -1134,6 +1135,8 @@
 
     // 3. Accounting domain layer: no DOM, storage, or remote calls
     const AccountingDomain = Object.freeze({
+      fxToKrw(amount, rate) { return Math.round(Utils.number(amount) * Utils.number(rate)); },
+
       calculateAmounts(totalInput, vatType) {
         const total = Math.max(0, Math.round(Utils.number(totalInput)));
         if (vatType !== 'taxable') return { supplyAmount: total, vatAmount: 0, totalAmount: total };
@@ -2274,6 +2277,14 @@
         </div>`;
     }
 
+    // 해외 거래 안내 — 거래유형·과세유형에 따라 대리납부/수입부가세 처리를 알린다(부가세법 §4·§52).
+    function overseasNoteHtml() {
+      if (state.formType === 'income') return `<div class="notice info">${icon('info')}<div>해외에서 받은 수입입니다. 영세율·국외공급 여부는 개별 확인이 필요합니다.</div></div>`;
+      const base = '해외 <strong>물품 수입</strong>이면 세관 수입부가세(과세사업자는 매입세액 공제), 해외 <strong>용역·구독</strong>이면 처리 방식이 다릅니다.';
+      if (state.config.vatPayerType === 'exempt') return `<div class="notice danger">${icon('shield-alert')}<div><strong>면세사업자 대리납부 주의.</strong> 해외 용역(SaaS·클라우드 등)을 공급받으면 10% 부가세를 스스로 신고·납부해야 할 수 있습니다(부가가치세법 §52). ${base}</div></div>`;
+      return `<div class="notice">${icon('info')}<div>${base} 자세한 내용은 가이드 “해외 구매·수입 처리”를 참고하세요.</div></div>`;
+    }
+
     function renderTransactionForm() {
       if (!state.business) return `${pageHeader('거래 입력','먼저 사업자 정보를 설정해야 원천거래와 전표를 연결할 수 있습니다.')}<div class="notice">${icon('triangle-alert')}<div>사업자 설정이 필요합니다.</div></div><button class="button primary" type="button" data-route="settings">사업자 설정 열기</button>`;
       const choices = AccountingDomain.accountChoices(state.accounts, state.formType);
@@ -2290,6 +2301,16 @@
             <div class="field third"><label for="vatType">부가세 처리 후보</label><select class="select" id="vatType" name="vatType"><option value="taxable">과세(총액에서 분리)</option><option value="exempt">면세</option><option value="none">부가세 없음/검토</option></select><div class="field-help">증빙에 세액이 따로 적혀 있다면 그 금액이 우선합니다.</div></div>
             <div class="field third"><label for="paymentStatus">결제 상태</label><select class="select" id="paymentStatus" name="paymentStatus"><option value="paid">받음/지급 완료</option><option value="unpaid">외상·미지급</option></select></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="hasEvidence" name="hasEvidence"><span>증빙을 이미 보관하고 있습니다.<br><span class="field-help">파일 첨부 연결은 Cloudinary 설정 후 제공됩니다. 지금은 보관 여부만 기록합니다.</span></span></label></div>
+            <div class="field full"><label class="checkbox-row"><input type="checkbox" id="isOverseas" name="isOverseas"><span>해외 거래입니다(외화).<br><span class="field-help">외화 금액과 환율을 넣으면 원화 총 금액이 자동으로 채워집니다.</span></span></label></div>
+            <div class="field full" id="overseasBox" hidden>
+              <div class="form-grid">
+                <div class="field third"><label for="fxCurrency">통화</label><input class="input" id="fxCurrency" value="USD" maxlength="3" autocomplete="off"></div>
+                <div class="field third"><label for="fxAmount">외화 금액</label><input class="input" id="fxAmount" inputmode="decimal" autocomplete="off" placeholder="예: 100"></div>
+                <div class="field third"><label for="fxRate">환율 (1단위당 원)</label><input class="input" id="fxRate" inputmode="decimal" autocomplete="off" placeholder="예: 1350"></div>
+              </div>
+              <div class="field-help">거래일의 기준환율(매매기준율)을 입력하세요. 원화 = 외화 × 환율.</div>
+              <div id="overseasNote">${overseasNoteHtml()}</div>
+            </div>
           </div>
           <div class="calc-strip" aria-live="polite"><div class="calc-item"><div class="calc-label">${term('공급가액')}</div><div class="calc-value" id="supplyPreview">0원</div></div><div class="calc-item"><div class="calc-label">${term('부가세')}</div><div class="calc-value" id="vatPreview">0원</div></div><div class="calc-item"><div class="calc-label">합계</div><div class="calc-value" id="totalPreview">0원</div></div></div>
           <div class="form-actions"><button class="button" type="reset">초기화</button><button class="button primary" type="submit">${icon('save')}거래와 전표 저장</button></div>
@@ -2876,14 +2897,26 @@
         };
         el('totalAmount').addEventListener('input', preview);
         el('vatType').addEventListener('change', preview);
-        transactionForm.addEventListener('reset', () => setTimeout(preview));
+        const fxConvert = () => {
+          const krw = AccountingDomain.fxToKrw(el('fxAmount').value, el('fxRate').value);
+          if (krw > 0) { el('totalAmount').value = String(krw); preview(); }
+        };
+        el('isOverseas')?.addEventListener('change', event => { el('overseasBox').hidden = !event.target.checked; if (event.target.checked) fxConvert(); });
+        el('fxAmount')?.addEventListener('input', fxConvert);
+        el('fxRate')?.addEventListener('input', fxConvert);
+        transactionForm.addEventListener('reset', () => setTimeout(() => { if (el('overseasBox')) el('overseasBox').hidden = true; preview(); }));
         transactionForm.addEventListener('submit', async event => {
           event.preventDefault();
           transactionForm.querySelectorAll('[data-error]').forEach(node => node.textContent = '');
           try {
+            let description = el('description').value;
+            if (el('isOverseas')?.checked && Utils.number(el('fxAmount').value) > 0) {
+              const cur = (el('fxCurrency').value || '').trim().toUpperCase();
+              description = `${description} · 해외 ${cur} ${el('fxAmount').value}@${el('fxRate').value}`.trim();
+            }
             const result = await AppService.saveTransaction({
               transactionDate: el('transactionDate').value, transactionType: state.formType,
-              description: el('description').value, counterpartyName: el('counterpartyName').value,
+              description, counterpartyName: el('counterpartyName').value,
               accountId: el('accountId').value, totalAmount: el('totalAmount').value,
               vatType: el('vatType').value, paymentStatus: el('paymentStatus').value, hasEvidence: el('hasEvidence').checked
             });
