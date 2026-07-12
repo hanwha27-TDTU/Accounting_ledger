@@ -364,6 +364,10 @@
     .term-card-kid > :first-child { flex: 0 0 auto; color: var(--accent); }
     .term-card-law { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
     .term-card-law strong { color: var(--brand-strong); }
+    .term-card-examples { margin-top: 5px; font-size: 12.5px; color: var(--muted); }
+    .term-card-examples strong { color: var(--brand-strong); }
+    .guide-link { border: 0; background: transparent; padding: 0; margin-left: 8px; color: var(--brand); font-size: 12.5px; text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
+    .guide-link svg { width: 13px; height: 13px; }
     .import-preview { margin-top: 12px; max-height: 460px; overflow: auto; }
     .import-preview table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
     .import-preview th, .import-preview td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
@@ -572,7 +576,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.31',
+      version: '0.32',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -587,7 +591,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.31', date: '2026-07-12', label: '최신 · 월별 사용현황', detail: '상단에 "월별 사용현황" 버튼을 추가했습니다. 계정과목별로 매달 얼마나 썼는지·벌었는지를 표로 한눈에 볼 수 있습니다. 법정서식이 아니라 이해를 돕는 검토용이며, 간편장부·복식부기 어느 관점이든 같은 표로 확인할 수 있습니다.' },
+      { version: '0.32', date: '2026-07-12', label: '최신 · 계정과목 선택 가이드', detail: '가이드에 계정과목 선택 가이드를 추가했습니다. 25개 계정과목마다 국세청 법적 정의와 초등학생 눈높이 설명, 실제 예시를 담았고, 소모품비 vs 비품처럼 헷갈리기 쉬운 것을 구분하는 방법도 안내합니다. 거래 입력 화면 계정과목 옆에서도 바로 열어볼 수 있습니다.' },
+      { version: '0.31', date: '2026-07-12', label: '월별 사용현황', detail: '상단에 "월별 사용현황" 버튼을 추가했습니다. 계정과목별로 매달 얼마나 썼는지·벌었는지를 표로 한눈에 볼 수 있습니다. 법정서식이 아니라 이해를 돕는 검토용이며, 간편장부·복식부기 어느 관점이든 같은 표로 확인할 수 있습니다.' },
       { version: '0.30', date: '2026-07-12', label: '통화 선택 목록', detail: '해외 거래 통화 칸에 자동완성 목록을 추가했습니다. 미국 달러·유로·엔·파운드·위안 등 기축·주요 통화와 우즈베키스탄 숨(UZS) 등 지역 통화를 골라 넣을 수 있고, 목록에 없는 통화도 3글자 코드로 직접 입력할 수 있습니다.' },
       { version: '0.29', date: '2026-07-12', label: '해외 거래 구조화 저장', detail: '해외 거래의 통화·외화 금액·환율·해외 여부를 거래에 구조화된 값으로 저장하도록 했습니다(스키마에 컬럼 추가). 장부에서 해외 거래에 표시가 붙고, 앞으로 통화별 집계와 대리납부 자동 계산의 토대가 됩니다.' },
       { version: '0.28', date: '2026-07-12', label: '거래 입력 해외 거래 연동', detail: '거래 입력에 “해외 거래” 선택을 추가했습니다. 통화·외화 금액·환율을 넣으면 원화 총 금액이 자동으로 채워지고, 면세사업자가 해외 비용을 입력하면 대리납부 주의 안내가 뜹니다. 해외 거래는 내용에 통화·환율이 함께 기록됩니다.' },
@@ -788,37 +793,37 @@
       source: '국세청 간편장부 계정과목 분류표(간편장부 작성요령)',
       GROUPS: Object.freeze([
         { key: 'income', label: '수입', column: '수입금액', items: Object.freeze([
-          { name: '매출', desc: '상품이나 제품을 판매하거나 용역을 제공하고 받은 대가' },
-          { name: '기타(수입)', desc: '일반적인 영업 외의 활동에서 발생하는 이익' }
+          { name: '매출', desc: '상품이나 제품을 판매하거나 용역을 제공하고 받은 대가', kid: '가게에서 물건을 팔거나 서비스를 해주고 받은 돈이에요. 손님이 낸 돈이 여기 들어가요.', examples: ['진료비 수납', '자문료 입금', '강의료'] },
+          { name: '기타(수입)', desc: '일반적인 영업 외의 활동에서 발생하는 이익', kid: '본업 말고 어쩌다 생긴 돈이에요. 이자나 보상금처럼요.', examples: ['이자수입', '보상금', '중고 비품 판매대금'] }
         ]) },
         { key: 'expense', label: '비용', column: '비용', items: Object.freeze([
-          { name: '상품매입', desc: '상품(판매 물품) 구입 시 지급하였거나 지급할 대가' },
-          { name: '급료', desc: '종업원에게 지급되는 월급, 잡급, 일당, 퇴직금 등 인건비' },
-          { name: '제세공과금', desc: '업무용 자동차세, 면허세, 상공회의소 회비 등' },
-          { name: '임차료', desc: '사업목적으로 사용하는 건물 및 토지를 빌리고 지급하는 대가(월세·연세). 단, 보증금은 제외' },
-          { name: '지급이자', desc: '업무와 관련하여 은행 등 타인으로부터 돈을 빌리고 지급하는 이자' },
-          { name: '기업업무추진비', desc: '업무와 관련하여 거래처와의 관계 유지를 위한 지출(거래처 식사·선물, 경조사비 등)' },
-          { name: '기부금', desc: '사업과 관련없이 무상으로 지출하는 금액. 세법에 따른 특례·일반기부금은 필요경비에 산입할 수 있음' },
-          { name: '감가상각비', desc: '사업용 유형·무형자산의 가치 감소분. 내용연수·상각율은 세법으로 규정됨' },
-          { name: '차량유지비', desc: '업무용 차량의 유류대, 수리비, 자동차보험료 등' },
-          { name: '지급수수료', desc: '서비스를 제공받고 지불하는 비용(송금·신용카드 결제수수료, 비품 유지수수료, 자문수수료, 도메인 등록수수료 등)' },
-          { name: '소모품비', desc: '사무용 설비 및 소모성 자재 구입 비용(복사기 토너 등 부품, 열쇠, 건전지, 복사용지 등)' },
-          { name: '복리후생비', desc: '종업원의 복리후생을 위한 지출(건강·고용보험료, 회식대, 간식대, 경조사비, 생수대금, 피복비 등)' },
-          { name: '운반비', desc: '상품·제품 등을 판매하면서 발생하는 운반비용(퀵서비스료, 택배비, 용달운임 등)' },
-          { name: '광고선전비', desc: '판매촉진 목적으로 불특정 다수인에게 광고선전하는 데 드는 비용(전단지 배포비, 판촉물 등)' },
-          { name: '여비교통비', desc: '임직원이 업무 수행을 위해 출장가는 경우 소요되는 비용(내부규정에 따른 여비·교통비)' },
-          { name: '기타(비용)', desc: '업무와 관련하여 발생한 위 항목에 속하지 않는 기타 비용' }
+          { name: '상품매입', desc: '상품(판매 물품) 구입 시 지급하였거나 지급할 대가', kid: '되팔려고 사온 물건 값이에요.', examples: ['재판매용 상품 구입비'] },
+          { name: '급료', desc: '종업원에게 지급되는 월급, 잡급, 일당, 퇴직금 등 인건비', kid: '직원에게 주는 월급이나 일당이에요.', examples: ['직원 월급', '아르바이트비', '퇴직금'] },
+          { name: '제세공과금', desc: '업무용 자동차세, 면허세, 상공회의소 회비 등', kid: '나라나 단체에 내는 세금·회비예요.', examples: ['자동차세', '상공회의소 회비'] },
+          { name: '임차료', desc: '사업목적으로 사용하는 건물 및 토지를 빌리고 지급하는 대가(월세·연세). 단, 보증금은 제외', kid: '사무실이나 장비를 빌리고 내는 월세예요. 보증금은 여기 안 들어가요.', examples: ['사무실 월세', '장비 대여료'] },
+          { name: '지급이자', desc: '업무와 관련하여 은행 등 타인으로부터 돈을 빌리고 지급하는 이자', kid: '은행이나 다른 사람에게 돈을 빌리고 내는 이자예요.', examples: ['대출이자'] },
+          { name: '기업업무추진비', desc: '업무와 관련하여 거래처와의 관계 유지를 위한 지출(거래처 식사·선물, 경조사비 등)', kid: '거래처와 친하게 지내려고 쓰는 돈이에요. 밥값·선물·경조사비 같은 거요.', examples: ['거래처 식사', '거래처 선물', '거래처 경조사비'] },
+          { name: '기부금', desc: '사업과 관련없이 무상으로 지출하는 금액. 세법에 따른 특례·일반기부금은 필요경비에 산입할 수 있음', kid: '사업과 상관없이 남을 돕기 위해 그냥 준 돈이에요.', examples: ['자선단체 기부'] },
+          { name: '감가상각비', desc: '사업용 유형·무형자산의 가치 감소분. 내용연수·상각율은 세법으로 규정됨', kid: '오래 쓰는 비싼 물건값을 한 번에 안 적고 여러 해에 나눠 적는 비용이에요.', examples: ['컴퓨터 감가상각', '기계 감가상각'] },
+          { name: '차량유지비', desc: '업무용 차량의 유류대, 수리비, 자동차보험료 등', kid: '회사 차에 들어가는 기름값, 수리비, 보험료예요.', examples: ['주유비', '자동차 수리비', '자동차보험료'] },
+          { name: '지급수수료', desc: '서비스를 제공받고 지불하는 비용(송금·신용카드 결제수수료, 비품 유지수수료, 자문수수료, 도메인 등록수수료 등)', kid: '다른 사람이나 회사에게 서비스를 받고 내는 수수료예요.', examples: ['카드 결제수수료', '세무사 수수료', '플랫폼 수수료'] },
+          { name: '소모품비', desc: '사무용 설비 및 소모성 자재 구입 비용(복사기 토너 등 부품, 열쇠, 건전지, 복사용지 등)', kid: '금방 쓰고 없어지는 사무용품 값이에요.', examples: ['복사용지', '건전지', '문구류'] },
+          { name: '복리후생비', desc: '종업원의 복리후생을 위한 지출(건강·고용보험료, 회식대, 간식대, 경조사비, 생수대금, 피복비 등)', kid: '직원을 위해 쓰는 복지비예요. 회식비, 간식비 같은 거요.', examples: ['직원 회식비', '4대보험료', '간식비'] },
+          { name: '운반비', desc: '상품·제품 등을 판매하면서 발생하는 운반비용(퀵서비스료, 택배비, 용달운임 등)', kid: '물건을 옮기는 데 드는 돈이에요.', examples: ['택배비', '퀵서비스비'] },
+          { name: '광고선전비', desc: '판매촉진 목적으로 불특정 다수인에게 광고선전하는 데 드는 비용(전단지 배포비, 판촉물 등)', kid: '가게를 알리려고 쓰는 광고비예요.', examples: ['전단지 제작비', 'SNS 광고비'] },
+          { name: '여비교통비', desc: '임직원이 업무 수행을 위해 출장가는 경우 소요되는 비용(내부규정에 따른 여비·교통비)', kid: '출장 갈 때 쓰는 교통비, 숙박비예요.', examples: ['버스·기차비', '출장 숙박비', '주차비'] },
+          { name: '기타(비용)', desc: '업무와 관련하여 발생한 위 항목에 속하지 않는 기타 비용', kid: '위에 없는 다른 사업 비용이에요. 애매하면 여기 적어도 되지만, 가능하면 가까운 계정과목을 찾아보세요.', examples: ['분류하기 애매한 소액 비용'] }
         ]) },
         { key: 'manufacturing', label: '제조비용', column: '비용', items: Object.freeze([
-          { name: '재료비', desc: '물품을 생산하기 위해 사용되는 재료' },
-          { name: '노무비', desc: '물품 생산에 종사하는 직원의 인건비' },
-          { name: '경비', desc: '제품을 생산하기 위해 소요되는 비용(전기요금, 운반비, 수선비, 외주가공비 등)' }
+          { name: '재료비', desc: '물품을 생산하기 위해 사용되는 재료', kid: '물건을 만들 때 들어가는 재료값이에요.', examples: ['원재료 구입비'] },
+          { name: '노무비', desc: '물품 생산에 종사하는 직원의 인건비', kid: '물건을 만드는 직원에게 주는 인건비예요.', examples: ['생산직 임금'] },
+          { name: '경비', desc: '제품을 생산하기 위해 소요되는 비용(전기요금, 운반비, 수선비, 외주가공비 등)', kid: '물건을 만드는 데 드는 전기세, 수리비 같은 비용이에요.', examples: ['공장 전기요금', '설비 수선비'] }
         ]) },
         { key: 'asset', label: '사업용 유형·무형자산 매입', column: '자산', items: Object.freeze([
-          { name: '건물 및 구축물', desc: '업무에 사용하는 건물 및 구축물(사무실, 창고, 기숙사, 공장, 점포 등)' },
-          { name: '차량운반구', desc: '업무에 사용하는 차량과 운반구' },
-          { name: '비품', desc: '업무에 사용하는 책상, 의자, 컴퓨터, 가구, 금고 등' },
-          { name: '기계장치', desc: '업무에 사용하는 기계와 부속 설비' }
+          { name: '건물 및 구축물', desc: '업무에 사용하는 건물 및 구축물(사무실, 창고, 기숙사, 공장, 점포 등)', kid: '사무실, 창고, 공장처럼 오래 쓰는 건물을 살 때 적어요.', examples: ['사무실 매입'] },
+          { name: '차량운반구', desc: '업무에 사용하는 차량과 운반구', kid: '업무용 자동차를 살 때 적어요.', examples: ['업무용 차량 구입'] },
+          { name: '비품', desc: '업무에 사용하는 책상, 의자, 컴퓨터, 가구, 금고 등', kid: '책상, 의자, 컴퓨터처럼 오래(1년 이상) 쓰는 사무용품을 살 때 적어요.', examples: ['컴퓨터 구입', '사무용 가구'] },
+          { name: '기계장치', desc: '업무에 사용하는 기계와 부속 설비', kid: '일할 때 쓰는 기계나 설비를 살 때 적어요.', examples: ['생산 기계 구입'] }
         ]) }
       ]),
       all() { return this.GROUPS.flatMap(g => g.items.map(it => ({ name: it.name, desc: it.desc, group: g.key, groupLabel: g.label, column: g.column }))); },
@@ -2362,7 +2367,7 @@
           <div class="form-grid" style="margin-top:16px">
             <div class="field third"><label class="required" for="transactionDate">거래일</label><input class="input" id="transactionDate" name="transactionDate" type="date" min="2025-01-01" value="${Utils.today()}"><div class="field-error" data-error="transactionDate"></div></div>
             <div class="field third"><label for="counterpartyName">거래처</label><input class="input" id="counterpartyName" name="counterpartyName" maxlength="80" autocomplete="organization" placeholder="예: 한빛문구"></div>
-            <div class="field third"><label class="required" for="accountId">${term('계정과목')}</label><select class="select" id="accountId" name="accountId"><option value="">선택하세요</option>${choices.map(row=>`<option value="${row.id}">${Utils.escape(row.account_name)}</option>`).join('')}</select><div class="field-error" data-error="accountId"></div></div>
+            <div class="field third"><label class="required" for="accountId">${term('계정과목')}</label><button type="button" class="guide-link" data-open-guide-topic="account-guide">${icon('help-circle')}선택 가이드</button><select class="select" id="accountId" name="accountId"><option value="">선택하세요</option>${choices.map(row=>`<option value="${row.id}">${Utils.escape(row.account_name)}</option>`).join('')}</select><div class="field-error" data-error="accountId"></div></div>
             <div class="field full"><label class="required" for="description">거래 내용</label><input class="input" id="description" name="description" maxlength="160" placeholder="무엇을 사고팔았는지 적어주세요"><div class="field-error" data-error="description"></div></div>
             <div class="field third"><label class="required" for="totalAmount">총 금액</label><div class="money-wrap"><input class="input" id="totalAmount" name="totalAmount" inputmode="numeric" autocomplete="off" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-error="totalAmount"></div></div>
             <div class="field third"><label for="vatType">부가세 처리 후보</label><select class="select" id="vatType" name="vatType"><option value="taxable">과세(총액에서 분리)</option><option value="exempt">면세</option><option value="none">부가세 없음/검토</option></select><div class="field-help">증빙에 세액이 따로 적혀 있다면 그 금액이 우선합니다.</div></div>
@@ -2798,6 +2803,7 @@
       { id: 'vat-exemption', icon: 'badge-percent', title: '부가가치세 면세', note: '어떤 공급이 면세인지 부가가치세법 근거와 함께 설명합니다.' },
       { id: 'estimate-expense-rate', icon: 'calculator', title: '추계신고와 경비율', note: '장부 없이 신고할 때 단순·기준경비율과 소득 계산법을 설명합니다.' },
       { id: 'overseas', icon: 'globe', title: '해외 구매·수입 처리', note: '해외에서 산 물품·서비스의 부가세와 경비를 근거 법령과 함께 설명합니다.' },
+      { id: 'account-guide', icon: 'list-tree', title: '계정과목 선택 가이드', note: '이 지출이 어떤 계정과목인지 법적 정의와 초등학생 눈높이 설명, 예시로 알려드립니다.' },
       { id: 'tax-terms', icon: 'book-a', title: '주요 세법 용어사전', note: '세법 용어의 법적 정의와 초등학생 눈높이 설명을 함께 봅니다. 대시보드에서도 검색됩니다.' }
     ]);
     function guideTopicButtons() {
@@ -2808,6 +2814,7 @@
       const topic = state.guideTopic;
       if (topic === 'google-cloud') return `${header}${googleCloudGuideHtml()}`;
       if (topic === 'tax-terms') return `${header}${termsGuideHtml()}`;
+      if (topic === 'account-guide') return `${header}${accountGuideHtml()}`;
       if (topic === 'bookkeeping-duty' || topic === 'vat-exemption' || topic === 'estimate-expense-rate' || topic === 'overseas') return `${header}${legalGuideHtml(topic)}`;
       return header;
     }
@@ -2819,6 +2826,16 @@
       TAX_TERMS.forEach(t => { if (!cats.includes(t.cat)) cats.push(t.cat); });
       const groups = cats.map(cat => `<div class="term-group"><h3 class="term-group-title">${Utils.escape(cat)}</h3>${TAX_TERMS.filter(t => t.cat === cat).map(termCardHtml).join('')}</div>`).join('');
       return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">주요 세법 용어사전</h2><p class="section-help">각 용어의 법적 정의와 초등학생도 이해하기 쉬운 설명을 함께 담았습니다. 대시보드 검색창에서도 찾을 수 있습니다.</p></div>${badge(`${TAX_TERMS.length}개 용어`,'info')}</div>${groups}</section>`;
+    }
+    function accountCardHtml(it) {
+      return `<div class="term-card"><div class="term-card-name">${Utils.escape(it.name)}</div><div class="term-card-kid">${icon('smile')}<span>${Utils.escape(it.kid || '')}</span></div><div class="term-card-law"><strong>법적 정의</strong> · ${Utils.escape(it.desc)}</div>${it.examples?.length ? `<div class="term-card-examples"><strong>예시</strong> · ${it.examples.map(Utils.escape).join(' · ')}</div>` : ''}</div>`;
+    }
+    function accountGuideHtml() {
+      const total = SimpleBookAccounts.GROUPS.reduce((s, g) => s + g.items.length, 0);
+      const groups = SimpleBookAccounts.GROUPS.map(g => `<div class="term-group"><h3 class="term-group-title">${Utils.escape(g.label)} <span class="major">간편장부 ${Utils.escape(g.column)} 열</span></h3>${g.items.map(accountCardHtml).join('')}</div>`).join('');
+      return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">계정과목 선택 가이드</h2><p class="section-help">${Utils.escape(SimpleBookAccounts.source)}. 이 지출·수입이 어떤 계정과목인지 법적 정의와 예시로 알려드립니다.</p></div>${badge(`${total}개 계정과목`,'info')}</div>
+        <div class="guide-why">${icon('lightbulb')}<div><strong>자주 헷갈리는 것 (구분법)</strong><br>· <strong>소모품비 vs 비품</strong> — 금방 쓰고 없어지면 소모품비(비용), <strong>1년 이상</strong> 오래 쓰는 값비싼 물건이면 비품(자산)이에요.<br>· <strong>기업업무추진비 vs 복리후생비</strong> — 거래처 접대·선물이면 기업업무추진비, <strong>직원</strong>을 위한 지출이면 복리후생비예요.<br>· <strong>여비교통비 vs 차량유지비</strong> — 출장·이동에 쓴 돈이면 여비교통비, 회사 차량 자체의 유지비면 차량유지비예요.<br>· 그래도 애매하면 <strong>기타(비용)</strong>에 적어도 괜찮지만, 가능하면 가까운 계정과목을 찾는 편이 경비율 계산 등에 도움이 됩니다.</div></div>
+        ${groups}</section>`;
     }
     function googleCloudGuideHtml() {
       const status = GuideService.status();

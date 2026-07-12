@@ -117,6 +117,10 @@ if (api) {
   ok(SimpleBookAccounts.columnOf('경비') === '비용', 'SimpleBookAccounts 제조 경비 -> 비용 열');
   ok(SimpleBookAccounts.columnOf('비품') === '자산', 'SimpleBookAccounts 비품 -> 자산 열');
   ok(SimpleBookAccounts.find('없는과목') === null, 'SimpleBookAccounts unknown -> null');
+  // 계정과목 선택 가이드용 데이터 완결성: 25개 전부 kid(눈높이 설명)·examples(예시)를 갖춰야 가이드가 비지 않는다
+  const allAccountItems = SimpleBookAccounts.GROUPS.flatMap(g => g.items);
+  ok(allAccountItems.length === 25 && allAccountItems.every(it => it.kid && it.kid.length > 0), 'SimpleBookAccounts: every account has a kid-level explanation');
+  ok(allAccountItems.every(it => Array.isArray(it.examples) && it.examples.length > 0), 'SimpleBookAccounts: every account has at least one example');
 
   // Expense rates (official NTS 2025 data) — display-only candidates
   const consultingRate = ExpenseRates.find('741400');
