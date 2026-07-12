@@ -284,5 +284,15 @@ function removeEvidence(evidenceFiles, transactions, id) {
   ok(Array.isArray(unsafe) && ['transactions', 'settings', 'imports'].every(r => unsafe.includes(r)), 'AUTO_SYNC_UNSAFE_ROUTES: skips re-render on screens with free-text input forms');
 }
 
+// multi-ledger: pickActiveBusiness (AppService.reload's active-ledger selection, pure)
+{
+  const pick = api.pickActiveBusiness;
+  const bizA = { id: 'a' }, bizB = { id: 'b' };
+  ok(pick([bizA, bizB], 'b') === bizB, 'pickActiveBusiness: honors the configured active id when it exists');
+  ok(pick([bizA, bizB], 'missing') === bizA, 'pickActiveBusiness: falls back to the first ledger when the configured id is gone (e.g. deleted)');
+  ok(pick([bizA, bizB], undefined) === bizA, 'pickActiveBusiness: falls back to the first ledger on fresh installs (no config yet)');
+  ok(pick([], 'a') === null, 'pickActiveBusiness: null when there are no ledgers at all');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

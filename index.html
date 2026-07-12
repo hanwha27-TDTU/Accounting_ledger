@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.35',
+      version: '0.36',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.35', date: '2026-07-12', label: '최신 · 기기간 자동 동기화(기본값)', detail: '지금까지는 설정에서 "동기화" 버튼을 직접 눌러야만 다른 기기와 자료가 맞춰졌습니다. 이제 로그인·화면 복귀(포커스·탭 전환)·인터넷 재연결·30초 주기 타이머 중 어느 하나만 일어나도 자동으로 클라우드와 맞춥니다. 거래 입력·설정·가져오기처럼 입력 중일 수 있는 화면은 자동 동기화가 끝나도 화면을 다시 그리지 않아 입력 중이던 값이 사라지지 않습니다. "지금 동기화" 버튼은 즉시 반영이 필요할 때를 위해 그대로 남아 있습니다.' },
+      { version: '0.36', date: '2026-07-12', label: '최신 · 가계부 여러 개 관리', detail: '가계부(사업자)를 하나만 쓰던 것에서, 목적이 다른 가계부(예: 개인 생활비, 유학 생활비, 부업)를 여러 개 만들어 전환할 수 있게 했습니다. 설정에 "가계부 관리" 패널이 추가됐고, 가계부마다 거래·계정과목·전표·개인/사업자 모드가 완전히 분리됩니다. "새 가계부 추가"로 이름과 종류만 정하면 바로 만들어지고, 목록에서 "전환" 버튼으로 오갈 수 있습니다.' },
+      { version: '0.35', date: '2026-07-12', label: '기기간 자동 동기화(기본값)', detail: '지금까지는 설정에서 "동기화" 버튼을 직접 눌러야만 다른 기기와 자료가 맞춰졌습니다. 이제 로그인·화면 복귀(포커스·탭 전환)·인터넷 재연결·30초 주기 타이머 중 어느 하나만 일어나도 자동으로 클라우드와 맞춥니다. 거래 입력·설정·가져오기처럼 입력 중일 수 있는 화면은 자동 동기화가 끝나도 화면을 다시 그리지 않아 입력 중이던 값이 사라지지 않습니다. "지금 동기화" 버튼은 즉시 반영이 필요할 때를 위해 그대로 남아 있습니다.' },
       { version: '0.34', date: '2026-07-12', label: '거래처 관리 · Excel 읽기 기능탐지', detail: '설정에 "거래처 관리" 패널을 추가했습니다. 거래 입력 시 이름으로 자동 등록된 거래처를 더 이상 안 쓸 때 계정과목과 같은 방식으로 비활성화할 수 있습니다(소프트삭제, 과거 거래의 거래처명은 그대로 남습니다). 또한 간편장부 Excel 업로드 시 브라우저가 압축 해제 기능(DecompressionStream)을 지원하지 않으면 알 수 없는 오류 대신 "최신 브라우저로 다시 시도해 주세요" 안내 메시지를 보여주도록 했습니다.' },
       { version: '0.33', date: '2026-07-12', label: '개인 가계부 모드', detail: '처음 시작할 때 개인 가계부 모드와 사업자 모드 중 고를 수 있습니다. 개인 가계부는 사업자 등록 없이 식비·교통비 같은 카테고리로 수입·지출을 관리하며, 세금 계산·법정서식 같은 사업자 전용 화면은 보이지 않습니다. 계정과목(카테고리)은 언제든 직접 추가하거나 비활성화할 수 있고, 설정에서 모드를 바꿀 수 있습니다.' },
       { version: '0.32', date: '2026-07-12', label: '계정과목 선택 가이드', detail: '가이드에 계정과목 선택 가이드를 추가했습니다. 25개 계정과목마다 국세청 법적 정의와 초등학생 눈높이 설명, 실제 예시를 담았고, 소모품비 vs 비품처럼 헷갈리기 쉬운 것을 구분하는 방법도 안내합니다. 거래 입력 화면 계정과목 옆에서도 바로 열어볼 수 있습니다.' },
@@ -1666,6 +1667,7 @@
         supabaseKey: savedConfig.supabaseKey || APP_INFO.supabasePublishableKey
       },
       business: null,
+      businesses: [],
       site: null,
       accounts: [],
       transactions: [],
@@ -1725,6 +1727,12 @@
       }
     });
 
+    // 여러 가계부(businesses) 중 "지금 보고 있는" 가계부를 고르는 순수 함수 — 저장된 activeBusinessId가
+    // 실제 목록에 있으면 그걸, 없으면(첫 실행·전환한 가계부가 삭제됨 등) 목록의 첫 번째를 쓴다.
+    function pickActiveBusiness(businesses, configuredId) {
+      return businesses.find(row => row.id === configuredId) || businesses[0] || null;
+    }
+
     const AppService = Object.freeze({
       async reload() {
         const [businesses, sites, accounts, transactions, counterparties, journals, journalLines, evidenceFiles, auditLogs, closings, queue] = await Promise.all([
@@ -1732,16 +1740,25 @@
           storage.getAll('counterparties'), storage.getAll('journal_entries'), storage.getAll('journal_entry_lines'), storage.getAll('evidence_files'),
           storage.getAll('audit_logs'), storage.getAll('period_closings'), storage.getAll('sync_queue')
         ]);
-        state.business = businesses.find(row => !row.deleted_at) || null;
-        state.site = sites.find(row => !row.deleted_at && (!state.business || row.business_id === state.business.id)) || null;
-        state.accounts = accounts;
-        state.transactions = transactions.sort((a,b) => String(b.transaction_date).localeCompare(String(a.transaction_date)) || String(b.updated_at).localeCompare(String(a.updated_at)));
-        state.counterparties = counterparties;
-        state.journals = journals;
-        state.journalLines = journalLines;
-        state.evidenceFiles = evidenceFiles;
-        state.auditLogs = auditLogs;
-        state.closings = closings;
+        // 여러 가계부를 지원한다 — 활성 가계부(state.business)를 고르고, 그 가계부 소유 자료만 화면에 보인다.
+        // 활성 선택은 로컬 기기 설정(config.activeBusinessId)이라 다른 기기는 자기 화면에서 따로 고를 수 있다.
+        state.businesses = businesses.filter(row => !row.deleted_at).sort((a,b) => String(a.created_at).localeCompare(String(b.created_at)));
+        state.business = pickActiveBusiness(state.businesses, state.config.activeBusinessId);
+        if (state.business && state.config.activeBusinessId !== state.business.id) {
+          state.config.activeBusinessId = state.business.id;
+          ConfigAdapter.save(state.config);
+        }
+        const activeId = state.business?.id || null;
+        state.site = sites.find(row => !row.deleted_at && row.business_id === activeId) || null;
+        state.accounts = activeId ? accounts.filter(row => row.business_id === activeId) : [];
+        state.transactions = (activeId ? transactions.filter(row => row.business_id === activeId) : [])
+          .sort((a,b) => String(b.transaction_date).localeCompare(String(a.transaction_date)) || String(b.updated_at).localeCompare(String(a.updated_at)));
+        state.counterparties = activeId ? counterparties.filter(row => row.business_id === activeId) : [];
+        state.journals = activeId ? journals.filter(row => row.business_id === activeId) : [];
+        state.journalLines = activeId ? journalLines.filter(row => row.business_id === activeId) : [];
+        state.evidenceFiles = activeId ? evidenceFiles.filter(row => row.business_id === activeId) : [];
+        state.auditLogs = activeId ? auditLogs.filter(row => row.business_id === activeId) : [];
+        state.closings = activeId ? closings.filter(row => row.business_id === activeId) : [];
         state.queue = queue.filter(row => row.status === 'pending' && !row.deleted_at);
       },
 
@@ -1808,8 +1825,65 @@
         const changedAccounts = accounts.filter(row => !existingAccounts.some(existing => existing.id === row.id));
         const queueRows = [this.queue('businesses', business), this.queue('business_sites', site), this.queue('ledger_period_settings', period), ...changedAccounts.map(row => this.queue('accounts', this.remoteSafeAccount(row)))];
         await storage.putMany({ businesses: [business], business_sites: [site], ledger_period_settings: [period], accounts, audit_logs: [audit], sync_queue: queueRows });
+        // 가계부별 개인/사업자 모드를 확정 저장한다(신규 가계부는 첫 실행 때 고른 값을 이 시점에 이 가계부 id로 못박는다).
+        state.config.ledgerModeByBusiness = { ...(state.config.ledgerModeByBusiness || {}), [businessId]: isPersonalMode() ? 'personal' : 'business' };
+        state.config.activeBusinessId = businessId;
         state.config.vatPayerType = input.vatPayerType;
         state.config.broadIndustry = input.broadIndustry;
+        ConfigAdapter.save(state.config);
+        await this.reload();
+      },
+
+      // 가계부(사업자) 추가 — setupBusiness는 "지금 활성 가계부"를 고치는 것이고, 이건 완전히 새로운
+      // 가계부(businesses 행 + 계정과목 세트)를 만들어 활성 가계부로 전환한다. 기존 가계부 자료는 건드리지 않는다.
+      async createLedger({ name, mode }) {
+        const trimmedName = String(name || '').trim();
+        if (!trimmedName) throw new Error('LEDGER_NAME_REQUIRED');
+        if (!['personal', 'business'].includes(mode)) throw new Error('LEDGER_MODE_INVALID');
+        const now = Utils.now();
+        const businessId = Utils.uuid();
+        const siteId = Utils.uuid();
+        const startYear = Utils.today().slice(0, 4);
+        const business = {
+          id: businessId, owner_user_id: state.session?.user?.id || null, business_type: 'individual',
+          name: trimmedName, registration_number: null, representative_name: null,
+          tax_profile_status: 'draft', created_at: now, updated_at: now, deleted_at: null
+        };
+        const site = {
+          id: siteId, business_id: businessId, site_name: trimmedName, address: null,
+          main_industry_code: null, main_industry_name: null, opened_on: null, closed_on: null,
+          is_primary: true, created_at: now, updated_at: now, deleted_at: null
+        };
+        const period = {
+          id: Utils.uuid(), business_id: businessId, ledger_start_year: Number(startYear),
+          ledger_start_date: `${startYear}-01-01`, first_import_year: null, opening_balance_date: null,
+          retroactive_import_enabled: true, created_at: now, updated_at: now, deleted_at: null
+        };
+        const templates = mode === 'personal' ? [...CORE_ACCOUNT_TEMPLATES, ...PERSONAL_ACCOUNT_TEMPLATES] : ACCOUNT_TEMPLATES;
+        const accounts = templates.map(template => ({
+          id: Utils.uuid(), business_id: businessId, standard_account_id: null, account_code: template.account_code,
+          account_name: template.account_name, account_type: template.account_type, is_active: true,
+          local_key: template.key, local_explanation: template.explanation,
+          created_at: now, updated_at: now, deleted_at: null
+        }));
+        const audit = this.audit('business', businessId, 'create', null, business, '가계부 추가');
+        const queueRows = [
+          this.queue('businesses', business), this.queue('business_sites', site), this.queue('ledger_period_settings', period),
+          ...accounts.map(row => this.queue('accounts', this.remoteSafeAccount(row))), this.queue('audit_logs', audit)
+        ];
+        await storage.putMany({ businesses: [business], business_sites: [site], ledger_period_settings: [period], accounts, audit_logs: [audit], sync_queue: queueRows });
+        state.config.ledgerModeByBusiness = { ...(state.config.ledgerModeByBusiness || {}), [businessId]: mode };
+        state.config.activeBusinessId = businessId;
+        ConfigAdapter.save(state.config);
+        await this.reload();
+        return business;
+      },
+
+      // 가계부 전환 — 이 기기에서 "지금 보고 있는" 가계부만 바꾼다(로컬 설정, 다른 기기엔 영향 없음).
+      async switchLedger(businessId) {
+        const target = state.businesses.find(row => row.id === businessId);
+        if (!target) throw new Error('LEDGER_NOT_FOUND');
+        state.config.activeBusinessId = businessId;
         ConfigAdapter.save(state.config);
         await this.reload();
       },
@@ -2757,7 +2831,15 @@
     }
 
     // 개인 가계부 모드인지. 첫 실행 시 고른 값이며 설정에서 언제든 전환할 수 있다(데이터는 그대로).
-    function isPersonalMode() { return state.config.ledgerMode === 'personal'; }
+    // 가계부별 모드 조회 — 가계부마다 개인/사업자를 따로 기억한다(config.ledgerModeByBusiness).
+    // 아직 가계부가 없거나(첫 실행 모드 선택 화면) 이 가계부의 값이 한 번도 안 적혔으면(0.33 이전 설치)
+    // 예전 전역 값(config.ledgerMode)으로 대신한다 — setupBusiness가 저장되는 순간 이 가계부 id로 못박힌다.
+    function isPersonalMode() {
+      const bizId = state.business?.id;
+      const byBusiness = state.config.ledgerModeByBusiness || {};
+      if (bizId && Object.prototype.hasOwnProperty.call(byBusiness, bizId)) return byBusiness[bizId] === 'personal';
+      return state.config.ledgerMode === 'personal';
+    }
 
     // Codes starting with 94 are 인적용역 (personal service) — those providers often have no business registration number.
     function industryPickedHtml(code, name) {
@@ -2877,6 +2959,33 @@
         <div class="inline-actions" style="margin-top:16px"><button class="button primary" id="businessRoundtripButton" type="button" ${rt.status === 'checking' ? 'disabled' : ''}>${icon('list-checks')}왕복 검증 실행</button>${rt.checkedAt ? `<span class="field-help">마지막 검증 ${new Date(rt.checkedAt).toLocaleString('ko-KR')}</span>` : ''}</div></section>`;
     }
 
+    // 가계부 관리 — 여러 가계부(예: 개인 생활비, 유학 생활비, 부업)를 만들고 전환한다.
+    // 가계부마다 자료(거래·계정과목·전표)가 완전히 분리된다(reload()가 활성 가계부 id로 필터링).
+    function renderLedgerManagement() {
+      const list = state.businesses;
+      // 0.35 이전엔 가계부가 하나뿐이라 모드가 전역(config.ledgerMode)에만 있었다 — 그 가계부가 지금
+      // 활성 가계부라면 여기서 전역 값을 대신 읽어 배지가 비어 보이지 않게 한다(다음 저장 때 이 id로 못박힘).
+      const modeLabel = business => {
+        const byBusiness = state.config.ledgerModeByBusiness || {};
+        const mode = Object.prototype.hasOwnProperty.call(byBusiness, business.id) ? byBusiness[business.id]
+          : business.id === state.business?.id ? (state.config.ledgerMode === 'personal' ? 'personal' : 'business')
+          : '';
+        return mode === 'personal' ? '개인 가계부' : mode === 'business' ? '사업자' : '';
+      };
+      const rows = list.length ? list.map(row => {
+        const active = state.business && row.id === state.business.id;
+        return `<div class="task-row"><div class="task-main"><div class="task-title">${Utils.escape(row.name)}${active ? ' ' + badge('사용 중', 'success') : ''}</div><div class="task-note">${Utils.escape(modeLabel(row))}</div></div>${active ? '' : `<button class="button small" type="button" data-switch-ledger="${row.id}">${icon('repeat')}전환</button>`}</div>`;
+      }).join('') : `<p class="section-help">아직 가계부가 없습니다.</p>`;
+      return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">가계부 관리</h2><p class="section-help">개인 생활비, 유학 생활비, 부업처럼 목적이 다른 가계부를 여러 개 만들어 따로 관리할 수 있습니다. 자료는 가계부별로 완전히 분리됩니다.</p></div></div>
+        <div class="task-list">${rows}</div>
+        <form id="ledgerCreateForm" class="form-grid" style="margin-top:14px">
+          <div class="field third"><label for="newLedgerName">새 가계부 이름</label><input class="input" id="newLedgerName" placeholder="예: 유학 생활비" maxlength="40"></div>
+          <div class="field third"><label for="newLedgerMode">종류</label><select class="select" id="newLedgerMode"><option value="personal">개인 가계부</option><option value="business">사업자</option></select></div>
+          <div class="field third"><div class="form-actions" style="margin-top:22px"><button class="button" type="submit">${icon('plus')}가계부 추가</button></div></div>
+        </form>
+      </section>`;
+    }
+
     function renderSettings() {
       const b = state.business || {};
       const s = state.site || {};
@@ -2887,6 +2996,7 @@
       const providerReady = diagnostic.googleProvider === 'ready';
       const modeToggle = `<div class="mode-toggle" role="group" aria-label="가계부 모드"><button type="button" data-switch-mode="personal" class="${personal ? 'active' : ''}">${icon('wallet')}개인 가계부</button><button type="button" data-switch-mode="business" class="${!personal ? 'active' : ''}">${icon('briefcase')}사업자</button></div>`;
       return `${pageHeader('설정', personal ? '가계부 이름, 클라우드 연결, 백업을 관리합니다.' : '사업자 정보, 과세유형 후보, 클라우드 연결, 백업을 관리합니다.')}
+        ${renderLedgerManagement()}
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">${personal ? '가계부 기본정보' : '사업자 기본정보'}</h2><p class="section-help">${personal ? '사업자 등록 없이 쓰는 개인 가계부입니다. 필요하면 언제든 사업자 모드로 바꿀 수 있어요.' : '큰 업종에서 시작해 공식 업종코드와 세부 조건으로 좁혀갑니다.'}</p></div></div>
           ${modeToggle}
           <form id="businessForm" class="form-grid" novalidate>
@@ -3134,10 +3244,26 @@
         routeTo('settings');
       }));
       document.querySelectorAll('[data-switch-mode]').forEach(button => button.addEventListener('click', () => {
-        state.config.ledgerMode = button.dataset.switchMode;
+        const mode = button.dataset.switchMode;
+        if (state.business) {
+          state.config.ledgerModeByBusiness = { ...(state.config.ledgerModeByBusiness || {}), [state.business.id]: mode };
+        } else {
+          state.config.ledgerMode = mode;
+        }
         ConfigAdapter.save(state.config);
-        toast(state.config.ledgerMode === 'personal' ? '개인 가계부 모드로 전환했습니다.' : '사업자 모드로 전환했습니다.', 'success');
+        toast(mode === 'personal' ? '개인 가계부 모드로 전환했습니다.' : '사업자 모드로 전환했습니다.', 'success');
         render();
+      }));
+      el('ledgerCreateForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        try {
+          await AppService.createLedger({ name: el('newLedgerName').value, mode: el('newLedgerMode').value });
+          toast('가계부를 추가하고 전환했습니다.', 'success'); render();
+        } catch (error) { diagnostic(error); }
+      });
+      document.querySelectorAll('[data-switch-ledger]').forEach(button => button.addEventListener('click', async () => {
+        try { await AppService.switchLedger(button.dataset.switchLedger); toast('가계부를 전환했습니다.', 'success'); render(); }
+        catch (error) { diagnostic(error); }
       }));
       el('accountCreateForm')?.addEventListener('submit', async event => {
         event.preventDefault();
@@ -3497,7 +3623,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS });
     init();
   })();
   </script>
