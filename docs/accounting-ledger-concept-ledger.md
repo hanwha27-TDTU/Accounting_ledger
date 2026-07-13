@@ -14,7 +14,7 @@
 | 개념 | 정의 | 규칙(왜) | 집행 | 자세히 |
 |---|---|---|---|---|
 | SSOT(단일 진실 공급원) | 같은 값(법적 기준·용어·버전)을 두 곳에 따로 정의하지 않고 한 곳만 근거로 삼는다 | 두 곳에 같은 숫자를 적어두면 하나만 고치고 잊어버려서 둘이 몰래 어긋난다 — 세법 임계값이 어긋나면 잘못된 신고 안내로 이어짐 | `legal-ssot-contract` | `CLAUDE.md`(하드 룰: SSOT를 중복하지 않는다), `docs/skills/accounting-legal-basis-reference-skill.md` |
-| 소프트삭제 + tombstone | 사용자가 "삭제"해도 실제로는 `deleted_at`만 채우고 행은 남기며, 별도 tombstone 신호로 다른 기기에 삭제를 전파한다 | 진짜 DELETE는 오프라인 기기·동기화 지연 상황에서 "삭제 신호"가 사라져 되살아나거나(좀비 데이터), 다른 기기가 그 삭제를 영영 모르게 된다 | `tombstone(entityType, entityId)` | `docs/accounting-ledger-data-lifecycle-matrix.md`(불변조건: 삭제는 hard delete 금지) |
+| 소프트삭제 + tombstone | 사용자가 "삭제"해도 실제로는 `deleted_at`만 채우고 행은 남기며, 별도 tombstone 신호로 다른 기기에 삭제를 전파한다 | 진짜 DELETE는 오프라인 기기·동기화 지연 상황에서 "삭제 신호"가 사라져 되살아나거나(좀비 데이터), 다른 기기가 그 삭제를 영영 모르게 된다 | `tombstone(entityType, entityId, businessId)` | `docs/accounting-ledger-data-lifecycle-matrix.md`(불변조건: 삭제는 hard delete 금지) |
 | LWW(최신 승리) 병합 | 로컬과 클라우드에 같은 id의 행이 둘 다 있으면 `updated_at`이 더 최근인 쪽이 이긴다 | 오프라인에서 여러 기기가 같은 데이터를 고쳤을 때 임의로 하나를 버리지 않고 결정적으로(같은 규칙으로 항상 같은 결과) 병합해야 데이터가 안 깨진다 | `SYNC_TABLE_ORDER` | `docs/accounting-ledger-data-lifecycle-matrix.md` |
 | 정본은 클라우드, 로컬은 보조 캐시 | 평소엔 LWW로 병합하지만, "이 기기 상태를 못 믿겠다"는 순간엔 로컬을 정본(Supabase) 값으로 조건 없이 강제로 다시 맞추는 수단이 항상 있어야 한다 | LWW만 있으면 시계 오차·오래 오프라인이던 기기처럼 미묘한 이유로 기기마다 화면이 달라 보일 수 있는데, 이걸 사람이 원인 추적 없이 바로 "정본 기준으로 리셋"할 방법이 없으면 기기별 드리프트가 방치된다 | `resetLocalFromCloud` | `docs/accounting-ledger-app-research-notes.md`(앱 0.39 항목) |
 | 빈 클라우드 가드 | 클라우드에서 받은 businesses가 0건인데 로컬엔 데이터가 있으면, 그걸 "클라우드가 비어있다"로 오해해 로컬을 덮어쓰지 않고 멈춘다 | 로그인 직후 네트워크 오류·권한 문제로 빈 응답이 오면, 그걸 그대로 "최종본"으로 믿고 로컬 전체를 지워버리는 대참사(wipe)를 막는다 | `EMPTY_CLOUD_GUARD` | `docs/accounting-ledger-data-lifecycle-matrix.md`(교훈 반영 절) |

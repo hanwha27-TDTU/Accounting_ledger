@@ -347,5 +347,19 @@ function restoreScope(localStores, backupTables) {
   ok(threw, 'restoreScope: rejects a malformed (non-array) table instead of silently accepting it');
 }
 
+// tombstone business_id — mirrors AppService.tombstone's stamping rule (0.40 bugfix):
+// deleteLedger must stamp each tombstone with the LEDGER BEING DELETED, not the active ledger,
+// since the ledger-management screen lets a user delete a non-active ledger while another stays
+// active. Passing undefined preserves the old default (stamp with whatever is currently active).
+function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
+  return explicitBusinessId !== undefined ? explicitBusinessId : (activeBusinessId || null);
+}
+{
+  ok(tombstoneBusinessId('deleted-ledger', 'active-ledger') === 'deleted-ledger', 'tombstoneBusinessId: an explicit businessId (deleteLedger cascade) wins over the active ledger');
+  ok(tombstoneBusinessId(undefined, 'active-ledger') === 'active-ledger', 'tombstoneBusinessId: omitting businessId falls back to the active ledger (deleteTransaction/deleteAccount/deleteCounterparty)');
+  ok(tombstoneBusinessId(undefined, null) === null, 'tombstoneBusinessId: no active ledger and no explicit id -> null, never throws');
+  ok(tombstoneBusinessId(null, 'active-ledger') === null, 'tombstoneBusinessId: an explicit null is respected, not treated as "unset"');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

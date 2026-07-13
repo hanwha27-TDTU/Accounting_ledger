@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.39',
+      version: '0.40',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.39', date: '2026-07-12', label: '최신 · 클라우드가 정본, 백업·복원 완성', detail: '데이터 관리 화면을 "이 기기 저장소는 보조 캐시, 클라우드(Supabase)가 정본"이라는 원칙에 맞게 다시 정리했습니다. 클라우드에서 직접 백업 파일을 만들 수 있고("클라우드에서 백업"), 이 기기 캐시가 다른 기기와 달라 보이면 "클라우드 기준으로 새로고침"으로 바로 맞출 수 있습니다. 복원도 "이 기기만 복원"과 "복원 후 모든 기기에 반영"(소유자 전용) 두 가지로 나눠, 복원한 내용이 다른 기기에도 확실히 반영되게 했습니다. 백업 파일에 없는 항목은 함부로 비우지 않도록 고쳤습니다.' },
+      { version: '0.40', date: '2026-07-13', label: '최신 · 전체감사 — 자동동기화·가계부삭제 버그 수정', detail: '0.33~0.39 기능을 병렬 에이전트로 전체 점검했습니다. 마감(가계부 마감) 화면에서 사유를 입력하는 도중 백그라운드 자동 동기화가 돌면 입력값이 사라지던 문제를 고쳤습니다(자동 동기화가 화면을 다시 그리지 않는 목록에 마감 화면을 추가). 또한 지금 쓰고 있지 않은 다른 가계부를 삭제할 때, 그 삭제 기록(tombstone)이 실수로 현재 쓰는 가계부 것으로 잘못 표시되던 내부 데이터 정합성 문제를 고쳤습니다(실제 데이터 손실이나 다른 사용자 노출은 없었습니다 — 보안 감사에서 권한·RLS는 문제없음을 확인했습니다).' },
+      { version: '0.39', date: '2026-07-12', label: '클라우드가 정본, 백업·복원 완성', detail: '데이터 관리 화면을 "이 기기 저장소는 보조 캐시, 클라우드(Supabase)가 정본"이라는 원칙에 맞게 다시 정리했습니다. 클라우드에서 직접 백업 파일을 만들 수 있고("클라우드에서 백업"), 이 기기 캐시가 다른 기기와 달라 보이면 "클라우드 기준으로 새로고침"으로 바로 맞출 수 있습니다. 복원도 "이 기기만 복원"과 "복원 후 모든 기기에 반영"(소유자 전용) 두 가지로 나눠, 복원한 내용이 다른 기기에도 확실히 반영되게 했습니다. 백업 파일에 없는 항목은 함부로 비우지 않도록 고쳤습니다.' },
       { version: '0.38', date: '2026-07-12', label: '가계부 삭제', detail: '설정의 "가계부 관리"에서 가계부를 삭제할 수 있게 했습니다. 삭제하면 그 가계부의 거래·계정과목·거래처·전표·증빙·마감 기록이 모두 함께 삭제되고, 화면에서 되돌릴 수 없습니다(감사 기록에는 남습니다). 지금 쓰던 가계부를 지우면 다른 가계부로 자동 전환되거나, 남은 가계부가 없으면 새로 만드는 화면으로 돌아갑니다.' },
       { version: '0.37', date: '2026-07-12', label: '마감·마감해제', detail: '"마감"이 이제 실제로 동작합니다. 원하는 달을 마감하면 그 달의 거래를 새로 넣거나 지울 수 없고, "마감 해제"를 누르면 다시 편집할 수 있습니다(영구 삭제가 아니라 되돌릴 수 있는 잠금입니다). 언제 마감·해제했는지는 기록에 남습니다. 개인 가계부 모드에서도 마감 메뉴를 쓸 수 있게 했습니다.' },
       { version: '0.36', date: '2026-07-12', label: '가계부 여러 개 관리', detail: '가계부(사업자)를 하나만 쓰던 것에서, 목적이 다른 가계부(예: 개인 생활비, 유학 생활비, 부업)를 여러 개 만들어 전환할 수 있게 했습니다. 설정에 "가계부 관리" 패널이 추가됐고, 가계부마다 거래·계정과목·전표·개인/사업자 모드가 완전히 분리됩니다. "새 가계부 추가"로 이름과 종류만 정하면 바로 만들어지고, 목록에서 "전환" 버튼으로 오갈 수 있습니다.' },
@@ -662,7 +663,7 @@
 
     // 백그라운드 자동 동기화가 끝나도 전체 재렌더를 건너뛰는 화면 — 자유 텍스트 입력 폼이 있어
     // render()가 #app을 통째로 다시 그리면 사용자가 입력 중이던 값이 사라질 수 있다.
-    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports']);
+    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports', 'closing']);
 
     const ACCOUNT_TEMPLATES = Object.freeze([
       { key: 'cash', account_code: '101', account_name: '현금', account_type: 'asset', explanation: '사업을 하면서 손에 보관하거나 바로 쓸 수 있는 현금입니다.' },
@@ -1926,7 +1927,7 @@
           ['evidence_files', scoped(evidenceFiles).map(soft)],
           ['period_closings', scoped(closings).map(soft)]
         ];
-        const tombstones = groups.flatMap(([table, rows]) => rows.map(row => this.tombstone(table, row.id)));
+        const tombstones = groups.flatMap(([table, rows]) => rows.map(row => this.tombstone(table, row.id, businessId)));
         const audit = this.audit('business', businessId, 'delete', business, null, '가계부 삭제');
         const queueRows = [
           ...groups.flatMap(([table, rows]) => rows.map(row => this.queue(table, table === 'accounts' ? this.remoteSafeAccount(row) : row))),
@@ -2134,9 +2135,9 @@
         return { id: Utils.uuid(), entity_type: entityType, entity_id: payload.id, operation: 'upsert', payload, status: 'pending', retry_count: 0, last_error: null, created_at: now, updated_at: now, deleted_at: null };
       },
 
-      tombstone(entityType, entityId) {
+      tombstone(entityType, entityId, businessId) {
         const now = Utils.now();
-        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: state.business?.id || null, deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
+        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: businessId !== undefined ? businessId : (state.business?.id || null), deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
       },
 
       // Soft delete a source transaction with its journal entry and lines, keeping an audit trail,
