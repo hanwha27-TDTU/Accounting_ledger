@@ -361,5 +361,61 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   ok(tombstoneBusinessId(null, 'active-ledger') === null, 'tombstoneBusinessId: an explicit null is respected, not treated as "unset"');
 }
 
+// PropertyTax (재산세 주택분, 0.42) — direct tests against the real app service, not a mirror,
+// since it's a pure function with no DOM/IndexedDB dependency. Boundary values come straight from
+// 지방세법 §111/§111의2 (표준·특례세율 구간: 6천만/1억5천만/3억) and 시행령 §109 (공정시장가액비율
+// 구간: 3억/6억) and §109의2 (과세표준상한 5%, §111의2① 9억원 특례세율 상한) — see docs/skills/
+// accounting-legal-basis-reference-skill.md 절 9 for the law-text cross-check.
+{
+  const PT = api.PropertyTax;
+
+  // fairMarketRatio boundaries
+  ok(PT.fairMarketRatio(300000000, true) === 0.43, 'fairMarketRatio: 1세대1주택 3억원 이하 -> 43% (경계 포함)');
+  ok(PT.fairMarketRatio(300000001, true) === 0.44, 'fairMarketRatio: 1세대1주택 3억원 초과 -> 44%');
+  ok(PT.fairMarketRatio(600000000, true) === 0.44, 'fairMarketRatio: 1세대1주택 6억원 이하 -> 44% (경계 포함)');
+  ok(PT.fairMarketRatio(600000001, true) === 0.45, 'fairMarketRatio: 1세대1주택 6억원 초과 -> 45%');
+  ok(PT.fairMarketRatio(2000000000, true) === 0.45, 'fairMarketRatio: 1세대1주택 특례는 9억원을 넘어도 계속 적용(시행령 §109①2호 단서)');
+  ok(PT.fairMarketRatio(100000000, false) === 0.6, 'fairMarketRatio: 1세대1주택이 아니면 항상 60%(금액 무관)');
+
+  // bracketsFor: rate-table special is capped at 9억원, unlike the ratio special above
+  ok(PT.bracketsFor(900000000, true) === PT.SPECIAL_BRACKETS, 'bracketsFor: 1세대1주택 9억원 이하 -> 특례세율표(경계 포함)');
+  ok(PT.bracketsFor(900000001, true) === PT.STANDARD_BRACKETS, 'bracketsFor: 1세대1주택이라도 9억원 초과면 표준세율표(§111의2① 9억원 상한)');
+  ok(PT.bracketsFor(100000000, false) === PT.STANDARD_BRACKETS, 'bracketsFor: 1세대1주택이 아니면 항상 표준세율표');
+
+  // progressiveTax continuity at every bracket boundary (both tables) — a discontinuity here would
+  // mean the 누진공제 deduction constants don't match the rate change, a classic off-by-one class of bug.
+  for (const [label, brackets] of [['표준', PT.STANDARD_BRACKETS], ['특례', PT.SPECIAL_BRACKETS]]) {
+    for (const boundary of [60000000, 150000000, 300000000]) {
+      const below = PT.progressiveTax(boundary, brackets);
+      const above = PT.progressiveTax(boundary + 1, brackets);
+      ok(Math.abs(above - below) <= 1, `progressiveTax ${label}: ${boundary}원 경계에서 세액이 끊기지 않음(1원 이내, 실제 below=${below} above=${above})`);
+    }
+  }
+
+  // calculateHousing: three hand-verified scenarios (no official NTS worked example was available for
+  // 재산세 the way EstimatedIncome had one — this is internal-consistency verification, not an oracle
+  // match; documented as a residual risk in the release notes).
+  const r1 = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  ok(r1.fairMarketRatio === 0.43 && r1.taxBase === 129000000 && r1.appliedRateTable === 'special', 'calculateHousing: 3억원 1세대1주택 -> 과세표준 1억2900만원, 특례세율표');
+  ok(r1.propertyTax === 99000 && r1.urbanAreaLevy === 180600 && r1.localEducationTax === 19800 && r1.total === 299400, 'calculateHousing: 3억원 1세대1주택 -> 재산세 99,000 + 도시지역분 180,600 + 지방교육세 19,800 = 299,400원');
+
+  const r2 = PT.calculateHousing({ marketValue: 100000000, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  ok(r2.fairMarketRatio === 0.6 && r2.taxBase === 60000000 && r2.appliedRateTable === 'standard', 'calculateHousing: 1억원 일반주택 -> 과세표준 6000만원, 표준세율표');
+  ok(r2.total === 156000, 'calculateHousing: 1억원 일반주택 -> 예상 합계 156,000원(재산세 60,000 + 도시지역분 84,000 + 지방교육세 12,000)');
+
+  const r3 = PT.calculateHousing({ marketValue: 1000000000, isOneHouseholdOneHouse: true, priorYearTaxBase: 300000000, includeUrbanAreaLevy: true });
+  ok(r3.capApplied === true && r3.appliedRateTable === 'standard', 'calculateHousing: 10억원 1세대1주택(9억 초과) + 낮은 전년도 과세표준 -> 과세표준상한액 적용, 세율표는 표준(9억 초과라 특례세율 상한 밖)');
+  ok(r3.taxBase === 322500000 && r3.total === 1243500, 'calculateHousing: 과세표준상한액 3억2250만원 -> 합계 1,243,500원');
+
+  const noCap = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  ok(noCap.capApplied === false, 'calculateHousing: 직전연도 과세표준을 안 주면(null) 과세표준상한액 비교를 생략');
+
+  const noUrban = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: false });
+  ok(noUrban.urbanAreaLevy === 0 && noUrban.total === noUrban.propertyTax + noUrban.localEducationTax, 'calculateHousing: 도시지역분 미포함 체크 시 도시지역분 0원');
+
+  const zero = PT.calculateHousing({ marketValue: 0, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  ok(zero.total === 0 && zero.taxBase === 0, 'calculateHousing: 공시가격 0원 -> 전부 0원(음수·NaN 없음)');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

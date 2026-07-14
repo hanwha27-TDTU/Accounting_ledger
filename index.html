@@ -585,7 +585,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.41',
+      version: '0.42',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +600,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.41', date: '2026-07-13', label: '최신 · 세금 계산 정확성 체크리스트', detail: '세금 계산기를 만들거나 고칠 때 놓치기 쉬운 9가지 관점(법령 근거·규칙 모델링·계산 구현·경계값·공식 사례 대조·개정 비교·설명·보안·화면 자동 확인)을 개발 기록의 Guardian 목록에 체크리스트로 추가했습니다. 법령→규칙→계산→설명은 한 사람이 맥락을 이어가야 미묘한 예외조항이 안 새어나가 그대로 묶고, 경계값·공식사례대조·개정비교·보안·화면확인은 "만든 사람과 다른 시선"이 핵심이라 독립 점검으로 구분했습니다. 지금은 체크리스트일 뿐 자동 강제는 아닙니다(계산 로직 자체는 변경 없음).' },
+      { version: '0.42', date: '2026-07-14', label: '최신 · 재산세 계산기(주택분)', detail: '왼쪽 메뉴 "계산기 > 재산세 계산기"에서 보유한 집의 재산세를 추정할 수 있습니다. 공시가격을 넣으면 공정시장가액비율(1세대 1주택은 2026년 한정 특례), 과세표준상한액, 세율(1세대 1주택은 특례세율)을 적용해 재산세 본세·도시지역분·지방교육세와 합계를 바로 계산합니다. 지방세법·시행령 원문을 조회해 만들었고, 검토용 추정치이며 실제 고지세액은 위택스에서 확인해야 함을 안내합니다. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 아직 없습니다.' },
+      { version: '0.41', date: '2026-07-13', label: '세금 계산 정확성 체크리스트', detail: '세금 계산기를 만들거나 고칠 때 놓치기 쉬운 9가지 관점(법령 근거·규칙 모델링·계산 구현·경계값·공식 사례 대조·개정 비교·설명·화면 자동 확인·보안)을 개발 기록의 Guardian 목록에 체크리스트로 추가했습니다. 법령→규칙→계산→설명은 한 사람이 맥락을 이어가야 미묘한 예외조항이 안 새어나가 그대로 묶고, 경계값·공식사례대조·개정비교·보안·화면확인은 "만든 사람과 다른 시선"이 핵심이라 독립 점검으로 구분했습니다. 지금은 체크리스트일 뿐 자동 강제는 아닙니다(계산 로직 자체는 변경 없음).' },
       { version: '0.40', date: '2026-07-13', label: '전체감사 — 자동동기화·가계부삭제 버그 수정', detail: '0.33~0.39 기능을 병렬 에이전트로 전체 점검했습니다. 마감(가계부 마감) 화면에서 사유를 입력하는 도중 백그라운드 자동 동기화가 돌면 입력값이 사라지던 문제를 고쳤습니다(자동 동기화가 화면을 다시 그리지 않는 목록에 마감 화면을 추가). 또한 지금 쓰고 있지 않은 다른 가계부를 삭제할 때, 그 삭제 기록(tombstone)이 실수로 현재 쓰는 가계부 것으로 잘못 표시되던 내부 데이터 정합성 문제를 고쳤습니다(실제 데이터 손실이나 다른 사용자 노출은 없었습니다 — 보안 감사에서 권한·RLS는 문제없음을 확인했습니다).' },
       { version: '0.39', date: '2026-07-12', label: '클라우드가 정본, 백업·복원 완성', detail: '데이터 관리 화면을 "이 기기 저장소는 보조 캐시, 클라우드(Supabase)가 정본"이라는 원칙에 맞게 다시 정리했습니다. 클라우드에서 직접 백업 파일을 만들 수 있고("클라우드에서 백업"), 이 기기 캐시가 다른 기기와 달라 보이면 "클라우드 기준으로 새로고침"으로 바로 맞출 수 있습니다. 복원도 "이 기기만 복원"과 "복원 후 모든 기기에 반영"(소유자 전용) 두 가지로 나눠, 복원한 내용이 다른 기기에도 확실히 반영되게 했습니다. 백업 파일에 없는 항목은 함부로 비우지 않도록 고쳤습니다.' },
       { version: '0.38', date: '2026-07-12', label: '가계부 삭제', detail: '설정의 "가계부 관리"에서 가계부를 삭제할 수 있게 했습니다. 삭제하면 그 가계부의 거래·계정과목·거래처·전표·증빙·마감 기록이 모두 함께 삭제되고, 화면에서 되돌릴 수 없습니다(감사 기록에는 남습니다). 지금 쓰던 가계부를 지우면 다른 가계부로 자동 전환되거나, 남은 가계부가 없으면 새로 만드는 화면으로 돌아갑니다.' },
@@ -655,7 +656,8 @@
       { group: '관리', id: 'settings', label: '설정', icon: 'settings-2' },
       { group: '관리', id: 'developer', label: '개발 기록', icon: 'code-2' },
       { group: '관리', id: 'data', label: '데이터 관리', icon: 'database' },
-      { group: '도움말', id: 'guide', label: '가이드', icon: 'circle-help' }
+      { group: '도움말', id: 'guide', label: '가이드', icon: 'circle-help' },
+      { group: '계산기', id: 'propertyTax', label: '재산세 계산기', icon: 'calculator' }
     ]);
     // 개인 가계부 모드에서 숨기는 메뉴 — 사업자·세무 전용 흐름(전표 검토, 간편장부 가져오기).
     // 라우트 자체는 남아 있고 네비게이션 노출만 줄인다(기능을 지우지 않음). 마감은 개인 가계부에도
@@ -664,7 +666,7 @@
 
     // 백그라운드 자동 동기화가 끝나도 전체 재렌더를 건너뛰는 화면 — 자유 텍스트 입력 폼이 있어
     // render()가 #app을 통째로 다시 그리면 사용자가 입력 중이던 값이 사라질 수 있다.
-    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports', 'closing']);
+    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports', 'closing', 'propertyTax']);
 
     const ACCOUNT_TEMPLATES = Object.freeze([
       { key: 'cash', account_code: '101', account_name: '현금', account_type: 'asset', explanation: '사업을 하면서 손에 보관하거나 바로 쓸 수 있는 현금입니다.' },
@@ -820,6 +822,75 @@
         const comparison = Math.round(rev * (1 - simp / 100) * compareFactor);
         const income = Math.min(primary, comparison);
         return { primary, comparison, income, necessaryExpense: rev - income, source: this.source };
+      }
+    });
+
+    // 재산세(주택분) 계산기 — 지방세법 제104조~제115조·제151조, 지방세법 시행령 제109조~제110조의2
+    // (2026-07-01 시행본, 법령 MCP 원문 대조). 이 앱의 회계 도메인(사업 거래)과 무관한 별도 지방세
+    // 계산 도구라 순수 함수만 제공하고 UI·저장소·거래 데이터에 의존하지 않는다.
+    // 스코프(0.42): 주택만. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 후속(하드룰: 미구현을
+    // 완료된 것처럼 보이지 않는다 — 화면에 명시).
+    const PropertyTax = Object.freeze({
+      source: '지방세법 제104조~제115조·제151조, 지방세법 시행령 제109조~제110조의2 (2026-07-01 시행)',
+      // 표준세율(주택, §111①3호나) — 누진공제 방식.
+      STANDARD_BRACKETS: Object.freeze([
+        Object.freeze({ max: 60000000, rate: 0.001, deduction: 0 }),
+        Object.freeze({ max: 150000000, rate: 0.0015, deduction: 30000 }),
+        Object.freeze({ max: 300000000, rate: 0.0025, deduction: 180000 }),
+        Object.freeze({ max: Infinity, rate: 0.004, deduction: 630000 })
+      ]),
+      // 1세대 1주택 특례세율(시가표준액 9억원 이하, §111의2①) — 구간별 표준세율 대비 0.05%p 인하.
+      SPECIAL_BRACKETS: Object.freeze([
+        Object.freeze({ max: 60000000, rate: 0.0005, deduction: 0 }),
+        Object.freeze({ max: 150000000, rate: 0.001, deduction: 30000 }),
+        Object.freeze({ max: 300000000, rate: 0.002, deduction: 180000 }),
+        Object.freeze({ max: Infinity, rate: 0.0035, deduction: 630000 })
+      ]),
+      URBAN_AREA_RATE: 0.0014,          // 재산세 도시지역분 표준세율(§112①2호). 조례로 1000분의 2.3까지 조정 가능하나 표준값만 계산.
+      LOCAL_EDUCATION_TAX_RATE: 0.2,    // 지방교육세 = 재산세 본세(도시지역분 제외)의 20%(§151①6호)
+      ONE_HOUSE_SPECIAL_RATE_CAP: 900000000, // 1세대1주택 특례세율 적용 상한(시가표준액 9억원, §111의2①)
+      CAP_RATIO: 0.05,                  // 과세표준상한액 계산 비율(시행령 §109의2②)
+
+      // 공정시장가액비율(시행령 §109①2호). 2026년도 한정 1세대1주택 특례는 시가표준액 9억 초과도 포함.
+      fairMarketRatio(marketValue, isOneHouseholdOneHouse) {
+        if (!isOneHouseholdOneHouse) return 0.6;
+        if (marketValue <= 300000000) return 0.43;
+        if (marketValue <= 600000000) return 0.44;
+        return 0.45;
+      },
+
+      bracketsFor(marketValue, isOneHouseholdOneHouse) {
+        return isOneHouseholdOneHouse && marketValue <= this.ONE_HOUSE_SPECIAL_RATE_CAP ? this.SPECIAL_BRACKETS : this.STANDARD_BRACKETS;
+      },
+
+      progressiveTax(base, brackets) {
+        const bracket = brackets.find(b => base <= b.max) || brackets[brackets.length - 1];
+        return Math.max(0, Math.round(base * bracket.rate - bracket.deduction));
+      },
+
+      // marketValue 시가표준액(공시가격), isOneHouseholdOneHouse 1세대1주택 여부(사용자 자가판단),
+      // priorYearTaxBase 직전연도 과세표준상당액(선택, 없으면 과세표준상한액 비교 생략),
+      // includeUrbanAreaLevy 도시지역분 적용 여부(기본 true)
+      calculateHousing({ marketValue, isOneHouseholdOneHouse, priorYearTaxBase, includeUrbanAreaLevy }) {
+        const mv = Math.max(0, Number(marketValue) || 0);
+        const oneHouse = Boolean(isOneHouseholdOneHouse);
+        const ratio = this.fairMarketRatio(mv, oneHouse);
+        const rawTaxBase = Math.round(mv * ratio);
+        const prior = priorYearTaxBase === null || priorYearTaxBase === undefined || priorYearTaxBase === ''
+          ? null : Math.max(0, Number(priorYearTaxBase) || 0);
+        const capBase = prior === null ? null : Math.round(prior + rawTaxBase * this.CAP_RATIO);
+        const capApplied = capBase !== null && rawTaxBase > capBase;
+        const taxBase = capApplied ? capBase : rawTaxBase;
+        const brackets = this.bracketsFor(mv, oneHouse);
+        const propertyTax = this.progressiveTax(taxBase, brackets);
+        const urbanAreaLevy = includeUrbanAreaLevy === false ? 0 : Math.round(taxBase * this.URBAN_AREA_RATE);
+        const localEducationTax = Math.round(propertyTax * this.LOCAL_EDUCATION_TAX_RATE);
+        const total = propertyTax + urbanAreaLevy + localEducationTax;
+        return {
+          fairMarketRatio: ratio, rawTaxBase, taxBase, capApplied,
+          appliedRateTable: brackets === this.SPECIAL_BRACKETS ? 'special' : 'standard',
+          propertyTax, urbanAreaLevy, localEducationTax, total, source: this.source
+        };
       }
     });
 
@@ -2990,6 +3061,43 @@
         ${taxSections}`;
     }
 
+    function propertyTaxPanelHtml(res) {
+      const ratioTag = res.appliedRateTable === 'special' ? '1세대 1주택 특례세율(9억원 이하)' : '표준세율';
+      return `<div class="estimator">
+        <div class="est-out">
+          <div class="est-row"><span>공정시장가액비율</span><strong id="ptRatio">${Math.round(res.fairMarketRatio * 100)}%</strong></div>
+          <div class="est-row"><span>과세표준${res.capApplied ? ' (과세표준상한액 적용)' : ''}</span><strong id="ptTaxBase">${Utils.won(res.taxBase)}</strong></div>
+          <div class="est-row"><span>적용 세율표</span><strong id="ptRateTable">${ratioTag}</strong></div>
+          <div class="est-row"><span>재산세(본세)</span><strong id="ptPropertyTax">${Utils.won(res.propertyTax)}</strong></div>
+          <div class="est-row"><span>도시지역분</span><strong id="ptUrbanLevy">${Utils.won(res.urbanAreaLevy)}</strong></div>
+          <div class="est-row"><span>지방교육세</span><strong id="ptEduTax">${Utils.won(res.localEducationTax)}</strong></div>
+          <div class="est-row total"><span>예상 납부세액 합계</span><strong id="ptTotal">${Utils.won(res.total)}</strong></div>
+        </div>
+      </div>`;
+    }
+
+    // 재산세 계산기(주택분) — 이 앱의 회계 도메인(사업 거래 장부)과 무관한 별도 지방세 계산 도구다.
+    // 그래서 activeTransactions()/state.business에 의존하지 않는다(개인·사업자 모드 구분도 없음 —
+    // 재산세는 소유자 개인에게 부과되는 지방세라 사업자 가계부 여부와 무관). 다만 첫 실행 시 가계부
+    // 설정 화면으로 가는 render()의 기존 게이트는 다른 라우트와 동일하게 그대로 적용된다(가계부가
+    // 없으면 이 화면도 아직 못 본다) — 별도 예외를 만들지 않고 기존 라우팅 구조를 그대로 재사용.
+    function renderPropertyTaxCalculator() {
+      const res = PropertyTax.calculateHousing({ marketValue: 0, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+      return `${pageHeader('재산세 계산기(주택분)', '보유한 집(주택)의 재산세를 추정합니다. 실제 고지세액과 다를 수 있습니다.')}
+        <div class="notice info">${icon('info')}<div><strong>검토용 추정 계산기입니다.</strong> 재산세 과세기준일은 매년 6월 1일이고, 납기는 7월 16일~31일과 9월 16일~30일에 절반씩입니다(20만원 이하는 7월에 한 번에 부과될 수 있음). 실제 고지세액은 위택스(wetax.go.kr)·이택스 또는 관할 지자체에서 확인하세요.</div></div>
+        <div class="notice">${icon('circle-alert')}<div>지금은 <strong>주택</strong>만 계산합니다. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 다음 업데이트에서 추가할 예정입니다. 도시지역분은 관할 지자체가 도시지역으로 고시한 지역에만 적용되며, 표준세율(0.14%)만 계산합니다(조례로 최대 0.23%까지 다를 수 있음). "1세대 1주택" 판정은 다주택·상속·혼인·임대주택 등 여러 예외가 있어 이 계산기는 사용자가 직접 판단해 체크한 값을 그대로 사용합니다 — 정확한 판정은 위택스·이택스에서 확인하세요.</div></div>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">주택분 재산세 계산</h2><p class="section-help">공시가격(시가표준액)을 넣으면 자동으로 계산됩니다.</p></div>${badge('검토용','info')}</div>
+          <div class="form-grid">
+            <div class="field half"><label for="ptMarketValue">주택 공시가격(시가표준액)</label><input class="input" type="text" inputmode="numeric" id="ptMarketValue" placeholder="예: 500000000"></div>
+            <div class="field half"><label for="ptPriorTaxBase">직전연도 과세표준 <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="numeric" id="ptPriorTaxBase" placeholder="모르면 비워두세요(상한 계산 생략)"></div>
+            <div class="field full"><label class="checkbox-row"><input type="checkbox" id="ptOneHouse"><span>1세대 1주택입니다.<br><span class="field-help">시가표준액 9억원 이하면 더 낮은 특례세율이 적용됩니다(지방세법 §111의2). 공정시장가액비율 특례(2026년 한정)는 9억원을 넘어도 적용됩니다.</span></span></label></div>
+            <div class="field full"><label class="checkbox-row"><input type="checkbox" id="ptUrbanArea" checked><span>도시지역분을 포함합니다.<br><span class="field-help">관할 지자체가 도시지역으로 고시한 지역만 해당합니다. 모르면 켜둔 채로 두고, 위택스에서 확인해 보세요.</span></span></label></div>
+          </div>
+          <div id="ptResult">${propertyTaxPanelHtml(res)}</div>
+        </section>
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">계산 근거</h2></div></div><p class="section-help">${Utils.escape(PropertyTax.source)}. 재산세 본세 = 과세표준(공시가격 × 공정시장가액비율, 과세표준상한액 초과 시 상한액) × 세율(누진공제). 도시지역분 = 과세표준 × 0.14%. 지방교육세 = 재산세 본세(도시지역분 제외) × 20%.</p></section>`;
+    }
+
     // 마감 — "영구"가 아니라 되돌릴 수 있는 월 단위 잠금이다. 마감한 달은 거래를 새로 넣거나
     // 지울 수 없고(AccountingDomain.isDateClosed), "마감 해제"로 언제든 다시 열 수 있다.
     function renderClosing() {
@@ -3422,7 +3530,7 @@
         el('app').focus({ preventScroll: true });
         return;
       }
-      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, data:renderData, guide:renderGuide };
+      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, data:renderData, guide:renderGuide, propertyTax:renderPropertyTaxCalculator };
       if (!renderers[state.route]) state.route = 'dashboard';
       const item = NAV_ITEMS.find(nav => nav.id === state.route);
       el('topbarTitle').textContent = item?.label || '대시보드';
@@ -3630,6 +3738,20 @@
         ['estRevenue', 'estPurchase', 'estRent', 'estLabor', 'estStdRate', 'estSimpleRate'].forEach(id => el(id).addEventListener('input', estRecalc));
         el('estDuty').addEventListener('change', estRecalc);
         estRecalc();
+      }
+
+      if (el('ptMarketValue')) {
+        const ptRecalc = () => {
+          const res = PropertyTax.calculateHousing({
+            marketValue: Utils.number(el('ptMarketValue').value),
+            isOneHouseholdOneHouse: el('ptOneHouse').checked,
+            priorYearTaxBase: el('ptPriorTaxBase').value.trim() === '' ? null : Utils.number(el('ptPriorTaxBase').value),
+            includeUrbanAreaLevy: el('ptUrbanArea').checked
+          });
+          el('ptResult').innerHTML = propertyTaxPanelHtml(res);
+        };
+        ['ptMarketValue', 'ptPriorTaxBase'].forEach(id => el(id).addEventListener('input', ptRecalc));
+        ['ptOneHouse', 'ptUrbanArea'].forEach(id => el(id).addEventListener('change', ptRecalc));
       }
 
       const ledgerQuery = el('ledgerQuery');
@@ -3867,7 +3989,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax });
     init();
   })();
   </script>
