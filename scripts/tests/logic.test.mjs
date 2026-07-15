@@ -395,53 +395,53 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   // calculateHousing: three hand-verified scenarios (no official NTS worked example was available for
   // 재산세 the way EstimatedIncome had one — this is internal-consistency verification, not an oracle
   // match; documented as a residual risk in the release notes).
-  const r1 = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  const r1 = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(r1.fairMarketRatio === 0.43 && r1.taxBase === 129000000 && r1.appliedRateTable === 'special', 'calculateHousing: 3억원 1세대1주택 -> 과세표준 1억2900만원, 특례세율표');
   ok(r1.propertyTax === 99000 && r1.urbanAreaLevy === 180600 && r1.localEducationTax === 19800 && r1.total === 299400, 'calculateHousing: 3억원 1세대1주택 -> 재산세 99,000 + 도시지역분 180,600 + 지방교육세 19,800 = 299,400원');
 
-  const r2 = PT.calculateHousing({ marketValue: 100000000, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  const r2 = PT.calculateHousing({ marketValue: 100000000, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(r2.fairMarketRatio === 0.6 && r2.taxBase === 60000000 && r2.appliedRateTable === 'standard', 'calculateHousing: 1억원 일반주택 -> 과세표준 6000만원, 표준세율표');
   ok(r2.total === 156000, 'calculateHousing: 1억원 일반주택 -> 예상 합계 156,000원(재산세 60,000 + 도시지역분 84,000 + 지방교육세 12,000)');
 
-  const r3 = PT.calculateHousing({ marketValue: 1000000000, isOneHouseholdOneHouse: true, priorYearTaxBase: 300000000, includeUrbanAreaLevy: true });
-  ok(r3.capApplied === true && r3.appliedRateTable === 'standard', 'calculateHousing: 10억원 1세대1주택(9억 초과) + 낮은 전년도 과세표준 -> 과세표준상한액 적용, 세율표는 표준(9억 초과라 특례세율 상한 밖)');
-  ok(r3.taxBase === 322500000 && r3.total === 1243500, 'calculateHousing: 과세표준상한액 3억2250만원 -> 합계 1,243,500원');
+  // priorTaxBaseEquivalent (0.46 correction, 시행령 §109의2①): "직전연도 과세표준 상당액"은 직전연도
+  // 시가표준액에 직전연도의 실제 적용 비율이 아니라 "과세기준일 현재"(=이번 연도) 공정시장가액비율을
+  // 곱해서 계산한다 — 그래서 입력은 직전연도 공시가격이어야 하고, 함수가 이번 연도 비율을 곱해 상당액을
+  // 유도해야 한다(직전연도 과세표준을 그대로 입력받으면 법령과 다른 값이 될 수 있다).
+  const r3 = PT.calculateHousing({ marketValue: 1000000000, isOneHouseholdOneHouse: true, priorYearMarketValue: 300000000, includeUrbanAreaLevy: true });
+  ok(r3.priorTaxBaseEquivalent === 135000000, 'calculateHousing: 직전연도 공시가격 3억원 × 이번연도 비율 45% = 직전연도 과세표준상당액 1억3500만원(직전연도의 실제 비율이 아니라 이번 연도 비율을 씀)');
+  ok(r3.capApplied === true && r3.appliedRateTable === 'standard', 'calculateHousing: 10억원 1세대1주택(9억 초과) + 낮은 전년도 공시가격 -> 과세표준상한액 적용, 세율표는 표준(9억 초과라 특례세율 상한 밖)');
+  ok(r3.taxBase === 157500000 && r3.total === 477000, 'calculateHousing: 과세표준상한액 1억5750만원(=1억3500만원+4억5000만원×5%) -> 합계 477,000원');
 
-  const noCap = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true });
-  ok(noCap.capApplied === false, 'calculateHousing: 직전연도 과세표준을 안 주면(null) 과세표준상한액 비교를 생략');
+  const noCap = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true });
+  ok(noCap.capApplied === false && noCap.priorTaxBaseEquivalent === null, 'calculateHousing: 직전연도 공시가격을 안 주면(null) 과세표준상한액 비교를 생략');
 
-  const noUrban = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: false });
+  const noUrban = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: false });
   ok(noUrban.urbanAreaLevy === 0 && noUrban.total === noUrban.propertyTax + noUrban.localEducationTax, 'calculateHousing: 도시지역분 미포함 체크 시 도시지역분 0원');
 
-  const zero = PT.calculateHousing({ marketValue: 0, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  const zero = PT.calculateHousing({ marketValue: 0, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(zero.total === 0 && zero.taxBase === 0, 'calculateHousing: 공시가격 0원 -> 전부 0원(음수·NaN 없음)');
 
   // ownershipShare (0.43): default omitted -> 1(100%, 단독소유), matches every case above unchanged.
-  const soleOwner = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true });
+  const soleOwner = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(soleOwner.ownershipShare === 1 && soleOwner.total === r1.total, 'calculateHousing: ownershipShare 생략 -> 100%, 기존 단독소유 결과와 동일(회귀 없음)');
-  const halfOwner = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true, ownershipShare: 0.5 });
+  const halfOwner = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true, ownershipShare: 0.5 });
   ok(halfOwner.wholeTotal === soleOwner.total, 'calculateHousing: 지분율을 줘도 wholeTotal(물건 전체)은 단독소유 계산과 동일 — 세율·과세표준은 지분과 무관하게 물건 전체 기준');
   ok(halfOwner.total === Math.round(soleOwner.total / 2), 'calculateHousing: 50% 지분 -> 최종 세액은 물건 전체 세액의 절반(반올림)');
-  ok(PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true, ownershipShare: 1.5 }).ownershipShare === 1, 'calculateHousing: ownershipShare가 1을 넘으면 1로 clamp(100% 초과 소유 불가)');
-  ok(PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearTaxBase: null, includeUrbanAreaLevy: true, ownershipShare: -0.2 }).ownershipShare === 0, 'calculateHousing: 음수 ownershipShare는 0으로 clamp');
+  ok(PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true, ownershipShare: 1.5 }).ownershipShare === 1, 'calculateHousing: ownershipShare가 1을 넘으면 1로 clamp(100% 초과 소유 불가)');
+  ok(PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true, ownershipShare: -0.2 }).ownershipShare === 0, 'calculateHousing: 음수 ownershipShare는 0으로 clamp');
 
   // Oracle test — a real 서울시 이택스 재산세(주택1기분) bill (2026년 7월, 서초구, 동일지분 2인 공동명의,
   // 1세대1주택), cross-checked against the property's ACTUAL 공동주택가격(공시가격) history from
-  // 부동산공시가격 알리미(2026.1.1기준 1,578,000,000원, 2025.1.1기준 1,278,000,000원) — NOT a value
-  // reverse-solved assuming no cap (an earlier version of this test did that and got a coincidentally
-  // clean division that turned out to be the WRONG explanation; the real mechanism is 과세표준상한제).
-  // raw taxBase = 1,578,000,000 × 45%(1세대1주택 특례비율, §109①2호) = 710,100,000원, which EXCEEDS the
-  // bill's stated "재산세과표: 610,605,000원" — meaning 과세표준상한액(직전연도+5%, 시행령 §109의2)이
-  // 실제로 발동했다. Solving the cap formula backward gives a required prior-year base of 575,100,000원,
-  // which is exactly 2025's own 공시가격(1,278,000,000) × the same 45% ratio — independent corroboration
-  // that this owner's tax base was capped, not just directly computed. Running calculateHousing with the
-  // real market value + that prior-year base (rather than an unverified guessed market value) reproduces
-  // the exact same 610,605,000원 과표 and the bill's annual (1기×2) 재산세 본세·도시지역분(공제 전)·
-  // 지방교육세 to within 10원 — real-world confirmation this app never had for §3's EstimatedIncome-style
-  // official-example cross-check (see docs/skills/accounting-legal-basis-reference-skill.md 절 9).
-  const bill = PT.calculateHousing({ marketValue: 1578000000, isOneHouseholdOneHouse: true, priorYearTaxBase: 575100000, includeUrbanAreaLevy: true, ownershipShare: 0.5 });
-  ok(bill.capApplied === true, 'oracle(서초구 2026-07 재산세 고지서): 실제 공시가격 15억7,800만원 기준 raw 과세표준이 610,605,000원을 넘어 과세표준상한액이 실제로 발동함');
-  ok(bill.taxBase === 610605000, 'oracle: 실제 공시가격 + 직전연도 과세표준(2025 공시가격×45%)으로 계산한 과세표준상한액이 고지서의 재산세과표 610,605,000원과 정확히 일치');
+  // 부동산공시가격 알리미(2026.1.1기준 1,578,000,000원, 2025.1.1기준 1,278,000,000원) — both years' REAL
+  // market values, not a derived/guessed number. 0.43 originally reverse-solved a market value assuming
+  // no cap (wrong); 0.44/0.45 then passed a pre-multiplied "prior tax base" as input; this version passes
+  // the real 2025 market value directly and lets calculateHousing derive priorTaxBaseEquivalent using
+  // THIS YEAR's ratio per 시행령 §109의2①(정정, 0.46) — the legally correct mechanism, not an assumption
+  // about what ratio applied in 2025.
+  const bill = PT.calculateHousing({ marketValue: 1578000000, isOneHouseholdOneHouse: true, priorYearMarketValue: 1278000000, includeUrbanAreaLevy: true, ownershipShare: 0.5 });
+  ok(bill.priorTaxBaseEquivalent === 575100000, 'oracle(서초구 2026-07 재산세 고지서): 2025 공시가격 12억7,800만원 × 2026 비율 45% = 직전연도 과세표준상당액 575,100,000원(시행령 §109의2① 그대로 적용)');
+  ok(bill.capApplied === true, 'oracle: 실제 공시가격 15억7,800만원 기준 raw 과세표준이 상한보다 커서 과세표준상한액이 실제로 발동함');
+  ok(bill.taxBase === 610605000, 'oracle: 실제 공시가격(2026·2025 둘 다 실측값)만으로 계산한 과세표준상한액이 고지서의 재산세과표 610,605,000원과 정확히 일치');
   ok(bill.appliedRateTable === 'standard', 'oracle: 시가표준액이 9억원을 넘어 특례세율이 아니라 표준세율표가 적용됨(1세대1주택이라도 §111의2① 9억원 상한)');
   ok(Math.abs(bill.propertyTax - 906200) <= 10, `oracle: 재산세 본세(내 지분 몫, 연간) ${bill.propertyTax}원 -> 고지서 실측값 906,200원과 10원 이내 일치`);
   ok(Math.abs((bill.urbanAreaLevy) - 427420) <= 10, `oracle: 도시지역분(내 지분 몫, 연간, 800원 전자송달 공제 전) ${bill.urbanAreaLevy}원 -> 고지서 실측값 427,420원과 10원 이내 일치`);
