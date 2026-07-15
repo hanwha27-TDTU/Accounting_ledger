@@ -259,6 +259,7 @@
     .textarea { min-height: 84px; resize: vertical; }
     .input:focus, .select:focus, .textarea:focus { border-color: var(--brand); outline: 3px solid rgba(23,98,79,.1); }
     .field-help { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .amount-echo { margin-top: 6px; color: var(--ink); font-size: 13px; font-weight: 700; }
     .field-error { min-height: 18px; margin-top: 5px; color: var(--danger); font-size: 11px; }
     .money-wrap { position: relative; }
     .money-wrap .input { padding-right: 36px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -588,7 +589,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.47',
+      version: '0.48',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -603,7 +604,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.47', date: '2026-07-15', label: '최신 · 재산세 반기분납 금액 표시', detail: '재산세 계산기 결과에 실제 납부 시기별 금액을 추가했습니다. 지방세법 §115①3호에 따라 주택분 재산세는 연세액을 절반씩 나눠 7월 16~31일(1기분)과 9월 16~30일(2기분)에 냅니다 — 계산기가 이제 예상 납부세액 합계 아래에 두 기분 금액을 각각 보여줍니다. 연세액이 20만원 이하면 지자체 조례에 따라 7월에 한꺼번에 낼 수도 있어(법령이 지자체 조례에 위임한 부분이라 지자체마다 다를 수 있음), 이 경우엔 분납 대신 그 안내를 보여줍니다.' },
+      { version: '0.48', date: '2026-07-15', label: '최신 · 지역자원시설세(소방분)·공시가격 읽기 쉬운 표기·재산세 용어 설명', detail: '재산세 계산기에 세 가지를 추가했습니다. (1) 공시가격 입력칸 아래에 "15억 8,000만원"처럼 읽기 쉬운 금액 표기를 실시간으로 보여줍니다. (2) 지역자원시설세(소방분)를 새로 계산합니다 — 건물 시가표준액(공시가격과는 다른 값, 위택스에서 확인)을 넣으면 지방세법 §146의 6단계 누진세율표로 계산해 별도로 보여줍니다(재산세와 과세표준이 달라 통합하지 않고 별도 표시). (3) "계산 근거" 아래에 공정시장가액비율·과세표준·과세표준상한액·도시지역분·지방교육세·지역자원시설세 등 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 설명하는 용어 카드를 추가했습니다.' },
+      { version: '0.47', date: '2026-07-15', label: '재산세 반기분납 금액 표시', detail: '재산세 계산기 결과에 실제 납부 시기별 금액을 추가했습니다. 지방세법 §115①3호에 따라 주택분 재산세는 연세액을 절반씩 나눠 7월 16~31일(1기분)과 9월 16~30일(2기분)에 냅니다 — 계산기가 이제 예상 납부세액 합계 아래에 두 기분 금액을 각각 보여줍니다. 연세액이 20만원 이하면 지자체 조례에 따라 7월에 한꺼번에 낼 수도 있어(법령이 지자체 조례에 위임한 부분이라 지자체마다 다를 수 있음), 이 경우엔 분납 대신 그 안내를 보여줍니다.' },
       { version: '0.46', date: '2026-07-15', label: '과세표준상한액 계산 정정(직전연도 공시가격 입력)', detail: '재산세 계산기의 "직전연도 과세표준" 입력을 "직전연도 공시가격"으로 바꿨습니다. 지방세법 시행령 제109조의2 제1항을 다시 확인해보니, 과세표준상한액 계산에 쓰는 "직전연도 과세표준 상당액"은 직전연도 공시가격에 직전연도에 실제 적용됐던 비율이 아니라 "올해" 공정시장가액비율을 곱해서 구하도록 정해져 있었습니다(0.45의 "작년 고지서의 재산세과표를 그대로 넣으라"는 안내는 부정확했습니다 — 바로잡았습니다). 이제 직전연도 공시가격만 넣으면 계산기가 올해 비율을 곱해 정확한 상당액을 자동으로 구합니다.' },
       { version: '0.45', date: '2026-07-15', label: '직전연도 과세표준 입력 안내(0.46에서 정정됨)', detail: '재산세 계산기의 "직전연도 과세표준" 입력칸에 어디서 값을 구하는지 안내문구를 추가했습니다 — 작년 재산세 고지서의 "재산세과표" 항목을 그대로 넣거나 위택스·이택스에서 조회하세요. (0.46에서 이 안내가 부정확했음을 확인해 "직전연도 공시가격" 입력 방식으로 바꿨습니다.)' },
       { version: '0.44', date: '2026-07-15', label: '재산세 계산 과정 설명 + 공시가격 입력 안내', detail: '재산세 계산기 결과 아래에 계산 과정을 번호 붙은 문장으로 보여줍니다(공시가격 × 공정시장가액비율 → 과세표준상한액 적용 여부 → 세율 적용 → 도시지역분 → 지방교육세 → 지분율 → 합계). 공시가격 입력칸에는 "몇 년도 몇 월 1일 기준 가격을 넣어야 하는지"(같은 해 1월 1일 기준, 매년 4월 30일까지 확정 공시) 안내문구를 추가했습니다.' },
@@ -839,7 +841,7 @@
     // 스코프(0.42): 주택만. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 후속(하드룰: 미구현을
     // 완료된 것처럼 보이지 않는다 — 화면에 명시).
     const PropertyTax = Object.freeze({
-      source: '지방세법 제104조~제115조·제151조, 지방세법 시행령 제109조~제110조의2 (2026-07-01 시행)',
+      source: '지방세법 제104조~제115조·제141조~제147조·제151조, 지방세법 시행령 제109조~제110조의2·제138조 (2026-07-01 시행)',
       // 표준세율(주택, §111①3호나) — 누진공제 방식.
       STANDARD_BRACKETS: Object.freeze([
         Object.freeze({ max: 60000000, rate: 0.001, deduction: 0 }),
@@ -859,6 +861,17 @@
       ONE_HOUSE_SPECIAL_RATE_CAP: 900000000, // 1세대1주택 특례세율 적용 상한(시가표준액 9억원, §111의2①)
       CAP_RATIO: 0.05,                  // 과세표준상한액 계산 비율(시행령 §109의2②)
       LUMP_SUM_THRESHOLD: 200000,       // 이 이하면 조례에 따라 7월에 한꺼번에 부과될 수 있음(§115①3호 단서)
+      // 소방분 지역자원시설세 세율(§146③1호) — 건축물·선박의 과세표준(주택은 건물 부분 시가표준액×
+      // 공정시장가액비율, §146④ 단서)에 적용하는 6단계 누진공제표. "주거용이 아닌" 건축물에만 적용되는
+      // 화재위험 가산(200%/300%, 시행령 §138①1호)은 주택엔 적용되지 않으므로 이 계산기는 항상 가산 없이 계산한다.
+      FIRE_LEVY_BRACKETS: Object.freeze([
+        Object.freeze({ max: 6000000, rate: 0.0004, deduction: 0 }),
+        Object.freeze({ max: 13000000, rate: 0.0005, deduction: 600 }),
+        Object.freeze({ max: 26000000, rate: 0.0006, deduction: 1900 }),
+        Object.freeze({ max: 39000000, rate: 0.0008, deduction: 7100 }),
+        Object.freeze({ max: 64000000, rate: 0.001, deduction: 14900 }),
+        Object.freeze({ max: Infinity, rate: 0.0012, deduction: 27700 })
+      ]),
 
       // 공정시장가액비율(시행령 §109①2호). 2026년도 한정 1세대1주택 특례는 시가표준액 9억 초과도 포함.
       fairMarketRatio(marketValue, isOneHouseholdOneHouse) {
@@ -890,7 +903,13 @@
       // 자체를 먼저 지분만큼 쪼개 세율 구간을 다시 매기지 않음). 실제 서울시 재산세 고지서(2인 동일지분
       // 공동명의 주택, 2026년 7월 1기분)와 대조해 이 방식으로 재산세 본세·도시지역분·지방교육세가
       // 반올림 오차(10원 이하) 수준까지 정확히 일치함을 확인했다.
-      calculateHousing({ marketValue, isOneHouseholdOneHouse, priorYearMarketValue, includeUrbanAreaLevy, ownershipShare }) {
+      // buildingValueForFireLevy 지역자원시설세(소방분)용 건물 시가표준액(선택, 없으면 계산 생략) —
+      // 공동주택가격(marketValue)과는 다른 값이다(§146④ 단서: 지자체장이 산정한 "건축물 부분"만의 가액).
+      // 위택스 시가표준액 조회 또는 작년 재산세 고지서의 지역자원시설세 항목에서 확인해야 한다. 이 값에
+      // 재산세와 같은 이번 연도 공정시장가액비율(ratio)을 곱해 과세표준을 구한다(§146④ 단서가 §110①2호를
+      // 그대로 인용). 소방분은 §147②에 따라 재산세의 과세기준일·납기(§114·§115)를 준용하는 별개 세목이라
+      // 20만원 이하 일괄징수 여부도 재산세 합계가 아니라 소방분 자체 세액만으로 독립적으로 판정한다.
+      calculateHousing({ marketValue, isOneHouseholdOneHouse, priorYearMarketValue, includeUrbanAreaLevy, ownershipShare, buildingValueForFireLevy }) {
         const mv = Math.max(0, Number(marketValue) || 0);
         const oneHouse = Boolean(isOneHouseholdOneHouse);
         const ratio = this.fairMarketRatio(mv, oneHouse);
@@ -916,13 +935,24 @@
         const firstInstallment = Math.round(total / 2);
         const secondInstallment = total - firstInstallment;
         const lumpSumEligible = total > 0 && total <= this.LUMP_SUM_THRESHOLD;
+        // 지역자원시설세(소방분) — buildingValueForFireLevy를 넣지 않으면 전부 null(계산 생략).
+        const buildingValue = buildingValueForFireLevy === null || buildingValueForFireLevy === undefined || buildingValueForFireLevy === ''
+          ? null : Math.max(0, Number(buildingValueForFireLevy) || 0);
+        const fireLevyBase = buildingValue === null ? null : Math.round(buildingValue * ratio);
+        const wholeFireLevy = fireLevyBase === null ? null : this.progressiveTax(fireLevyBase, this.FIRE_LEVY_BRACKETS);
+        const fireLevy = wholeFireLevy === null ? null : Math.round(wholeFireLevy * share);
+        const fireLevyFirstInstallment = fireLevy === null ? null : Math.round(fireLevy / 2);
+        const fireLevySecondInstallment = fireLevy === null ? null : fireLevy - fireLevyFirstInstallment;
+        const fireLevyLumpSumEligible = fireLevy === null ? null : (fireLevy > 0 && fireLevy <= this.LUMP_SUM_THRESHOLD);
         return {
           fairMarketRatio: ratio, rawTaxBase, taxBase, capApplied, priorTaxBaseEquivalent: prior,
           appliedRateTable: brackets === this.SPECIAL_BRACKETS ? 'special' : 'standard',
           ownershipShare: share, wholePropertyTax, wholeUrbanAreaLevy, wholeLocalEducationTax,
           wholeTotal: wholePropertyTax + wholeUrbanAreaLevy + wholeLocalEducationTax,
           propertyTax, urbanAreaLevy, localEducationTax, total,
-          firstInstallment, secondInstallment, lumpSumEligible, source: this.source
+          firstInstallment, secondInstallment, lumpSumEligible,
+          fireLevyBase, wholeFireLevy, fireLevy, fireLevyFirstInstallment, fireLevySecondInstallment, fireLevyLumpSumEligible,
+          source: this.source
         };
       }
     });
@@ -1192,7 +1222,15 @@
       { term: '감가상각비', cat: '증빙·경비', law: '건물·기계·비품처럼 여러 해 쓰는 자산의 가치 감소분을 해마다 나누어 비용으로 처리하는 것. 내용연수·상각률은 세법으로 정해져 있다.', kid: '오래 쓰는 비싼 물건(컴퓨터·기계)은 산 해에 한 번에 비용 처리하지 않고, 쓰는 동안 조금씩 나눠서 비용으로 적는 거예요.' },
       { term: '가산세', cat: '증빙·경비', law: '신고·납부·기장 의무를 어겼을 때 본세에 더해 물리는 세금. 복식부기의무자가 추계신고하면 무신고가산세와 장부 기록·보관 불성실 가산세 중 큰 금액이 부과된다.', kid: '약속(신고·장부)을 안 지키면 세금에 얹어서 더 내는 벌금 같은 거예요. 그래서 장부를 잘 써두는 게 이득이에요.' },
       { term: '업종코드', cat: '증빙·경비', law: '사업의 종류를 나타내는 국세청 코드(6자리). 경비율·기장의무 판단의 기준이 된다.', kid: '무슨 장사를 하는지 번호로 나타낸 거예요. 이 번호에 따라 경비율이나 장부 종류가 정해져요.' },
-      { term: '기준환율', cat: '증빙·경비', law: '외화 거래를 원화로 환산할 때 적용하는 환율(매매기준율). 해외 구매·경비는 거래일의 기준환율로 원화 환산해 장부에 기록한다.', kid: '달러·엔 같은 외국 돈을 우리 돈으로 바꿀 때 쓰는 그날의 환율이에요. 해외에서 쓴 돈은 이걸로 원화로 바꿔 적어요.' }
+      { term: '기준환율', cat: '증빙·경비', law: '외화 거래를 원화로 환산할 때 적용하는 환율(매매기준율). 해외 구매·경비는 거래일의 기준환율로 원화 환산해 장부에 기록한다.', kid: '달러·엔 같은 외국 돈을 우리 돈으로 바꿀 때 쓰는 그날의 환율이에요. 해외에서 쓴 돈은 이걸로 원화로 바꿔 적어요.' },
+      { term: '공정시장가액비율', cat: '재산세(지방세)', law: '재산세 등의 과세표준을 정할 때 시가표준액(공시가격)에 곱하는 비율. 일반 주택은 60%, 2026년 한정 1세대1주택 특례는 시가표준액 구간별로 43~45%다(지방세법 §110③, 시행령 §109①2호). 공시가격이 오른 만큼 세금이 그대로 오르지 않도록 완충하는 취지다.', kid: '집값(공시가격)에 세금을 매길 때 그대로 다 쓰지 않고 정해진 비율만큼만 쓰는 규칙이에요. 예를 들어 60%면 집값의 60%만 세금 계산에 써요. 집값이 갑자기 올라도 세금이 너무 급하게 오르지 않게 도와줘요.' },
+      { term: '재산세 과세표준', cat: '재산세(지방세)', law: '재산세 세율을 곱하는 기준 금액. 시가표준액(공시가격)에 공정시장가액비율을 곱해 구하고, 과세표준상한액을 초과하면 상한액으로 낮춘다(지방세법 §110).', kid: '재산세를 계산할 때 세율을 곱하는 진짜 기준 금액이에요. 공시가격 그대로가 아니라 비율을 곱해서 낮춘 금액을 써요.' },
+      { term: '재산세 과세표준상한액', cat: '재산세(지방세)', law: '직전연도 과세표준상당액에 이번연도 과세표준의 5%를 더한 금액. 새로 계산한 과세표준이 이 금액보다 크면 상한액으로 낮춰서 세금이 한 해에 너무 많이 오르지 않게 막는다(지방세법 §110③, 시행령 §109의2).', kid: '작년보다 세금이 너무 갑자기 많이 오르지 않도록 한 해에 오를 수 있는 최대 폭(과세표준 기준 5%)을 정해둔 거예요. 집값이 폭등해도 이 선을 넘어서 세금을 매기지 않아요.' },
+      { term: '재산세 세율', cat: '재산세(지방세)', law: '과세표준에 곱하는 비율로 구간별 누진공제 방식을 쓴다. 표준세율은 0.1~0.4%, 시가표준액 9억원 이하 1세대1주택은 구간마다 0.05퍼센트포인트씩 낮은 특례세율(2021~2026년 한시)을 쓴다(지방세법 §111, §111의2).', kid: '집값(과세표준)에 곱하는 세금 비율이에요. 집이 비쌀수록 비율이 조금씩 올라가고, 내가 사는 집 한 채뿐이면(1세대1주택) 더 낮은 비율을 써줘요.' },
+      { term: '재산세 도시지역분', cat: '재산세(지방세)', law: '지자체가 도시지역으로 고시한 곳의 부동산에 재산세 본세와 함께 추가로 매기는 세금. 과세표준의 0.14%(조례로 최대 0.23%까지 조정 가능)이며, 도시계획사업 등 도시지역 정비 재원으로 쓴다(지방세법 §112).', kid: '도시로 지정된 동네에 사는 사람에게 재산세와 같이 조금 더 걷는 돈이에요. 도로·공원처럼 그 동네를 가꾸는 데 써요.' },
+      { term: '지방교육세', cat: '재산세(지방세)', law: '재산세 등 여러 지방세에 함께 부과돼 지방 교육 재정을 지원하는 세금. 재산세분은 재산세 본세(도시지역분 제외)의 20%이며, 재산세와 함께 부과·징수된다(지방세법 §151①6호, §152②).', kid: '재산세를 낼 때 같이 걷어서 우리 동네 학교를 돕는 데 쓰는 돈이에요. 재산세 본세의 20%만큼이에요.' },
+      { term: '지역자원시설세(소방분)', cat: '재산세(지방세)', law: '건축물·선박 소유자에게 소방 업무 재원 마련을 위해 부과하는 세금. 주택은 건물 부분의 시가표준액에 공정시장가액비율을 곱한 금액을 과세표준으로 하고, 구간별 누진세율(0.04~0.12%)을 적용한다. 재산세와 같은 과세기준일·납기를 따른다(지방세법 §141, §142①3호, §146③④, §147②).', kid: '우리 동네 소방서를 운영하는 데 필요한 돈을 건물 주인들에게 걷는 세금이에요. 불이 나면 소방차가 와서 꺼주니까, 건물을 가진 사람이 그 비용을 조금씩 나눠 내는 거예요.' },
+      { term: '반기분납', cat: '재산세(지방세)', law: '주택분 재산세(도시지역분·지방교육세 포함)와 지역자원시설세(소방분)는 연세액을 절반씩 나눠 7월 16~31일과 9월 16~30일 두 번에 걸쳐 낸다. 20만원 이하면 조례에 따라 7월에 한꺼번에 낼 수도 있다(지방세법 §115①3호).', kid: '1년치 세금을 한 번에 다 안 내고, 7월에 절반, 9월에 절반 나눠서 내는 거예요. 세금이 적으면(20만원 이하) 7월에 한 번에 낼 수도 있어요.' }
     ]);
     const TermService = Object.freeze({
       all() { return TAX_TERMS; },
@@ -1312,6 +1350,22 @@
       now: () => new Date().toISOString(),
       today: () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()),
       won: value => `${Math.round(Number(value || 0)).toLocaleString('ko-KR')}원`,
+      // 큰 금액을 "15억 8,000만원"처럼 회계단위(억/만원)로 읽어주는 보조 표기. 공시가격처럼 자릿수가
+      // 많아 한눈에 파악하기 어려운 입력값 옆에 실시간으로 보여주는 용도(계산에는 쓰지 않음).
+      wonKorean(value) {
+        const n = Math.round(Number(value || 0));
+        if (n === 0) return '0원';
+        const abs = Math.abs(n);
+        const eok = Math.floor(abs / 100000000);
+        const afterEok = abs % 100000000;
+        const man = Math.floor(afterEok / 10000);
+        const rest = afterEok % 10000;
+        const parts = [];
+        if (eok > 0) parts.push(`${eok.toLocaleString('ko-KR')}억`);
+        if (man > 0) parts.push(`${man.toLocaleString('ko-KR')}만`);
+        if (rest > 0) parts.push(`${rest.toLocaleString('ko-KR')}`);
+        return `${n < 0 ? '-' : ''}${parts.join(' ')}원`;
+      },
       number: value => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0,
       escape: value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])),
       normalizeEmail: value => String(value || '').trim().toLowerCase(),
@@ -3122,6 +3176,15 @@
       steps.push(res.lumpSumEligible
         ? `합계가 20만원 이하라 지자체 조례에 따라 7월 16~31일에 ${Utils.won(res.total)}원을 한꺼번에 낼 수도 있습니다(지자체마다 다를 수 있어요).`
         : `합계 ${Utils.won(res.total)}원을 절반씩 나눠 냅니다: 7월 16~31일에 ${Utils.won(res.firstInstallment)}원(1기분), 9월 16~30일에 ${Utils.won(res.secondInstallment)}원(2기분).`);
+      if (res.fireLevy !== null) {
+        steps.push(`건물 시가표준액 ${Utils.won(Number(input.buildingValueForFireLevy) || 0)}에 같은 공정시장가액비율 ${ratioPct}%를 곱해 지역자원시설세(소방분) 과세표준 ${Utils.won(res.fireLevyBase)}원을 구하고, 소방분 누진세율표를 적용해 ${Utils.won(res.wholeFireLevy)}원을 계산합니다(재산세와는 별개 세목이라 과세표준이 다릅니다).`);
+        if (res.ownershipShare < 1) {
+          steps.push(`소방분도 재산세처럼 집 전체 기준으로 계산한 뒤 내 지분만큼만 남깁니다: ${Utils.won(res.wholeFireLevy)}→${Utils.won(res.fireLevy)}.`);
+        }
+        steps.push(res.fireLevyLumpSumEligible
+          ? `소방분 ${Utils.won(res.fireLevy)}원은 20만원 이하라 7월에 한꺼번에 낼 수도 있습니다(지자체마다 다를 수 있어요).`
+          : `소방분 ${Utils.won(res.fireLevy)}원도 재산세와 같은 시기에 절반씩 나눠 냅니다: 7월에 ${Utils.won(res.fireLevyFirstInstallment)}원, 9월에 ${Utils.won(res.fireLevySecondInstallment)}원.`);
+      }
       return `<div class="calc-steps">${steps.map((text, i) => `<div class="calc-step"><span class="calc-step-num">${i + 1}</span><span>${Utils.escape(text)}</span></div>`).join('')}</div>`;
     }
 
@@ -3146,6 +3209,13 @@
             : `<div class="est-row"><span>7월 16~31일 납부분(1기분)</span><strong id="ptFirstInstallment">${Utils.won(res.firstInstallment)}</strong></div>
           <div class="est-row"><span>9월 16~30일 납부분(2기분)</span><strong id="ptSecondInstallment">${Utils.won(res.secondInstallment)}</strong></div>`}
         </div>
+        ${res.fireLevy === null ? '' : `<div class="est-out" style="margin-top:10px">
+          <div class="est-row"><span>지역자원시설세(소방분)${res.ownershipShare < 1 ? ' · 내 지분 몫' : ''}</span><strong id="ptFireLevy">${Utils.won(res.fireLevy)}</strong></div>
+          ${res.fireLevyLumpSumEligible
+            ? `<div class="est-row"><span>소방분 납부 시기</span><strong id="ptFireLevyInstallmentNote">20만원 이하 · 7월에 한꺼번에 낼 수도 있음(지자체 조례 따라 다름)</strong></div>`
+            : `<div class="est-row"><span>소방분 7월 16~31일 납부분</span><strong id="ptFireLevyFirst">${Utils.won(res.fireLevyFirstInstallment)}</strong></div>
+          <div class="est-row"><span>소방분 9월 16~30일 납부분</span><strong id="ptFireLevySecond">${Utils.won(res.fireLevySecondInstallment)}</strong></div>`}
+        </div>`}
         <p class="section-help" style="margin-top:10px">계산 과정</p>
         ${propertyTaxStepsHtml(input, res)}
       </div>`;
@@ -3157,22 +3227,28 @@
     // 설정 화면으로 가는 render()의 기존 게이트는 다른 라우트와 동일하게 그대로 적용된다(가계부가
     // 없으면 이 화면도 아직 못 본다) — 별도 예외를 만들지 않고 기존 라우팅 구조를 그대로 재사용.
     function renderPropertyTaxCalculator() {
-      const initialInput = { marketValue: 0, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true, ownershipShare: 1 };
+      const initialInput = { marketValue: 0, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true, ownershipShare: 1, buildingValueForFireLevy: null };
       const res = PropertyTax.calculateHousing(initialInput);
+      const termCards = TAX_TERMS.filter(t => t.cat === '재산세(지방세)').map(termCardHtml).join('');
       return `${pageHeader('재산세 계산기(주택분)', '보유한 집(주택)의 재산세를 추정합니다. 실제 고지세액과 다를 수 있습니다.')}
         <div class="notice info">${icon('info')}<div><strong>검토용 추정 계산기입니다.</strong> 재산세 과세기준일은 매년 6월 1일이고, 납기는 7월 16일~31일과 9월 16일~30일에 절반씩입니다(20만원 이하는 7월에 한 번에 부과될 수 있음). 실제 고지세액은 위택스(wetax.go.kr)·이택스 또는 관할 지자체에서 확인하세요.</div></div>
-        <div class="notice">${icon('circle-alert')}<div>지금은 <strong>주택</strong>만 계산합니다. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 다음 업데이트에서 추가할 예정입니다. 도시지역분은 관할 지자체가 도시지역으로 고시한 지역에만 적용되며, 표준세율(0.14%)만 계산합니다(조례로 최대 0.23%까지 다를 수 있음). "1세대 1주택" 판정은 다주택·상속·혼인·임대주택 등 여러 예외가 있어 이 계산기는 사용자가 직접 판단해 체크한 값을 그대로 사용합니다 — 정확한 판정은 위택스·이택스에서 확인하세요.</div></div>
+        <div class="notice">${icon('circle-alert')}<div>지금은 <strong>주택</strong>만 계산합니다. 토지·건축물·선박·항공기는 다음 업데이트에서 추가할 예정입니다. 도시지역분은 관할 지자체가 도시지역으로 고시한 지역에만 적용되며, 표준세율(0.14%)만 계산합니다(조례로 최대 0.23%까지 다를 수 있음). "1세대 1주택" 판정은 다주택·상속·혼인·임대주택 등 여러 예외가 있어 이 계산기는 사용자가 직접 판단해 체크한 값을 그대로 사용합니다 — 정확한 판정은 위택스·이택스에서 확인하세요. 지역자원시설세(소방분)는 재산세와 과세표준(건물 시가표준액)이 달라 별도로 계산·표시하며, 실제 고지서는 재산세와 통합해 한 번에 고지할 수 있어 표시 방식이 다를 수 있습니다.</div></div>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">주택분 재산세 계산</h2><p class="section-help">공시가격(시가표준액)을 넣으면 자동으로 계산됩니다.</p></div>${badge('검토용','info')}</div>
           <div class="form-grid">
-            <div class="field half"><label for="ptMarketValue">주택 공시가격(시가표준액)</label><input class="input" type="text" inputmode="numeric" id="ptMarketValue" placeholder="예: 500000000"><div class="field-help">이번 재산세(과세기준일 6월 1일)를 계산하려면 <strong>같은 해 1월 1일 기준 공동주택가격</strong>을 넣으세요 — 매년 4월 30일까지 확정 공시됩니다(부동산 가격공시에 관한 법률 시행령 §43①). 국토교통부 부동산공시가격알리미(realtyprice.kr)에서 조회할 수 있습니다. 신축 등으로 그 값이 아직 없으면 6월 1일 기준 추가공시가격(그 해 9월 30일까지 공시)을 넣으세요.</div></div>
-            <div class="field half"><label for="ptPriorMarketValue">직전연도 공시가격 <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="numeric" id="ptPriorMarketValue" placeholder="모르면 비워두세요(상한 계산 생략)"><div class="field-help">모르면 비워두세요 — 과세표준상한액 계산만 생략되고 나머지는 그대로 계산됩니다. 넣을 땐 <strong>작년(같은 해 1월 1일 기준) 공시가격</strong>을 그대로 넣으세요(부동산공시가격알리미에서 연도별로 조회 가능). 과세표준상한액은 법령상 "작년 공시가격 × 올해 공정시장가액비율"로 계산합니다(시행령 §109의2① — 작년에 실제로 적용됐던 비율이 아니라 항상 올해 비율을 씁니다) — 그래서 작년 재산세 고지서의 과세표준 숫자를 그대로 넣으면 오히려 틀릴 수 있습니다.</div></div>
+            <div class="field half"><label for="ptMarketValue">주택 공시가격(시가표준액)</label><input class="input" type="text" inputmode="numeric" id="ptMarketValue" placeholder="예: 500000000"><div class="amount-echo" id="ptMarketValueEcho"></div><div class="field-help">이번 재산세(과세기준일 6월 1일)를 계산하려면 <strong>같은 해 1월 1일 기준 공동주택가격</strong>을 넣으세요 — 매년 4월 30일까지 확정 공시됩니다(부동산 가격공시에 관한 법률 시행령 §43①). 국토교통부 부동산공시가격알리미(realtyprice.kr)에서 조회할 수 있습니다. 신축 등으로 그 값이 아직 없으면 6월 1일 기준 추가공시가격(그 해 9월 30일까지 공시)을 넣으세요.</div></div>
+            <div class="field half"><label for="ptPriorMarketValue">직전연도 공시가격 <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="numeric" id="ptPriorMarketValue" placeholder="모르면 비워두세요(상한 계산 생략)"><div class="amount-echo" id="ptPriorMarketValueEcho"></div><div class="field-help">모르면 비워두세요 — 과세표준상한액 계산만 생략되고 나머지는 그대로 계산됩니다. 넣을 땐 <strong>작년(같은 해 1월 1일 기준) 공시가격</strong>을 그대로 넣으세요(부동산공시가격알리미에서 연도별로 조회 가능). 과세표준상한액은 법령상 "작년 공시가격 × 올해 공정시장가액비율"로 계산합니다(시행령 §109의2① — 작년에 실제로 적용됐던 비율이 아니라 항상 올해 비율을 씁니다) — 그래서 작년 재산세 고지서의 과세표준 숫자를 그대로 넣으면 오히려 틀릴 수 있습니다.</div></div>
             <div class="field half"><label for="ptShare">공유 지분율(%) <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="decimal" id="ptShare" value="100"><div class="field-help">단독소유면 100%. 공동명의면 등기부의 본인 지분율을 넣으세요(예: 동일지분 2인 공동명의는 50%). 과세표준·세율은 항상 집 전체 기준으로 계산한 뒤, 산출된 세액만 지분율로 나눕니다(지방세법 §107①1호).</div></div>
+            <div class="field half"><label for="ptBuildingValue">건물 시가표준액(지역자원시설세용) <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="numeric" id="ptBuildingValue" placeholder="모르면 비워두세요(소방분 계산 생략)"><div class="amount-echo" id="ptBuildingValueEcho"></div><div class="field-help">모르면 비워두세요 — 지역자원시설세(소방분) 계산만 생략됩니다. 공시가격(공동주택가격)과는 다른 값으로, 위택스(wetax.go.kr) 시가표준액 조회 또는 작년 재산세 고지서의 "지역자원시설세" 항목에서 건물분 시가표준액을 확인하세요(지방세법 §146④).</div></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="ptOneHouse"><span>1세대 1주택입니다.<br><span class="field-help">시가표준액 9억원 이하면 더 낮은 특례세율이 적용됩니다(지방세법 §111의2). 공정시장가액비율 특례(2026년 한정)는 9억원을 넘어도 적용됩니다. 공동명의라도 같은 세대 구성원끼리 집 1채를 공유하면 1세대1주택으로 봅니다(시행령 §110의2④).</span></span></label></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="ptUrbanArea" checked><span>도시지역분을 포함합니다.<br><span class="field-help">관할 지자체가 도시지역으로 고시한 지역만 해당합니다. 모르면 켜둔 채로 두고, 위택스에서 확인해 보세요.</span></span></label></div>
           </div>
           <div id="ptResult">${propertyTaxPanelHtml(initialInput, res)}</div>
         </section>
-        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">계산 근거</h2></div></div><p class="section-help">${Utils.escape(PropertyTax.source)}. 재산세 본세 = 과세표준(공시가격 × 공정시장가액비율, 과세표준상한액 초과 시 상한액) × 세율(누진공제). 도시지역분 = 과세표준 × 0.14%. 지방교육세 = 재산세 본세(도시지역분 제외) × 20%.</p></section>`;
+        <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">계산 근거</h2></div></div>
+          <p class="section-help">${Utils.escape(PropertyTax.source)}. 재산세 본세 = 과세표준(공시가격 × 공정시장가액비율, 과세표준상한액 초과 시 상한액) × 세율(누진공제). 도시지역분 = 과세표준 × 0.14%. 지방교육세 = 재산세 본세(도시지역분 제외) × 20%. 지역자원시설세(소방분) = (건물 시가표준액 × 공정시장가액비율) × 누진세율(0.04~0.12%).</p>
+          <p class="section-help" style="margin-top:10px">아래는 위 계산에 쓰인 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 풀어 설명합니다.</p>
+          <div class="term-group">${termCards}</div>
+        </section>`;
     }
 
     // 마감 — "영구"가 아니라 되돌릴 수 있는 월 단위 잠금이다. 마감한 달은 거래를 새로 넣거나
@@ -3818,6 +3894,10 @@
       }
 
       if (el('ptMarketValue')) {
+        const ptEcho = (fieldId, echoId) => {
+          const raw = el(fieldId).value.trim();
+          el(echoId).textContent = raw === '' ? '' : `= ${Utils.wonKorean(Utils.number(raw))}`;
+        };
         const ptRecalc = () => {
           const shareRaw = el('ptShare').value.trim();
           const input = {
@@ -3825,11 +3905,15 @@
             isOneHouseholdOneHouse: el('ptOneHouse').checked,
             priorYearMarketValue: el('ptPriorMarketValue').value.trim() === '' ? null : Utils.number(el('ptPriorMarketValue').value),
             includeUrbanAreaLevy: el('ptUrbanArea').checked,
-            ownershipShare: shareRaw === '' ? 1 : Utils.number(shareRaw) / 100
+            ownershipShare: shareRaw === '' ? 1 : Utils.number(shareRaw) / 100,
+            buildingValueForFireLevy: el('ptBuildingValue').value.trim() === '' ? null : Utils.number(el('ptBuildingValue').value)
           };
           el('ptResult').innerHTML = propertyTaxPanelHtml(input, PropertyTax.calculateHousing(input));
+          ptEcho('ptMarketValue', 'ptMarketValueEcho');
+          ptEcho('ptPriorMarketValue', 'ptPriorMarketValueEcho');
+          ptEcho('ptBuildingValue', 'ptBuildingValueEcho');
         };
-        ['ptMarketValue', 'ptPriorMarketValue', 'ptShare'].forEach(id => el(id).addEventListener('input', ptRecalc));
+        ['ptMarketValue', 'ptPriorMarketValue', 'ptShare', 'ptBuildingValue'].forEach(id => el(id).addEventListener('input', ptRecalc));
         ['ptOneHouse', 'ptUrbanArea'].forEach(id => el(id).addEventListener('change', ptRecalc));
       }
 

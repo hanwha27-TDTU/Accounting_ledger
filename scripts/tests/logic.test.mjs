@@ -85,7 +85,9 @@ if (api) {
   ok(remapped[0].account === '소모품비' && remapped[0].knownAccount === true, 'remapAccount -> 소모품비, knownAccount true');
 
   // 세법 용어사전 — 법적 정의(근거 조문) + 초딩 설명, 대시보드 검색용
-  ok(TermService.all().length === 31, 'TermService has 31 terms');
+  ok(TermService.all().length === 39, 'TermService has 39 terms');
+  ok(TermService.find('공정시장가액비율') && /§109/.test(TermService.find('공정시장가액비율').law), 'TermService 공정시장가액비율 -> 법적 정의에 시행령 §109');
+  ok(TermService.find('지역자원시설세(소방분)') && /§146/.test(TermService.find('지역자원시설세(소방분)').law), 'TermService 지역자원시설세(소방분) -> 법적 정의에 §146');
   ok(TermService.find('대리납부') && /제52조/.test(TermService.find('대리납부').law), 'TermService 대리납부 -> 부가가치세법 §52 (해외 용역)');
   ok(TermService.find('필요경비') && /제27조/.test(TermService.find('필요경비').law), 'TermService 필요경비 -> 법적 정의에 소득세법 §27');
   ok(TermService.find('복식부기') && TermService.find('복식부기').kid.length > 0, 'TermService 복식부기 has kid-level explanation');
@@ -451,6 +453,32 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   ok(Math.abs((bill.urbanAreaLevy) - 427420) <= 10, `oracle: 도시지역분(내 지분 몫, 연간, 800원 전자송달 공제 전) ${bill.urbanAreaLevy}원 -> 고지서 실측값 427,420원과 10원 이내 일치`);
   ok(Math.abs(bill.localEducationTax - 181240) <= 10, `oracle: 지방교육세(내 지분 몫, 연간) ${bill.localEducationTax}원 -> 고지서 실측값 181,240원과 10원 이내 일치`);
   ok(bill.firstInstallment === 757438 && bill.secondInstallment === 757438 && bill.firstInstallment + bill.secondInstallment === bill.total && bill.lumpSumEligible === false, 'oracle: 합계 1,514,876원(내 지분 몫) -> 1기분·2기분 각 757,438원(20만원 초과라 조례 일괄징수 대상 아님)');
+
+  // 지역자원시설세(소방분, 0.48) — §146④ 단서: 건물 시가표준액에 재산세와 같은 이번연도 공정시장가액비율을
+  // 곱해 과세표준을 구하고, §146③1호의 6단계 누진세율표(재산세와는 다른 표)를 적용한다. 재산세와는
+  // 과세표준이 다른 별개 세목이라 fireLevy는 total에 합산하지 않고 독립 필드로 반환한다.
+  const noFireLevy = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true, buildingValueForFireLevy: null });
+  ok(noFireLevy.fireLevy === null && noFireLevy.fireLevyBase === null && noFireLevy.fireLevyLumpSumEligible === null, 'calculateHousing: buildingValueForFireLevy를 안 주면(null) 지역자원시설세 계산을 생략');
+
+  const fireLevySmall = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true, buildingValueForFireLevy: 30000000 });
+  ok(fireLevySmall.fireLevyBase === 12900000, 'calculateHousing: 건물 시가표준액 3,000만원 × 1세대1주택 비율 43% = 소방분 과세표준 1,290만원');
+  ok(fireLevySmall.fireLevy === 5850, 'calculateHousing: 소방분 과세표준 1,290만원 -> 누진세율표(600만원 초과 1,300만원 이하 구간) 적용 -> 5,850원');
+  ok(fireLevySmall.fireLevyLumpSumEligible === true && fireLevySmall.fireLevyFirstInstallment === 2925 && fireLevySmall.fireLevySecondInstallment === 2925, 'calculateHousing: 소방분 5,850원(20만원 이하) -> lumpSumEligible true, 분납액도 절반씩 계산은 됨');
+
+  const fireLevyBig = PT.calculateHousing({ marketValue: 1000000000, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true, buildingValueForFireLevy: 500000000 });
+  ok(fireLevyBig.fireLevyBase === 300000000, 'calculateHousing: 건물 시가표준액 5억원 × 일반 비율 60% = 소방분 과세표준 3억원');
+  ok(fireLevyBig.fireLevy === 332300, 'calculateHousing: 소방분 과세표준 3억원(6,400만원 초과 구간, 10,000분의 12 - 27,700) -> 332,300원');
+  ok(fireLevyBig.fireLevyFirstInstallment === 166150 && fireLevyBig.fireLevySecondInstallment === 166150 && fireLevyBig.fireLevyFirstInstallment + fireLevyBig.fireLevySecondInstallment === fireLevyBig.fireLevy && fireLevyBig.fireLevyLumpSumEligible === false, 'calculateHousing: 소방분 332,300원(20만원 초과) -> 1기분·2기분 각 166,150원, 조례 일괄징수 대상 아님');
+
+  const fireLevyShared = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true, buildingValueForFireLevy: 200000000, ownershipShare: 0.5 });
+  ok(fireLevyShared.wholeFireLevy === 75500 && fireLevyShared.fireLevy === 37750, 'calculateHousing: 소방분도 재산세처럼 물건 전체 기준(75,500원)으로 계산한 뒤 지분율만큼만 남김(50% -> 37,750원)');
+
+  // Utils.wonKorean (0.48) — 큰 공시가격을 "15억 8,000만원"처럼 억/만원 단위로 읽어주는 보조 표기.
+  ok(api.Utils.wonKorean(1578000000) === '15억 7,800만원', 'Utils.wonKorean: 1,578,000,000 -> "15억 7,800만원"');
+  ok(api.Utils.wonKorean(1278000000) === '12억 7,800만원', 'Utils.wonKorean: 1,278,000,000 -> "12억 7,800만원"');
+  ok(api.Utils.wonKorean(300000000) === '3억원', 'Utils.wonKorean: 3억원 정각은 만원 단위 생략');
+  ok(api.Utils.wonKorean(149700) === '14만 9,700원', 'Utils.wonKorean: 149,700 -> "14만 9,700원"(억 단위 없음)');
+  ok(api.Utils.wonKorean(0) === '0원', 'Utils.wonKorean: 0 -> "0원"');
 }
 
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
