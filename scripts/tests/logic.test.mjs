@@ -398,10 +398,13 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   const r1 = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(r1.fairMarketRatio === 0.43 && r1.taxBase === 129000000 && r1.appliedRateTable === 'special', 'calculateHousing: 3억원 1세대1주택 -> 과세표준 1억2900만원, 특례세율표');
   ok(r1.propertyTax === 99000 && r1.urbanAreaLevy === 180600 && r1.localEducationTax === 19800 && r1.total === 299400, 'calculateHousing: 3억원 1세대1주택 -> 재산세 99,000 + 도시지역분 180,600 + 지방교육세 19,800 = 299,400원');
+  // 반기분납(지방세법 §115①3호): 20만원 초과면 7월·9월 절반씩, 20만원 이하면 조례에 따라 7월 일괄 가능.
+  ok(r1.firstInstallment === 149700 && r1.secondInstallment === 149700 && r1.firstInstallment + r1.secondInstallment === r1.total && r1.lumpSumEligible === false, 'calculateHousing: 합계 299,400원(20만원 초과) -> 1기분·2기분 각 149,700원, 조례 일괄징수 대상 아님');
 
   const r2 = PT.calculateHousing({ marketValue: 100000000, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(r2.fairMarketRatio === 0.6 && r2.taxBase === 60000000 && r2.appliedRateTable === 'standard', 'calculateHousing: 1억원 일반주택 -> 과세표준 6000만원, 표준세율표');
   ok(r2.total === 156000, 'calculateHousing: 1억원 일반주택 -> 예상 합계 156,000원(재산세 60,000 + 도시지역분 84,000 + 지방교육세 12,000)');
+  ok(r2.lumpSumEligible === true, 'calculateHousing: 합계 156,000원(20만원 이하) -> 지자체 조례에 따라 7월 일괄징수 대상(§115①3호 단서)');
 
   // priorTaxBaseEquivalent (0.46 correction, 시행령 §109의2①): "직전연도 과세표준 상당액"은 직전연도
   // 시가표준액에 직전연도의 실제 적용 비율이 아니라 "과세기준일 현재"(=이번 연도) 공정시장가액비율을
@@ -420,6 +423,7 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
 
   const zero = PT.calculateHousing({ marketValue: 0, isOneHouseholdOneHouse: false, priorYearMarketValue: null, includeUrbanAreaLevy: true });
   ok(zero.total === 0 && zero.taxBase === 0, 'calculateHousing: 공시가격 0원 -> 전부 0원(음수·NaN 없음)');
+  ok(zero.lumpSumEligible === false, 'calculateHousing: 합계 0원은 20만원 이하지만 낼 세금이 없으므로 lumpSumEligible이 아님(0원을 "일괄징수 대상"으로 잘못 안내하지 않음)');
 
   // ownershipShare (0.43): default omitted -> 1(100%, 단독소유), matches every case above unchanged.
   const soleOwner = PT.calculateHousing({ marketValue: 300000000, isOneHouseholdOneHouse: true, priorYearMarketValue: null, includeUrbanAreaLevy: true });
@@ -446,6 +450,7 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   ok(Math.abs(bill.propertyTax - 906200) <= 10, `oracle: 재산세 본세(내 지분 몫, 연간) ${bill.propertyTax}원 -> 고지서 실측값 906,200원과 10원 이내 일치`);
   ok(Math.abs((bill.urbanAreaLevy) - 427420) <= 10, `oracle: 도시지역분(내 지분 몫, 연간, 800원 전자송달 공제 전) ${bill.urbanAreaLevy}원 -> 고지서 실측값 427,420원과 10원 이내 일치`);
   ok(Math.abs(bill.localEducationTax - 181240) <= 10, `oracle: 지방교육세(내 지분 몫, 연간) ${bill.localEducationTax}원 -> 고지서 실측값 181,240원과 10원 이내 일치`);
+  ok(bill.firstInstallment === 757438 && bill.secondInstallment === 757438 && bill.firstInstallment + bill.secondInstallment === bill.total && bill.lumpSumEligible === false, 'oracle: 합계 1,514,876원(내 지분 몫) -> 1기분·2기분 각 757,438원(20만원 초과라 조례 일괄징수 대상 아님)');
 }
 
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);

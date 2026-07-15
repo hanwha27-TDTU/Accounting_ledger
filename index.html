@@ -588,7 +588,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.46',
+      version: '0.47',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -603,7 +603,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.46', date: '2026-07-15', label: '최신 · 과세표준상한액 계산 정정(직전연도 공시가격 입력)', detail: '재산세 계산기의 "직전연도 과세표준" 입력을 "직전연도 공시가격"으로 바꿨습니다. 지방세법 시행령 제109조의2 제1항을 다시 확인해보니, 과세표준상한액 계산에 쓰는 "직전연도 과세표준 상당액"은 직전연도 공시가격에 직전연도에 실제 적용됐던 비율이 아니라 "올해" 공정시장가액비율을 곱해서 구하도록 정해져 있었습니다(0.45의 "작년 고지서의 재산세과표를 그대로 넣으라"는 안내는 부정확했습니다 — 바로잡았습니다). 이제 직전연도 공시가격만 넣으면 계산기가 올해 비율을 곱해 정확한 상당액을 자동으로 구합니다.' },
+      { version: '0.47', date: '2026-07-15', label: '최신 · 재산세 반기분납 금액 표시', detail: '재산세 계산기 결과에 실제 납부 시기별 금액을 추가했습니다. 지방세법 §115①3호에 따라 주택분 재산세는 연세액을 절반씩 나눠 7월 16~31일(1기분)과 9월 16~30일(2기분)에 냅니다 — 계산기가 이제 예상 납부세액 합계 아래에 두 기분 금액을 각각 보여줍니다. 연세액이 20만원 이하면 지자체 조례에 따라 7월에 한꺼번에 낼 수도 있어(법령이 지자체 조례에 위임한 부분이라 지자체마다 다를 수 있음), 이 경우엔 분납 대신 그 안내를 보여줍니다.' },
+      { version: '0.46', date: '2026-07-15', label: '과세표준상한액 계산 정정(직전연도 공시가격 입력)', detail: '재산세 계산기의 "직전연도 과세표준" 입력을 "직전연도 공시가격"으로 바꿨습니다. 지방세법 시행령 제109조의2 제1항을 다시 확인해보니, 과세표준상한액 계산에 쓰는 "직전연도 과세표준 상당액"은 직전연도 공시가격에 직전연도에 실제 적용됐던 비율이 아니라 "올해" 공정시장가액비율을 곱해서 구하도록 정해져 있었습니다(0.45의 "작년 고지서의 재산세과표를 그대로 넣으라"는 안내는 부정확했습니다 — 바로잡았습니다). 이제 직전연도 공시가격만 넣으면 계산기가 올해 비율을 곱해 정확한 상당액을 자동으로 구합니다.' },
       { version: '0.45', date: '2026-07-15', label: '직전연도 과세표준 입력 안내(0.46에서 정정됨)', detail: '재산세 계산기의 "직전연도 과세표준" 입력칸에 어디서 값을 구하는지 안내문구를 추가했습니다 — 작년 재산세 고지서의 "재산세과표" 항목을 그대로 넣거나 위택스·이택스에서 조회하세요. (0.46에서 이 안내가 부정확했음을 확인해 "직전연도 공시가격" 입력 방식으로 바꿨습니다.)' },
       { version: '0.44', date: '2026-07-15', label: '재산세 계산 과정 설명 + 공시가격 입력 안내', detail: '재산세 계산기 결과 아래에 계산 과정을 번호 붙은 문장으로 보여줍니다(공시가격 × 공정시장가액비율 → 과세표준상한액 적용 여부 → 세율 적용 → 도시지역분 → 지방교육세 → 지분율 → 합계). 공시가격 입력칸에는 "몇 년도 몇 월 1일 기준 가격을 넣어야 하는지"(같은 해 1월 1일 기준, 매년 4월 30일까지 확정 공시) 안내문구를 추가했습니다.' },
       { version: '0.43', date: '2026-07-15', label: '재산세 계산기 공유 지분율 + 실제 고지서 검증', detail: '재산세 계산기에 "공유 지분율" 입력을 추가했습니다. 공동명의(예: 부부 동일지분 2인)라면 등기부의 본인 지분율을 넣으면 됩니다 — 과세표준·세율은 항상 집 전체 기준으로 계산한 뒤(지방세법 §107①1호), 나온 세액만 지분율로 나눠 보여줍니다. 사용자가 실제 재산세 고지서(2026년 7월, 서초구, 동일지분 2인 공동명의 1세대1주택)를 제공해 대조한 결과, 재산세 본세·도시지역분·지방교육세가 반올림 오차(10원 이하) 수준까지 정확히 일치함을 확인했습니다.' },
@@ -857,6 +858,7 @@
       LOCAL_EDUCATION_TAX_RATE: 0.2,    // 지방교육세 = 재산세 본세(도시지역분 제외)의 20%(§151①6호)
       ONE_HOUSE_SPECIAL_RATE_CAP: 900000000, // 1세대1주택 특례세율 적용 상한(시가표준액 9억원, §111의2①)
       CAP_RATIO: 0.05,                  // 과세표준상한액 계산 비율(시행령 §109의2②)
+      LUMP_SUM_THRESHOLD: 200000,       // 이 이하면 조례에 따라 7월에 한꺼번에 부과될 수 있음(§115①3호 단서)
 
       // 공정시장가액비율(시행령 §109①2호). 2026년도 한정 1세대1주택 특례는 시가표준액 9억 초과도 포함.
       fairMarketRatio(marketValue, isOneHouseholdOneHouse) {
@@ -909,12 +911,18 @@
         const urbanAreaLevy = Math.round(wholeUrbanAreaLevy * share);
         const localEducationTax = Math.round(wholeLocalEducationTax * share);
         const total = propertyTax + urbanAreaLevy + localEducationTax;
+        // 주택분 납기는 연세액의 2분의 1씩 7월(16~31일)·9월(16~30일)로 나뉜다(§115①3호). 두 분납액의
+        // 합이 total과 정확히 같도록 1기분은 반올림, 2기분은 나머지로 계산한다(반올림 오차 방지).
+        const firstInstallment = Math.round(total / 2);
+        const secondInstallment = total - firstInstallment;
+        const lumpSumEligible = total > 0 && total <= this.LUMP_SUM_THRESHOLD;
         return {
           fairMarketRatio: ratio, rawTaxBase, taxBase, capApplied, priorTaxBaseEquivalent: prior,
           appliedRateTable: brackets === this.SPECIAL_BRACKETS ? 'special' : 'standard',
           ownershipShare: share, wholePropertyTax, wholeUrbanAreaLevy, wholeLocalEducationTax,
           wholeTotal: wholePropertyTax + wholeUrbanAreaLevy + wholeLocalEducationTax,
-          propertyTax, urbanAreaLevy, localEducationTax, total, source: this.source
+          propertyTax, urbanAreaLevy, localEducationTax, total,
+          firstInstallment, secondInstallment, lumpSumEligible, source: this.source
         };
       }
     });
@@ -3111,6 +3119,9 @@
         steps.push(`지금까지는 집 전체 기준입니다. 내 지분 ${sharePct}%만큼만 남깁니다: 재산세 ${Utils.won(res.wholePropertyTax)}→${Utils.won(res.propertyTax)}, 도시지역분 ${Utils.won(res.wholeUrbanAreaLevy)}→${Utils.won(res.urbanAreaLevy)}, 지방교육세 ${Utils.won(res.wholeLocalEducationTax)}→${Utils.won(res.localEducationTax)}.`);
       }
       steps.push(`재산세 ${Utils.won(res.propertyTax)} + 도시지역분 ${Utils.won(res.urbanAreaLevy)} + 지방교육세 ${Utils.won(res.localEducationTax)} = 예상 납부세액 합계 ${Utils.won(res.total)}원.`);
+      steps.push(res.lumpSumEligible
+        ? `합계가 20만원 이하라 지자체 조례에 따라 7월 16~31일에 ${Utils.won(res.total)}원을 한꺼번에 낼 수도 있습니다(지자체마다 다를 수 있어요).`
+        : `합계 ${Utils.won(res.total)}원을 절반씩 나눠 냅니다: 7월 16~31일에 ${Utils.won(res.firstInstallment)}원(1기분), 9월 16~30일에 ${Utils.won(res.secondInstallment)}원(2기분).`);
       return `<div class="calc-steps">${steps.map((text, i) => `<div class="calc-step"><span class="calc-step-num">${i + 1}</span><span>${Utils.escape(text)}</span></div>`).join('')}</div>`;
     }
 
@@ -3130,6 +3141,10 @@
           <div class="est-row"><span>도시지역분${res.ownershipShare < 1 ? ' · 내 지분 몫' : ''}</span><strong id="ptUrbanLevy">${Utils.won(res.urbanAreaLevy)}</strong></div>
           <div class="est-row"><span>지방교육세${res.ownershipShare < 1 ? ' · 내 지분 몫' : ''}</span><strong id="ptEduTax">${Utils.won(res.localEducationTax)}</strong></div>
           <div class="est-row total"><span>예상 납부세액 합계${res.ownershipShare < 1 ? ' · 내 지분 몫' : ''}</span><strong id="ptTotal">${Utils.won(res.total)}</strong></div>
+          ${res.lumpSumEligible
+            ? `<div class="est-row"><span>납부 시기</span><strong id="ptInstallmentNote">20만원 이하 · 7월에 한꺼번에 낼 수도 있음(지자체 조례 따라 다름)</strong></div>`
+            : `<div class="est-row"><span>7월 16~31일 납부분(1기분)</span><strong id="ptFirstInstallment">${Utils.won(res.firstInstallment)}</strong></div>
+          <div class="est-row"><span>9월 16~30일 납부분(2기분)</span><strong id="ptSecondInstallment">${Utils.won(res.secondInstallment)}</strong></div>`}
         </div>
         <p class="section-help" style="margin-top:10px">계산 과정</p>
         ${propertyTaxStepsHtml(input, res)}
