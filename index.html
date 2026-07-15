@@ -357,6 +357,9 @@
     .est-row.total { border-top: 1px solid rgba(0,0,0,.1); padding-top: 8px; margin-top: 2px; font-size: 15px; }
     .est-row.total strong { color: var(--brand); }
     .est-judgement { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
+    .calc-steps { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; background: rgba(0,0,0,.02); margin-top: 10px; }
+    .calc-step { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.55; }
+    .calc-step-num { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; margin-top: 1px; }
     .est-tag { font-size: 12px; padding: 2px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-strong); }
     .est-tag:empty { display: none; }
     .fx-tag { display: inline-block; padding: 0 6px; border-radius: 8px; background: var(--brand-soft); color: var(--brand-strong); font-size: 11px; white-space: nowrap; }
@@ -585,7 +588,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.43',
+      version: '0.44',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -600,7 +603,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.43', date: '2026-07-15', label: '최신 · 재산세 계산기 공유 지분율 + 실제 고지서 검증', detail: '재산세 계산기에 "공유 지분율" 입력을 추가했습니다. 공동명의(예: 부부 동일지분 2인)라면 등기부의 본인 지분율을 넣으면 됩니다 — 과세표준·세율은 항상 집 전체 기준으로 계산한 뒤(지방세법 §107①1호), 나온 세액만 지분율로 나눠 보여줍니다. 사용자가 실제 재산세 고지서(2026년 7월, 서초구, 동일지분 2인 공동명의 1세대1주택)를 제공해 대조한 결과, 재산세 본세·도시지역분·지방교육세가 반올림 오차(10원 이하) 수준까지 정확히 일치함을 확인했습니다.' },
+      { version: '0.44', date: '2026-07-15', label: '최신 · 재산세 계산 과정 설명 + 공시가격 입력 안내', detail: '재산세 계산기 결과 아래에 계산 과정을 번호 붙은 문장으로 보여줍니다(공시가격 × 공정시장가액비율 → 과세표준상한액 적용 여부 → 세율 적용 → 도시지역분 → 지방교육세 → 지분율 → 합계). 공시가격 입력칸에는 "몇 년도 몇 월 1일 기준 가격을 넣어야 하는지"(같은 해 1월 1일 기준, 매년 4월 30일까지 확정 공시) 안내문구를 추가했습니다.' },
+      { version: '0.43', date: '2026-07-15', label: '재산세 계산기 공유 지분율 + 실제 고지서 검증', detail: '재산세 계산기에 "공유 지분율" 입력을 추가했습니다. 공동명의(예: 부부 동일지분 2인)라면 등기부의 본인 지분율을 넣으면 됩니다 — 과세표준·세율은 항상 집 전체 기준으로 계산한 뒤(지방세법 §107①1호), 나온 세액만 지분율로 나눠 보여줍니다. 사용자가 실제 재산세 고지서(2026년 7월, 서초구, 동일지분 2인 공동명의 1세대1주택)를 제공해 대조한 결과, 재산세 본세·도시지역분·지방교육세가 반올림 오차(10원 이하) 수준까지 정확히 일치함을 확인했습니다.' },
       { version: '0.42', date: '2026-07-14', label: '재산세 계산기(주택분)', detail: '왼쪽 메뉴 "계산기 > 재산세 계산기"에서 보유한 집의 재산세를 추정할 수 있습니다. 공시가격을 넣으면 공정시장가액비율(1세대 1주택은 2026년 한정 특례), 과세표준상한액, 세율(1세대 1주택은 특례세율)을 적용해 재산세 본세·도시지역분·지방교육세와 합계를 바로 계산합니다. 지방세법·시행령 원문을 조회해 만들었고, 검토용 추정치이며 실제 고지세액은 위택스에서 확인해야 함을 안내합니다. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 아직 없습니다.' },
       { version: '0.41', date: '2026-07-13', label: '세금 계산 정확성 체크리스트', detail: '세금 계산기를 만들거나 고칠 때 놓치기 쉬운 9가지 관점(법령 근거·규칙 모델링·계산 구현·경계값·공식 사례 대조·개정 비교·설명·화면 자동 확인·보안)을 개발 기록의 Guardian 목록에 체크리스트로 추가했습니다. 법령→규칙→계산→설명은 한 사람이 맥락을 이어가야 미묘한 예외조항이 안 새어나가 그대로 묶고, 경계값·공식사례대조·개정비교·보안·화면확인은 "만든 사람과 다른 시선"이 핵심이라 독립 점검으로 구분했습니다. 지금은 체크리스트일 뿐 자동 강제는 아닙니다(계산 로직 자체는 변경 없음).' },
       { version: '0.40', date: '2026-07-13', label: '전체감사 — 자동동기화·가계부삭제 버그 수정', detail: '0.33~0.39 기능을 병렬 에이전트로 전체 점검했습니다. 마감(가계부 마감) 화면에서 사유를 입력하는 도중 백그라운드 자동 동기화가 돌면 입력값이 사라지던 문제를 고쳤습니다(자동 동기화가 화면을 다시 그리지 않는 목록에 마감 화면을 추가). 또한 지금 쓰고 있지 않은 다른 가계부를 삭제할 때, 그 삭제 기록(tombstone)이 실수로 현재 쓰는 가계부 것으로 잘못 표시되던 내부 데이터 정합성 문제를 고쳤습니다(실제 데이터 손실이나 다른 사용자 노출은 없었습니다 — 보안 감사에서 권한·RLS는 문제없음을 확인했습니다).' },
@@ -3075,7 +3079,32 @@
         ${taxSections}`;
     }
 
-    function propertyTaxPanelHtml(res) {
+    // 계산 과정을 초등학생도 따라올 수 있는 문장으로 순서대로 설명한다(res에 이미 있는 중간값만 읽고
+    // 새로 계산하지 않음 — PropertyTax.calculateHousing()과 숫자가 어긋날 수 없는 구조).
+    function propertyTaxStepsHtml(input, res) {
+      const mv = Math.max(0, Number(input.marketValue) || 0);
+      const ratioPct = Math.round(res.fairMarketRatio * 100);
+      const steps = [];
+      steps.push(`공시가격 ${Utils.won(mv)}에 공정시장가액비율 ${ratioPct}%를 곱해 과세표준을 구합니다: ${Utils.won(mv)} × ${ratioPct}% = ${Utils.won(res.rawTaxBase)}${input.isOneHouseholdOneHouse ? ' (1세대 1주택 특례 비율)' : ''}`);
+      if (res.capApplied) {
+        steps.push(`작년보다 과세표준이 너무 많이 오르지 않도록 과세표준상한액(작년 과세표준 + 방금 구한 값의 5%)을 계산했더니 ${Utils.won(res.taxBase)}원으로, 방금 구한 ${Utils.won(res.rawTaxBase)}원보다 낮습니다. 그래서 과세표준을 ${Utils.won(res.taxBase)}원으로 낮춥니다.`);
+      } else if (input.priorYearTaxBase !== null && input.priorYearTaxBase !== undefined && input.priorYearTaxBase !== '') {
+        steps.push(`과세표준상한액과 비교했지만, 방금 구한 ${Utils.won(res.rawTaxBase)}원이 상한보다 크지 않아 그대로 씁니다.`);
+      }
+      steps.push(`과세표준 ${Utils.won(res.taxBase)}원에 ${res.appliedRateTable === 'special' ? '1세대 1주택 특례세율표' : '표준세율표'}를 적용해 재산세 본세 ${Utils.won(res.wholePropertyTax)}원을 구합니다.`);
+      steps.push(input.includeUrbanAreaLevy === false
+        ? `도시지역분은 포함하지 않기로 했으니 0원입니다.`
+        : `과세표준 ${Utils.won(res.taxBase)}원에 도시지역분 세율 0.14%를 곱해 ${Utils.won(res.wholeUrbanAreaLevy)}원을 더합니다.`);
+      steps.push(`재산세 본세 ${Utils.won(res.wholePropertyTax)}원의 20%를 지방교육세로 더합니다: ${Utils.won(res.wholeLocalEducationTax)}원.`);
+      if (res.ownershipShare < 1) {
+        const sharePct = Math.round(res.ownershipShare * 1000) / 10;
+        steps.push(`지금까지는 집 전체 기준입니다. 내 지분 ${sharePct}%만큼만 남깁니다: 재산세 ${Utils.won(res.wholePropertyTax)}→${Utils.won(res.propertyTax)}, 도시지역분 ${Utils.won(res.wholeUrbanAreaLevy)}→${Utils.won(res.urbanAreaLevy)}, 지방교육세 ${Utils.won(res.wholeLocalEducationTax)}→${Utils.won(res.localEducationTax)}.`);
+      }
+      steps.push(`재산세 ${Utils.won(res.propertyTax)} + 도시지역분 ${Utils.won(res.urbanAreaLevy)} + 지방교육세 ${Utils.won(res.localEducationTax)} = 예상 납부세액 합계 ${Utils.won(res.total)}원.`);
+      return `<div class="calc-steps">${steps.map((text, i) => `<div class="calc-step"><span class="calc-step-num">${i + 1}</span><span>${Utils.escape(text)}</span></div>`).join('')}</div>`;
+    }
+
+    function propertyTaxPanelHtml(input, res) {
       const ratioTag = res.appliedRateTable === 'special' ? '1세대 1주택 특례세율(9억원 이하)' : '표준세율';
       const sharePct = Math.round(res.ownershipShare * 1000) / 10;
       const shareRow = res.ownershipShare < 1
@@ -3092,6 +3121,8 @@
           <div class="est-row"><span>지방교육세${res.ownershipShare < 1 ? ' · 내 지분 몫' : ''}</span><strong id="ptEduTax">${Utils.won(res.localEducationTax)}</strong></div>
           <div class="est-row total"><span>예상 납부세액 합계${res.ownershipShare < 1 ? ' · 내 지분 몫' : ''}</span><strong id="ptTotal">${Utils.won(res.total)}</strong></div>
         </div>
+        <p class="section-help" style="margin-top:10px">계산 과정</p>
+        ${propertyTaxStepsHtml(input, res)}
       </div>`;
     }
 
@@ -3101,19 +3132,20 @@
     // 설정 화면으로 가는 render()의 기존 게이트는 다른 라우트와 동일하게 그대로 적용된다(가계부가
     // 없으면 이 화면도 아직 못 본다) — 별도 예외를 만들지 않고 기존 라우팅 구조를 그대로 재사용.
     function renderPropertyTaxCalculator() {
-      const res = PropertyTax.calculateHousing({ marketValue: 0, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true, ownershipShare: 1 });
+      const initialInput = { marketValue: 0, isOneHouseholdOneHouse: false, priorYearTaxBase: null, includeUrbanAreaLevy: true, ownershipShare: 1 };
+      const res = PropertyTax.calculateHousing(initialInput);
       return `${pageHeader('재산세 계산기(주택분)', '보유한 집(주택)의 재산세를 추정합니다. 실제 고지세액과 다를 수 있습니다.')}
         <div class="notice info">${icon('info')}<div><strong>검토용 추정 계산기입니다.</strong> 재산세 과세기준일은 매년 6월 1일이고, 납기는 7월 16일~31일과 9월 16일~30일에 절반씩입니다(20만원 이하는 7월에 한 번에 부과될 수 있음). 실제 고지세액은 위택스(wetax.go.kr)·이택스 또는 관할 지자체에서 확인하세요.</div></div>
         <div class="notice">${icon('circle-alert')}<div>지금은 <strong>주택</strong>만 계산합니다. 토지·건축물·선박·항공기, 지역자원시설세(소방분)는 다음 업데이트에서 추가할 예정입니다. 도시지역분은 관할 지자체가 도시지역으로 고시한 지역에만 적용되며, 표준세율(0.14%)만 계산합니다(조례로 최대 0.23%까지 다를 수 있음). "1세대 1주택" 판정은 다주택·상속·혼인·임대주택 등 여러 예외가 있어 이 계산기는 사용자가 직접 판단해 체크한 값을 그대로 사용합니다 — 정확한 판정은 위택스·이택스에서 확인하세요.</div></div>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">주택분 재산세 계산</h2><p class="section-help">공시가격(시가표준액)을 넣으면 자동으로 계산됩니다.</p></div>${badge('검토용','info')}</div>
           <div class="form-grid">
-            <div class="field half"><label for="ptMarketValue">주택 공시가격(시가표준액)</label><input class="input" type="text" inputmode="numeric" id="ptMarketValue" placeholder="예: 500000000"></div>
+            <div class="field half"><label for="ptMarketValue">주택 공시가격(시가표준액)</label><input class="input" type="text" inputmode="numeric" id="ptMarketValue" placeholder="예: 500000000"><div class="field-help">이번 재산세(과세기준일 6월 1일)를 계산하려면 <strong>같은 해 1월 1일 기준 공동주택가격</strong>을 넣으세요 — 매년 4월 30일까지 확정 공시됩니다(부동산 가격공시에 관한 법률 시행령 §43①). 국토교통부 부동산공시가격알리미(realtyprice.kr)에서 조회할 수 있습니다. 신축 등으로 그 값이 아직 없으면 6월 1일 기준 추가공시가격(그 해 9월 30일까지 공시)을 넣으세요.</div></div>
             <div class="field half"><label for="ptPriorTaxBase">직전연도 과세표준 <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="numeric" id="ptPriorTaxBase" placeholder="모르면 비워두세요(상한 계산 생략)"></div>
             <div class="field half"><label for="ptShare">공유 지분율(%) <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="decimal" id="ptShare" value="100"><div class="field-help">단독소유면 100%. 공동명의면 등기부의 본인 지분율을 넣으세요(예: 동일지분 2인 공동명의는 50%). 과세표준·세율은 항상 집 전체 기준으로 계산한 뒤, 산출된 세액만 지분율로 나눕니다(지방세법 §107①1호).</div></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="ptOneHouse"><span>1세대 1주택입니다.<br><span class="field-help">시가표준액 9억원 이하면 더 낮은 특례세율이 적용됩니다(지방세법 §111의2). 공정시장가액비율 특례(2026년 한정)는 9억원을 넘어도 적용됩니다. 공동명의라도 같은 세대 구성원끼리 집 1채를 공유하면 1세대1주택으로 봅니다(시행령 §110의2④).</span></span></label></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="ptUrbanArea" checked><span>도시지역분을 포함합니다.<br><span class="field-help">관할 지자체가 도시지역으로 고시한 지역만 해당합니다. 모르면 켜둔 채로 두고, 위택스에서 확인해 보세요.</span></span></label></div>
           </div>
-          <div id="ptResult">${propertyTaxPanelHtml(res)}</div>
+          <div id="ptResult">${propertyTaxPanelHtml(initialInput, res)}</div>
         </section>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">계산 근거</h2></div></div><p class="section-help">${Utils.escape(PropertyTax.source)}. 재산세 본세 = 과세표준(공시가격 × 공정시장가액비율, 과세표준상한액 초과 시 상한액) × 세율(누진공제). 도시지역분 = 과세표준 × 0.14%. 지방교육세 = 재산세 본세(도시지역분 제외) × 20%.</p></section>`;
     }
@@ -3763,14 +3795,14 @@
       if (el('ptMarketValue')) {
         const ptRecalc = () => {
           const shareRaw = el('ptShare').value.trim();
-          const res = PropertyTax.calculateHousing({
+          const input = {
             marketValue: Utils.number(el('ptMarketValue').value),
             isOneHouseholdOneHouse: el('ptOneHouse').checked,
             priorYearTaxBase: el('ptPriorTaxBase').value.trim() === '' ? null : Utils.number(el('ptPriorTaxBase').value),
             includeUrbanAreaLevy: el('ptUrbanArea').checked,
             ownershipShare: shareRaw === '' ? 1 : Utils.number(shareRaw) / 100
-          });
-          el('ptResult').innerHTML = propertyTaxPanelHtml(res);
+          };
+          el('ptResult').innerHTML = propertyTaxPanelHtml(input, PropertyTax.calculateHousing(input));
         };
         ['ptMarketValue', 'ptPriorTaxBase', 'ptShare'].forEach(id => el(id).addEventListener('input', ptRecalc));
         ['ptOneHouse', 'ptUrbanArea'].forEach(id => el(id).addEventListener('change', ptRecalc));
