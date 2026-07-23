@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.45** · 개정 2026-07-12
+> **📌 Sub_app-research-notes_0.62** · 개정 2026-07-15
 
 # Accounting Ledger App Research Notes
 
