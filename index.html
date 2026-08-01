@@ -110,7 +110,7 @@
     .topbar {
       position: sticky;
       top: 0;
-      z-index: 30;
+      z-index: 36;
       height: calc(var(--header) + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
@@ -160,6 +160,7 @@
     .status-dot.offline { background: #e1a43d; }
     .status-dot.error { background: #d45151; }
     .sync-chip {
+      appearance: none;
       min-height: 34px;
       display: inline-flex;
       align-items: center;
@@ -583,7 +584,7 @@
         </div>
         <div class="topbar-actions">
           <button class="button ledger-switch-button" id="ledgerSwitchButton" type="button" title="가계부 전환" hidden><i data-lucide="repeat"></i><span class="button-label" id="ledgerSwitchLabel">가계부</span></button>
-          <div class="sync-chip" id="syncChip"><span class="status-dot" id="syncDot"></span><span id="syncLabel">로컬 전용</span></div>
+          <button type="button" class="sync-chip" id="syncChip" title="동기화 상태 · 눌러서 로그인하거나 설정 확인"><span class="status-dot" id="syncDot"></span><span id="syncLabel">로컬 전용</span></button>
           <button class="button" id="monthlyUsageButton" type="button"><i data-lucide="calendar-range"></i><span class="button-label">월별 사용현황</span></button>
           <button class="button" id="quickAddButton" type="button"><i data-lucide="plus"></i><span class="button-label">거래 입력</span></button>
         </div>
@@ -604,7 +605,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.51',
+      version: '0.52',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -619,7 +620,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.51', date: '2026-08-01', label: '최신 · 안드로이드 셸 상태바 겹침·메뉴 배경 수정', detail: '안드로이드 앱(0.50)을 실제 기기에 설치해보니 화면 맨 위 상단바/로고 글씨가 휴대폰 상태표시줄(시계 등)과 겹쳐 보이는 문제가 있었습니다. 안드로이드 15부터는 앱 화면이 상태표시줄 뒤까지 그려지는 것이 기본값인데, 그 여백을 챙기는 코드가 없어 생긴 문제였습니다 — 이제 상단바·왼쪽 메뉴 로고·하단 토스트 알림 모두 기기의 안전영역만큼 자동으로 여백을 둡니다. 또한 모바일 화면에서 왼쪽 메뉴를 열면 뒤쪽 화면 내용이 반쯤 비쳐 보이던 것을, 어둡게 덮는 배경을 추가하고 그 배경을 탭하면 메뉴가 닫히도록 고쳤습니다.' },
+      { version: '0.52', date: '2026-08-01', label: '최신 · 모바일 메뉴 열렸을 때 버튼 안 눌리는 문제·로그인 칩 무반응 수정', detail: '0.51에서 추가한 모바일 메뉴 뒤 어둡게 덮는 배경이 화면 전체를 덮으면서, 상단바(로그인 상태·월별 사용현황·거래 입력 버튼)보다 위에 쌓여 메뉴가 열려 있는 동안 상단바 버튼을 눌러도 반응이 없던 문제를 고쳤습니다(상단바를 그 배경보다 항상 위에 오도록 순서를 바로잡음). 또한 상단의 "로그인 필요" 표시가 눌러도 아무 일도 안 일어나는 단순 문구였던 것을, 실제로 눌러서 바로 로그인을 시작할 수 있는 버튼으로 바꿨습니다(로그인이 필요 없는 다른 상태일 때는 눌러서 설정 화면으로 이동).' },
+      { version: '0.51', date: '2026-08-01', label: '안드로이드 셸 상태바 겹침·메뉴 배경 수정', detail: '안드로이드 앱(0.50)을 실제 기기에 설치해보니 화면 맨 위 상단바/로고 글씨가 휴대폰 상태표시줄(시계 등)과 겹쳐 보이는 문제가 있었습니다. 안드로이드 15부터는 앱 화면이 상태표시줄 뒤까지 그려지는 것이 기본값인데, 그 여백을 챙기는 코드가 없어 생긴 문제였습니다 — 이제 상단바·왼쪽 메뉴 로고·하단 토스트 알림 모두 기기의 안전영역만큼 자동으로 여백을 둡니다. 또한 모바일 화면에서 왼쪽 메뉴를 열면 뒤쪽 화면 내용이 반쯤 비쳐 보이던 것을, 어둡게 덮는 배경을 추가하고 그 배경을 탭하면 메뉴가 닫히도록 고쳤습니다.' },
       { version: '0.50', date: '2026-08-01', label: '안드로이드 앱 설치 지원', detail: '안드로이드 휴대폰에 앱처럼 설치할 수 있게 됐습니다. 가이드에 "안드로이드 앱 설치" 안내가 새로 생겼고, 항상 최신 버전을 가리키는 다운로드 링크와 초등학생도 따라 할 수 있는 순서(다운로드 → "출처를 알 수 없는 앱" 경고 대처 → 설치 → 로그인)를 안내합니다. 웹 화면(계산기, 새 기능 등)은 앱을 열 때마다 재설치 없이 저절로 최신 상태로 바뀌고, 입력 중인 내용이 있으면 그 입력을 마칠 때까지 갱신을 미룹니다. 앱 자체(로그인 방식, 권한 등)가 바뀌는 드문 경우에는 새 버전 다운로드가 자동으로 시작되고, 설치 확인만 한 번 눌러주면 됩니다(안드로이드 보안 정책상 이 한 번의 확인은 어떤 앱도 건너뛸 수 없습니다). 구글 로그인은 앱 안이 아니라 별도 브라우저 창에서 진행되고 자동으로 앱에 돌아옵니다(구글이 앱 내장 로그인을 막기 때문입니다).' },
       { version: '0.49', date: '2026-07-15', label: '상단바 가계부 빠른 전환', detail: '화면 위쪽(동기화 상태 배지 옆)에 지금 보고 있는 가계부 이름이 적힌 버튼이 생겼습니다. 눌러서 다른 가계부로 바로 전환할 수 있어 설정 화면까지 갈 필요가 없습니다. 모바일 화면에서는 지금까지 현재 가계부 이름이 아예 안 보였는데(공간이 좁아 숨겼음), 이 버튼이 그 자리를 대신해 항상 어떤 가계부를 보고 있는지 알 수 있습니다.' },
       { version: '0.48', date: '2026-07-15', label: '지역자원시설세(소방분)·공시가격 읽기 쉬운 표기·재산세 용어 설명', detail: '재산세 계산기에 세 가지를 추가했습니다. (1) 공시가격 입력칸 아래에 "15억 8,000만원"처럼 읽기 쉬운 금액 표기를 실시간으로 보여줍니다. (2) 지역자원시설세(소방분)를 새로 계산합니다 — 건물 시가표준액(공시가격과는 다른 값, 위택스에서 확인)을 넣으면 지방세법 §146의 6단계 누진세율표로 계산해 별도로 보여줍니다(재산세와 과세표준이 달라 통합하지 않고 별도 표시). (3) "계산 근거" 아래에 공정시장가액비율·과세표준·과세표준상한액·도시지역분·지방교육세·지역자원시설세 등 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 설명하는 용어 카드를 추가했습니다.' },
@@ -4319,6 +4321,12 @@
     el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
     el('monthlyUsageButton').addEventListener('click', () => { if (!state.business) return toast('먼저 사업자 정보를 설정해 주세요.', 'error'); renderMonthlyUsageModal(); });
     el('ledgerSwitchButton').addEventListener('click', () => { if (!state.businesses.length) return; renderLedgerSwitchModal(); });
+    el('syncChip').addEventListener('click', async () => {
+      const connected = Boolean(state.session && state.allowedUser);
+      const canSignIn = state.online && remote.isConfigured() && state.connectionDiagnostics.googleProvider !== 'disabled';
+      if (!connected && canSignIn) { try { await remote.signIn(); } catch (error) { diagnostic(error); } }
+      else { routeTo('settings'); }
+    });
     window.addEventListener('hashchange', () => { state.route = (location.hash || '#dashboard').slice(1); render(); });
     window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 자동으로 동기화합니다.','success'); SyncService.scheduleAutoSync(500); });
     window.addEventListener('offline', () => { state.online=false; renderShellStatus(); toast('오프라인입니다. 거래는 이 기기에 계속 저장됩니다.'); });
