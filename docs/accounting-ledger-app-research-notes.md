@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.66** · 개정 2026-08-01
+> **📌 Sub_app-research-notes_0.67** · 개정 2026-08-01
 
 # Accounting Ledger App Research Notes
 
@@ -1396,3 +1396,17 @@ advisor 잔여 항목:
 | 정직하게 남기는 미검증 영역 | 실기기에서 메뉴를 연 상태로 상단바 버튼(특히 로그인 칩)을 눌렀을 때 실제로 반응하는지, 그리고 실제 네트워크 환경에서 로그인 칩을 눌렀을 때 구글 로그인이 정상적으로 시작되는지는 사용자가 직접 확인해야 한다(이 샌드박스는 외부 네트워크 차단으로 로그인 성공 자체를 재현할 수 없음). 사용자가 "버튼들이 안 먹혀요"라고 말한 다른 버튼(로그인 칩 외)이 이 z-index 버그와 별개로 또 있었는지는 확인 대기 중. |
 | 남은 위험/미완(0.52) | 없음 — 이번 수정은 기존 로그인 흐름(`remote.signIn()`, `diagnostic()`)을 그대로 재사용해 새 로직을 추가하지 않았다. |
 | 스킬 버전 | `Sub_app-research-notes_0.66` |
+
+## 2026-08-01 앱 0.53: 안드로이드 구글 로그인이 "완성되지 않는" 근본원인 — Supabase 클라이언트에 PKCE flowType 누락
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.52 → 0.53 |
+| note_type | `fix`(0.50부터 있던, 실기기 전까지 드러나지 않았던 근본 버그) |
+| 제목 | 0.52까지 고친 뒤에도 사용자가 "이미 Supabase Redirect URL 등록했고 로그인되는 척만 합니다"라고 재현 스크린샷(구글 계정 선택 화면까지 정상 진행)과 함께 제보 → 코드를 다시 추적해 진짜 근본원인 확인·수정 |
+| 배경 | 0.52 배포 후 사용자가 실제로 "Google로 로그인"을 눌러 시스템 브라우저가 열리고 구글 계정 선택 화면까지 정상적으로 뜨는 것을 스크린샷으로 확인시켜줬다. 이어서 Supabase 대시보드의 Redirect URLs에 커스텀 스킴이 이미 등록돼 있다는 것(0.51/0.52 문서에서 "미확인"으로 남겼던 항목)도 스크린샷으로 확인해줬다 — 즉 내가 이전에 "아직 확인 안 됨"으로 남겼던 두 전제(시스템 브라우저로 열림, Redirect URL 등록)가 모두 정상이었는데도 로그인이 안 됐다. |
+| 조사 | `CapacitorShell.completeSignIn(client, url)`(index.html)이 `new URL(url).searchParams.get('code')`로 PKCE 방식의 `?code=` 쿼리 파라미터를 찾아 `client.auth.exchangeCodeForSession(code)`를 호출하는 구조인데, `SupabaseAdapter.ensureClient()`가 `createClient(...)`를 호출할 때 `auth` 옵션에 `flowType`을 아예 지정하지 않고 있었다(`persistSession`/`autoRefreshToken`/`detectSessionInUrl`만 있었음). **supabase-js v2는 `flowType`을 명시하지 않으면 기본값이 `implicit`**이다 — implicit 흐름에서는 구글 로그인 뒤 세션 토큰이 URL의 쿼리 파라미터(`?code=`)가 아니라 URL **프래그먼트**(`#access_token=...&refresh_token=...`)로 전달된다. 그 결과 `completeSignIn`의 `searchParams.get('code')`는 항상 `null`을 반환해 `if (!code) return false`로 **에러 없이 조용히 아무 일도 안 하고 끝났다** — 사용자 입장에서는 구글 로그인 화면까지는 정상적으로 진행되고(그래서 "로그인되는 척") 앱으로 돌아온 뒤 세션만 감쪽같이 안 생기는 것처럼 보였다. 게다가 `detectSessionInUrl:true`가 웹 페이지 로드시 URL을 자동으로 훑어 프래그먼트 토큰을 잡아주는 기능이지만, 딥링크로 돌아오는 경로는 실제 페이지 내비게이션이 아니라 Capacitor의 `appUrlOpen` 이벤트로 문자열만 전달받는 방식이라 이 자동 감지 자체가 애초에 발동할 기회조차 없었다 — 두 메커니즘이 서로 안 맞물려 있었던 것. |
+| 구현 | `ensureClient()`의 `createClient(...)` 옵션에 `flowType: 'pkce'`를 명시적으로 추가(1줄). 이제 `signInWithOAuth()`가 PKCE 방식으로 동작해 구글 로그인 뒤 실제로 `?code=`가 붙은 URL로 돌아오고, `completeSignIn`의 기존 로직(`exchangeCodeForSession`)이 원래 의도대로 맞물린다. 웹(비-네이티브) 로그인 경로는 손대지 않아도 되는데, PKCE는 웹에서도 `detectSessionInUrl:true`가 페이지 로드시 `?code=`를 자동으로 감지해 내부적으로 교환해주므로(supabase-js 표준 동작) 회귀 없이 그대로 동작한다 — 오히려 PKCE가 구글이 권장하는 더 안전한 방식이라 웹 쪽도 개선. |
+| 검증 | 순수 설정 값 변경 1줄이라 로직 테스트 182 그대로. `npm run harness:check` 13/13(0.52→0.53). **정직하게 남기는 미검증**: 이 샌드박스는 외부 네트워크(Supabase Auth·구글)가 차단돼 있어 실제 로그인 완료 자체는 이 세션에서 재현·검증할 수 없다 — 코드 추적으로 확인한 근본원인과 supabase-js 공식 동작(implicit vs pkce flowType의 URL 파라미터 위치 차이)에 근거한 수정이며, 사용자가 실기기에서 다시 시도해 실제로 "동기화 완료" 상태로 바뀌는지 확인해야 한다. |
+| 남은 위험/미완(0.53) | 없음(설정 값 1줄 수정, 새 로직 없음). 이번 건으로 "실기기 아니면 못 보는 버그"가 이 세션에서 벌써 세 라운드째(0.51 상태바, 0.52 z-index, 0.53 PKCE) 나온 만큼, 다음에 비슷한 네이티브 전용 기능을 추가할 때는 코드 추적 단계에서 이런 흐름 불일치(예: OAuth flowType처럼 두 코드가 암묵적으로 서로의 형식을 가정하는 지점)를 더 적극적으로 의심해야 한다는 교훈을 남긴다. |
+| 스킬 버전 | `Sub_app-research-notes_0.67` |
