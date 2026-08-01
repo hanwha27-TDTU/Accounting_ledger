@@ -50,6 +50,7 @@
     :focus-visible { outline: 3px solid rgba(23, 98, 79, .24); outline-offset: 2px; }
 
     .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
+    .sidebar-scrim { display: none; position: fixed; inset: 0; z-index: 35; background: rgba(10, 24, 20, .45); border: 0; padding: 0; }
     .sidebar {
       position: fixed;
       inset: 0 auto 0 0;
@@ -62,11 +63,13 @@
       color: #f7fbf9;
     }
     .brand {
-      height: var(--header);
+      height: calc(var(--header) + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
       gap: 11px;
       padding: 0 20px;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: calc(20px + env(safe-area-inset-left, 0px));
       border-bottom: 1px solid rgba(255,255,255,.12);
     }
     .brand-mark {
@@ -100,7 +103,7 @@
     .nav-button:hover { background: rgba(255,255,255,.08); }
     .nav-button.active { background: #f7fbf9; color: #163b33; font-weight: 800; }
     .nav-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
-    .sidebar-footer { margin-top: auto; padding: 14px; border-top: 1px solid rgba(255,255,255,.12); }
+    .sidebar-footer { margin-top: auto; padding: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,.12); }
     .sidebar-status { display: flex; align-items: center; gap: 8px; color: #c8dbd5; font-size: 12px; }
 
     .main-column { grid-column: 2; min-width: 0; }
@@ -108,12 +111,15 @@
       position: sticky;
       top: 0;
       z-index: 30;
-      height: var(--header);
+      height: calc(var(--header) + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
       padding: 0 28px;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: calc(28px + env(safe-area-inset-left, 0px));
+      padding-right: calc(28px + env(safe-area-inset-right, 0px));
       border-bottom: 1px solid var(--line);
       background: rgba(255,255,255,.94);
       backdrop-filter: blur(12px);
@@ -439,7 +445,7 @@
     .modal-body { padding: 20px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 20px; border-top: 1px solid var(--line); }
 
-    .toast-region { position: fixed; right: 18px; bottom: 18px; z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
+    .toast-region { position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
     .toast { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px; border: 1px solid #b7c8c2; border-radius: 7px; background: #fff; box-shadow: var(--shadow); line-height: 1.5; }
     .toast.error { border-color: #e0aaaa; background: #fff7f6; }
     .toast.success { border-color: #a7ceb9; background: #f5fcf8; }
@@ -513,8 +519,14 @@
       .sidebar.open { transform: translateX(0); }
       .main-column { width: 100%; }
       .icon-button.mobile-menu { display: inline-flex; }
-      .topbar { padding: 0 14px; }
+      .topbar {
+        padding: 0 14px;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-left: calc(14px + env(safe-area-inset-left, 0px));
+        padding-right: calc(14px + env(safe-area-inset-right, 0px));
+      }
       .topbar-context { display: none; }
+      .sidebar-scrim.open { display: block; }
       .content { padding: 18px 14px 42px; }
       .page-header { align-items: stretch; flex-direction: column; }
       .page-header .inline-actions { width: 100%; }
@@ -545,6 +557,7 @@
 </head>
 <body>
   <div class="app-shell">
+    <button type="button" class="sidebar-scrim" id="sidebarScrim" aria-label="메뉴 닫기"></button>
     <aside class="sidebar" id="sidebar" aria-label="주 메뉴">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">장</div>
@@ -591,7 +604,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.50',
+      version: '0.51',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -606,7 +619,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.50', date: '2026-08-01', label: '최신 · 안드로이드 앱 설치 지원', detail: '안드로이드 휴대폰에 앱처럼 설치할 수 있게 됐습니다. 가이드에 "안드로이드 앱 설치" 안내가 새로 생겼고, 항상 최신 버전을 가리키는 다운로드 링크와 초등학생도 따라 할 수 있는 순서(다운로드 → "출처를 알 수 없는 앱" 경고 대처 → 설치 → 로그인)를 안내합니다. 웹 화면(계산기, 새 기능 등)은 앱을 열 때마다 재설치 없이 저절로 최신 상태로 바뀌고, 입력 중인 내용이 있으면 그 입력을 마칠 때까지 갱신을 미룹니다. 앱 자체(로그인 방식, 권한 등)가 바뀌는 드문 경우에는 새 버전 다운로드가 자동으로 시작되고, 설치 확인만 한 번 눌러주면 됩니다(안드로이드 보안 정책상 이 한 번의 확인은 어떤 앱도 건너뛸 수 없습니다). 구글 로그인은 앱 안이 아니라 별도 브라우저 창에서 진행되고 자동으로 앱에 돌아옵니다(구글이 앱 내장 로그인을 막기 때문입니다).' },
+      { version: '0.51', date: '2026-08-01', label: '최신 · 안드로이드 셸 상태바 겹침·메뉴 배경 수정', detail: '안드로이드 앱(0.50)을 실제 기기에 설치해보니 화면 맨 위 상단바/로고 글씨가 휴대폰 상태표시줄(시계 등)과 겹쳐 보이는 문제가 있었습니다. 안드로이드 15부터는 앱 화면이 상태표시줄 뒤까지 그려지는 것이 기본값인데, 그 여백을 챙기는 코드가 없어 생긴 문제였습니다 — 이제 상단바·왼쪽 메뉴 로고·하단 토스트 알림 모두 기기의 안전영역만큼 자동으로 여백을 둡니다. 또한 모바일 화면에서 왼쪽 메뉴를 열면 뒤쪽 화면 내용이 반쯤 비쳐 보이던 것을, 어둡게 덮는 배경을 추가하고 그 배경을 탭하면 메뉴가 닫히도록 고쳤습니다.' },
+      { version: '0.50', date: '2026-08-01', label: '안드로이드 앱 설치 지원', detail: '안드로이드 휴대폰에 앱처럼 설치할 수 있게 됐습니다. 가이드에 "안드로이드 앱 설치" 안내가 새로 생겼고, 항상 최신 버전을 가리키는 다운로드 링크와 초등학생도 따라 할 수 있는 순서(다운로드 → "출처를 알 수 없는 앱" 경고 대처 → 설치 → 로그인)를 안내합니다. 웹 화면(계산기, 새 기능 등)은 앱을 열 때마다 재설치 없이 저절로 최신 상태로 바뀌고, 입력 중인 내용이 있으면 그 입력을 마칠 때까지 갱신을 미룹니다. 앱 자체(로그인 방식, 권한 등)가 바뀌는 드문 경우에는 새 버전 다운로드가 자동으로 시작되고, 설치 확인만 한 번 눌러주면 됩니다(안드로이드 보안 정책상 이 한 번의 확인은 어떤 앱도 건너뛸 수 없습니다). 구글 로그인은 앱 안이 아니라 별도 브라우저 창에서 진행되고 자동으로 앱에 돌아옵니다(구글이 앱 내장 로그인을 막기 때문입니다).' },
       { version: '0.49', date: '2026-07-15', label: '상단바 가계부 빠른 전환', detail: '화면 위쪽(동기화 상태 배지 옆)에 지금 보고 있는 가계부 이름이 적힌 버튼이 생겼습니다. 눌러서 다른 가계부로 바로 전환할 수 있어 설정 화면까지 갈 필요가 없습니다. 모바일 화면에서는 지금까지 현재 가계부 이름이 아예 안 보였는데(공간이 좁아 숨겼음), 이 버튼이 그 자리를 대신해 항상 어떤 가계부를 보고 있는지 알 수 있습니다.' },
       { version: '0.48', date: '2026-07-15', label: '지역자원시설세(소방분)·공시가격 읽기 쉬운 표기·재산세 용어 설명', detail: '재산세 계산기에 세 가지를 추가했습니다. (1) 공시가격 입력칸 아래에 "15억 8,000만원"처럼 읽기 쉬운 금액 표기를 실시간으로 보여줍니다. (2) 지역자원시설세(소방분)를 새로 계산합니다 — 건물 시가표준액(공시가격과는 다른 값, 위택스에서 확인)을 넣으면 지방세법 §146의 6단계 누진세율표로 계산해 별도로 보여줍니다(재산세와 과세표준이 달라 통합하지 않고 별도 표시). (3) "계산 근거" 아래에 공정시장가액비율·과세표준·과세표준상한액·도시지역분·지방교육세·지역자원시설세 등 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 설명하는 용어 카드를 추가했습니다.' },
       { version: '0.47', date: '2026-07-15', label: '재산세 반기분납 금액 표시', detail: '재산세 계산기 결과에 실제 납부 시기별 금액을 추가했습니다. 지방세법 §115①3호에 따라 주택분 재산세는 연세액을 절반씩 나눠 7월 16~31일(1기분)과 9월 16~30일(2기분)에 냅니다 — 계산기가 이제 예상 납부세액 합계 아래에 두 기분 금액을 각각 보여줍니다. 연세액이 20만원 이하면 지자체 조례에 따라 7월에 한꺼번에 낼 수도 있어(법령이 지자체 조례에 위임한 부분이라 지자체마다 다를 수 있음), 이 경우엔 분납 대신 그 안내를 보여줍니다.' },
@@ -4292,11 +4306,16 @@
     function diagnostic(error) { console.error('[AccountingLedger]', error); state.syncError = String(error?.message || error); toast(errorMessage(error),'error'); renderShellStatus(); }
 
     // 9. Shell lifecycle
+    function setSidebarOpen(open) {
+      el('sidebar').classList.toggle('open', open);
+      el('sidebarScrim').classList.toggle('open', open);
+    }
     document.addEventListener('click', event => {
       if (!event.target.closest('.term-button') && !event.target.closest('#termTooltip')) el('termTooltip').hidden = true;
-      if (window.innerWidth <= 780 && event.target.closest('[data-route]')) el('sidebar').classList.remove('open');
+      if (window.innerWidth <= 780 && event.target.closest('[data-route]')) setSidebarOpen(false);
     });
-    el('mobileMenuButton').addEventListener('click', () => el('sidebar').classList.toggle('open'));
+    el('mobileMenuButton').addEventListener('click', () => setSidebarOpen(!el('sidebar').classList.contains('open')));
+    el('sidebarScrim').addEventListener('click', () => setSidebarOpen(false));
     el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
     el('monthlyUsageButton').addEventListener('click', () => { if (!state.business) return toast('먼저 사업자 정보를 설정해 주세요.', 'error'); renderMonthlyUsageModal(); });
     el('ledgerSwitchButton').addEventListener('click', () => { if (!state.businesses.length) return; renderLedgerSwitchModal(); });

@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.64** · 개정 2026-08-01
+> **📌 Sub_app-research-notes_0.65** · 개정 2026-08-01
 
 # Accounting Ledger App Research Notes
 
@@ -1361,3 +1361,22 @@ advisor 잔여 항목:
 | 정직하게 남기는 미검증 영역 | **실제 안드로이드 기기·에뮬레이터에서의 왕복은 이 개발 환경(샌드박스, Android SDK 없음)에서 실행해 검증하지 못했다** — 로그인 딥링크 왕복, "출처를 알 수 없는 앱" 실제 경고 화면, 셸 자체 갱신 다운로드→설치 확인 흐름 모두 수동 확인 필요. CI 워크플로 자체도 실제로 GitHub Actions에서 한 번도 실행해 보지 못했다(첫 실행은 `android-shell/**` 변경이 main에 반영돼야 트리거됨). 사용자가 아직 GitHub Secrets에 release keystore를 등록하지 않았다면 첫 몇 빌드는 debug 서명으로 나간다(README에 안내). |
 | 남은 위험/미완(0.50) | `allowNavigation`의 호스트-단위 한계(위 참고, GitHub Pages 사용자 사이트 구조 자체의 위험이라 이 앱만으로 해결 불가). 20만원 이하 재산세 등과 무관한 완전히 새로운 영역이라 기존 회계 로직과의 상호작용 위험은 낮지만, 로그인 흐름이 셸 유무에 따라 분기되는 첫 사례라 셸 안에서의 회귀(예: 세션 만료 처리)는 실기기 확인 전까지 미확정. |
 | 스킬 버전 | `Sub_app-research-notes_0.64` |
+
+## 2026-08-01 앱 0.51: 안드로이드 셸 실기기 검증 1라운드(CI 배포 버그 2건 + 상태바 겹침·메뉴 배경 수정)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.50 → 0.51 |
+| note_type | `fix`(0.50에서 정직하게 "미검증"으로 남겼던 영역을 실제로 배포·실기기 확인하면서 발견한 버그 4건 수정 — CI 2건, 프론트엔드 CSS/DOM 2건) |
+| 제목 | "배포" 승인을 받아 0.50의 Android CI를 실제로 처음 실행해 검증 → 워크플로 버그 2건 발견·수정 → `apk-latest` 릴리스 정상 발행 확인 → 사용자가 실기기에 설치해 스크린샷으로 화면 버그 2건 제보 → 수정 |
+| 배경 | 0.50 완료 보고에서 "실제 안드로이드 기기·CI 실행은 이 샌드박스에서 검증 못함"을 정직하게 남겼고, 사용자가 "설정했습니다. 한 번 확인 부탁드립니다" → "네"로 배포를 명시 승인. GitHub Secrets/Supabase 설정을 직접 조회할 도구가 없어(GitHub MCP는 Secrets 읽기 도구 없음, Supabase MCP는 Auth Redirect URL 읽기 도구 없음) 실제 CI 실행만이 유일한 검증 수단임을 사용자에게 설명하고 진행. |
+| CI 배포 1차 실패 → 원인 A(내 워크플로 버그) | main에 0.50을 처음 push하자 `Android APK` 워크플로가 최초로 실행됐고, 서명 단계에서 `Keystore file '.../android-shell/android/app/release.jks' not found` 실패. 원인: `.github/workflows/android-apk.yml`의 "Decode release keystore" 스텝이 `working-directory: android-shell/android`에서 `release.jks`를 쓰는데, `app/build.gradle`의 `signingConfigs.release { storeFile file(RELEASE_STORE_FILE) }`는 이 상대경로를 **`app/` 모듈 디렉터리 기준**으로 해석한다 — 파일이 한 단계 위에 저장돼 못 찾은 것. 다만 이 실행으로 "GitHub Secrets 4개는 정상 등록됨"(키스토어 decode 자체는 성공)이 먼저 확인됐다. 수정: decode 스텝의 `working-directory`를 `android-shell/android/app`으로 변경. |
+| CI 배포 2차 실패 → 원인 B(내가 사용자에게 준 안내서 오류) | 경로 수정 후 재실행하니 키스토어 파일은 찾았지만 `Get Key failed: Given final block not properly padded`(비밀번호 오류 시그니처)로 서명 실패. 로컬 scratchpad에 보관 중이던 원본 키스토어로 직접 재현 테스트(`keytool -importkeystore`)한 결과, **이 키스토어가 PKCS12 형식**이며 PKCS12는 저장소 비밀번호와 키 비밀번호를 다르게 설정해도 keytool이 자동으로 저장소 비밀번호 하나로 통일한다는 것을 확인(`keytool` 자체가 "Different store and key passwords not supported for PKCS12 KeyStores. Ignoring user-specified -srckeypass value." 경고를 출력). 그런데 최초 전달한 `SECRETS_SETUP.md`/`passwords.txt`에는 `ANDROID_KEYSTORE_PASSWORD`와 `ANDROID_KEY_PASSWORD`를 **서로 다른 값**으로 적어 전달했다 — 사용자는 안내서 그대로 정확히 등록했으므로 사용자 잘못이 전혀 아니고, 안내서 자체가 이 프로젝트의 keytool 생성 방식(PKCS12)의 실제 동작과 맞지 않게 작성된 것이 근본원인. 사용자에게 정정 방법(두 시크릿을 같은 값으로 통일)을 안내하고, 사용자가 직접 GitHub Secrets를 수정. |
+| CI 배포 성공 확인 | 사용자가 시크릿을 정정한 뒤 `workflow_dispatch`(이 라운드에서 추가 — 이전엔 push 트리거만 있어 재검증마다 더미 커밋이 필요했음)로 수동 재실행. `signed: true`(release-signed, debug 폴백 아님)로 빌드 성공, `apk-latest` 릴리스에 `bareunjangbu-latest.apk`(3.2MB)·`bareunjangbu-shell-version.json`(versionCode 4) 자산이 실제로 게시됨을 GitHub API(`get_release_by_tag`)로 확인. 사용자가 이전에 보여준 다운로드 링크 404 스크린샷의 원인이었던 "릴리스가 아직 한 번도 생성되지 않음" 상태가 이 시점에 해소됨. |
+| 실기기 발견 버그 1: 상태바-로고 겹침 | 사용자가 APK를 실제로 설치해 앱을 열고 스크린샷 제보: "02:54"(휴대폰 시계)가 앱 좌상단 로고("바른장부")와 겹쳐 보임 + "전반적으로 총체적 난국, 제대로 작동도 안되고 디자인도 문제"라는 강한 불만. 조사: `android-shell/variables.gradle`의 `targetSdkVersion = 35`(안드로이드 15) — API 35부터 OS가 edge-to-edge 렌더링을 사실상 강제해 WebView 콘텐츠가 상태표시줄 뒤까지 그려지는데, `index.html`은 `viewport-fit=cover`(edge-to-edge에 동의하는 뷰포트 메타)만 있고 `env(safe-area-inset-*)`를 쓰는 CSS가 전무했다(`grep`으로 0건 확인) — 로고 텍스트가 상태표시줄 영역에 그대로 그려져 시계와 겹친 것. |
+| 실기기 발견 버그 2: 메뉴 드로어에 어두운 배경 없음 | 같은 스크린샷에서 모바일 사이드바(햄버거 메뉴)를 연 상태의 대시보드 카드가 드로어 경계에서 그대로 잘려 반쯤 보임 — 확인해보니 `.sidebar.open`을 열 때 뒤 콘텐츠를 어둡게 덮는 배경(scrim)이 아예 없고, 배경을 탭해 닫는 기능도 없었다(nav 링크를 눌러야만 닫힘). 정상적인 드로어 UX 부재가 "화면이 깨진 것처럼" 보이는 원인. |
+| 구현 | `.brand`(사이드바 로고)·`.topbar`(메인 헤더, 모바일 미디어쿼리 포함)에 `padding-top: env(safe-area-inset-top, 0px)`와 `height: calc(var(--header) + env(safe-area-inset-top, 0px))`를 추가해 로고/제목이 안전영역 아래로 밀려나도록 함(배경색은 이미 `position:fixed`/`sticky`로 상태표시줄 뒤까지 자연스럽게 이어짐 — 색상 끊김 없이 내용만 밀림). 좌우 여백도 `env(safe-area-inset-left/right)`로 처리(가로 모드·노치 대비). `.sidebar-footer`(사이드바 맨 아래)와 `.toast-region`(화면 우하단 고정 알림)에도 같은 클래스의 버그를 선제적으로 막기 위해 `env(safe-area-inset-bottom)`을 추가(같은 edge-to-edge 문제가 하단 제스처 바에서도 재현될 것이 뻔했으므로 한 곳만 고치지 않고 클래스로 일반화). 드로어 배경은 새 `<button class="sidebar-scrim" id="sidebarScrim">`을 `.app-shell` 최상단에 추가(데스크톱 CSS 기본값은 `display:none`, `@media (max-width:780px)`에서만 `.open` 클래스일 때 `display:block`으로 전환 — 데스크톱에서는 사이드바가 항상 레이아웃 안에 있어 scrim 자체가 필요 없음). `setSidebarOpen(open)` 헬퍼로 사이드바·scrim의 `open` 클래스를 항상 함께 토글하도록 통일(햄버거 클릭, nav 링크 클릭 후 자동 닫힘, scrim 클릭 세 지점 모두 이 헬퍼 경유 — 상태 불일치 방지). |
+| 검증 | 순수 로직 변경 없음(CSS/DOM 전용) — 로직 테스트 182 그대로. `npm run harness:check` 13/13(12 PASS + 1 수동, `runtime-version-contract`가 0.50→0.51 증가를 확인). 헤드리스 Chromium(390×844 모바일 뷰포트)으로 실동작 확인: 햄버거 클릭 전 scrim `display:none` → 클릭 후 `#sidebar`·`#sidebarScrim` 모두 `open` 클래스 추가되고 scrim이 `display:block`+반투명 배경(`rgba(10,24,20,.45)`)으로 실제로 보임 → scrim 클릭 시 사이드바가 다시 닫힘, 이 과정에서 새 JS 콘솔 에러 없음(기존 샌드박스 프록시 관련 네트워크 에러만 있고 이 변경과 무관). `env(safe-area-inset-top)`이 실기기 없는 이 샌드박스에서는 `0px`로 폴백되는 것만 확인(값 자체가 있는 실기기의 실제 여백 크기는 재현 불가). |
+| 정직하게 남기는 미검증 영역 | 실제 안드로이드 기기에서 상태표시줄과의 겹침이 실제로 사라졌는지, 드로어 배경 탭-닫기가 손가락 터치로 자연스러운지는 사용자가 새 APK를 다시 설치해 직접 확인해야 한다(이 세션은 실기기 접근 불가). 사용자가 "제대로 작동도 안됨"이라 말한 부분 중 화면 겹침·드로어 외에 구체적으로 어떤 동작(버튼 무반응, 로그인 실패 등)이 있었는지는 스크린샷만으로 특정 못해 사용자에게 추가 확인을 요청한 상태. |
+| 남은 위험/미완(0.51) | CI 워크플로에 `workflow_dispatch`를 추가해 재검증 편의는 개선했지만, 서명 실패 시 debug로 자동 폴백하는 안전망은 없다(0.50에서 지적한 기존 갭 — release 빌드가 실패하면 그대로 워크플로 실패, 이번 라운드에서도 손대지 않음, 필요성이 재확인되면 후속 작업). |
+| 스킬 버전 | `Sub_app-research-notes_0.65` |
