@@ -9,6 +9,7 @@ on:
     paths:
       - 'android-shell/**'
       - '.github/workflows/android-apk.yml'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
