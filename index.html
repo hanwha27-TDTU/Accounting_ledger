@@ -121,6 +121,7 @@
     .topbar-left, .topbar-actions, .inline-actions { display: flex; align-items: center; gap: 9px; }
     .topbar-title { font-size: 18px; font-weight: 800; }
     .topbar-context { color: var(--muted); font-size: 12px; }
+    .ledger-switch-button .button-label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .icon-button.mobile-menu { display: none; }
     .content { width: min(1420px, 100%); margin: 0 auto; padding: 24px 28px 56px; }
 
@@ -568,6 +569,7 @@
           </div>
         </div>
         <div class="topbar-actions">
+          <button class="button ledger-switch-button" id="ledgerSwitchButton" type="button" title="가계부 전환" hidden><i data-lucide="repeat"></i><span class="button-label" id="ledgerSwitchLabel">가계부</span></button>
           <div class="sync-chip" id="syncChip"><span class="status-dot" id="syncDot"></span><span id="syncLabel">로컬 전용</span></div>
           <button class="button" id="monthlyUsageButton" type="button"><i data-lucide="calendar-range"></i><span class="button-label">월별 사용현황</span></button>
           <button class="button" id="quickAddButton" type="button"><i data-lucide="plus"></i><span class="button-label">거래 입력</span></button>
@@ -589,7 +591,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.48',
+      version: '0.49',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -604,7 +606,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.48', date: '2026-07-15', label: '최신 · 지역자원시설세(소방분)·공시가격 읽기 쉬운 표기·재산세 용어 설명', detail: '재산세 계산기에 세 가지를 추가했습니다. (1) 공시가격 입력칸 아래에 "15억 8,000만원"처럼 읽기 쉬운 금액 표기를 실시간으로 보여줍니다. (2) 지역자원시설세(소방분)를 새로 계산합니다 — 건물 시가표준액(공시가격과는 다른 값, 위택스에서 확인)을 넣으면 지방세법 §146의 6단계 누진세율표로 계산해 별도로 보여줍니다(재산세와 과세표준이 달라 통합하지 않고 별도 표시). (3) "계산 근거" 아래에 공정시장가액비율·과세표준·과세표준상한액·도시지역분·지방교육세·지역자원시설세 등 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 설명하는 용어 카드를 추가했습니다.' },
+      { version: '0.49', date: '2026-07-15', label: '최신 · 상단바 가계부 빠른 전환', detail: '화면 위쪽(동기화 상태 배지 옆)에 지금 보고 있는 가계부 이름이 적힌 버튼이 생겼습니다. 눌러서 다른 가계부로 바로 전환할 수 있어 설정 화면까지 갈 필요가 없습니다. 모바일 화면에서는 지금까지 현재 가계부 이름이 아예 안 보였는데(공간이 좁아 숨겼음), 이 버튼이 그 자리를 대신해 항상 어떤 가계부를 보고 있는지 알 수 있습니다.' },
+      { version: '0.48', date: '2026-07-15', label: '지역자원시설세(소방분)·공시가격 읽기 쉬운 표기·재산세 용어 설명', detail: '재산세 계산기에 세 가지를 추가했습니다. (1) 공시가격 입력칸 아래에 "15억 8,000만원"처럼 읽기 쉬운 금액 표기를 실시간으로 보여줍니다. (2) 지역자원시설세(소방분)를 새로 계산합니다 — 건물 시가표준액(공시가격과는 다른 값, 위택스에서 확인)을 넣으면 지방세법 §146의 6단계 누진세율표로 계산해 별도로 보여줍니다(재산세와 과세표준이 달라 통합하지 않고 별도 표시). (3) "계산 근거" 아래에 공정시장가액비율·과세표준·과세표준상한액·도시지역분·지방교육세·지역자원시설세 등 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 설명하는 용어 카드를 추가했습니다.' },
       { version: '0.47', date: '2026-07-15', label: '재산세 반기분납 금액 표시', detail: '재산세 계산기 결과에 실제 납부 시기별 금액을 추가했습니다. 지방세법 §115①3호에 따라 주택분 재산세는 연세액을 절반씩 나눠 7월 16~31일(1기분)과 9월 16~30일(2기분)에 냅니다 — 계산기가 이제 예상 납부세액 합계 아래에 두 기분 금액을 각각 보여줍니다. 연세액이 20만원 이하면 지자체 조례에 따라 7월에 한꺼번에 낼 수도 있어(법령이 지자체 조례에 위임한 부분이라 지자체마다 다를 수 있음), 이 경우엔 분납 대신 그 안내를 보여줍니다.' },
       { version: '0.46', date: '2026-07-15', label: '과세표준상한액 계산 정정(직전연도 공시가격 입력)', detail: '재산세 계산기의 "직전연도 과세표준" 입력을 "직전연도 공시가격"으로 바꿨습니다. 지방세법 시행령 제109조의2 제1항을 다시 확인해보니, 과세표준상한액 계산에 쓰는 "직전연도 과세표준 상당액"은 직전연도 공시가격에 직전연도에 실제 적용됐던 비율이 아니라 "올해" 공정시장가액비율을 곱해서 구하도록 정해져 있었습니다(0.45의 "작년 고지서의 재산세과표를 그대로 넣으라"는 안내는 부정확했습니다 — 바로잡았습니다). 이제 직전연도 공시가격만 넣으면 계산기가 올해 비율을 곱해 정확한 상당액을 자동으로 구합니다.' },
       { version: '0.45', date: '2026-07-15', label: '직전연도 과세표준 입력 안내(0.46에서 정정됨)', detail: '재산세 계산기의 "직전연도 과세표준" 입력칸에 어디서 값을 구하는지 안내문구를 추가했습니다 — 작년 재산세 고지서의 "재산세과표" 항목을 그대로 넣거나 위택스·이택스에서 조회하세요. (0.46에서 이 안내가 부정확했음을 확인해 "직전연도 공시가격" 입력 방식으로 바꿨습니다.)' },
@@ -2823,6 +2826,9 @@
       el('sidebarStatusText').textContent = state.ready ? `IndexedDB 저장 · 대기 ${pending}건` : '로컬 저장 준비 중';
       el('sidebarStatusDot').className = `status-dot ${state.ready ? (state.online ? 'online' : 'offline') : ''}`;
       el('topbarContext').textContent = state.business ? `${state.business.name} · ${state.site?.main_industry_name || '업종 미확인'}` : '사업자 설정을 확인하세요';
+      const hasLedgers = state.businesses && state.businesses.length > 0;
+      el('ledgerSwitchButton').hidden = !hasLedgers;
+      el('ledgerSwitchLabel').textContent = state.business ? state.business.name : '가계부 선택';
     }
 
     function pageHeader(title, subtitle, actions = '') {
@@ -3414,24 +3420,26 @@
         <div class="inline-actions" style="margin-top:16px"><button class="button primary" id="businessRoundtripButton" type="button" ${rt.status === 'checking' ? 'disabled' : ''}>${icon('list-checks')}왕복 검증 실행</button>${rt.checkedAt ? `<span class="field-help">마지막 검증 ${new Date(rt.checkedAt).toLocaleString('ko-KR')}</span>` : ''}</div></section>`;
     }
 
+    // 가계부의 개인/사업자 배지 라벨. 0.35 이전엔 가계부가 하나뿐이라 모드가 전역(config.ledgerMode)에만
+    // 있었다 — 그 가계부가 지금 활성 가계부라면 여기서 전역 값을 대신 읽어 배지가 비어 보이지 않게 한다
+    // (다음 저장 때 이 id로 못박힘). 설정의 가계부 관리 목록과 상단바 빠른 전환 모달이 함께 쓴다(SSOT).
+    function ledgerModeLabel(business) {
+      const byBusiness = state.config.ledgerModeByBusiness || {};
+      const mode = Object.prototype.hasOwnProperty.call(byBusiness, business.id) ? byBusiness[business.id]
+        : business.id === state.business?.id ? (state.config.ledgerMode === 'personal' ? 'personal' : 'business')
+        : '';
+      return mode === 'personal' ? '개인 가계부' : mode === 'business' ? '사업자' : '';
+    }
+
     // 가계부 관리 — 여러 가계부(예: 개인 생활비, 유학 생활비, 부업)를 만들고 전환한다.
     // 가계부마다 자료(거래·계정과목·전표)가 완전히 분리된다(reload()가 활성 가계부 id로 필터링).
     function renderLedgerManagement() {
       const list = state.businesses;
-      // 0.35 이전엔 가계부가 하나뿐이라 모드가 전역(config.ledgerMode)에만 있었다 — 그 가계부가 지금
-      // 활성 가계부라면 여기서 전역 값을 대신 읽어 배지가 비어 보이지 않게 한다(다음 저장 때 이 id로 못박힘).
-      const modeLabel = business => {
-        const byBusiness = state.config.ledgerModeByBusiness || {};
-        const mode = Object.prototype.hasOwnProperty.call(byBusiness, business.id) ? byBusiness[business.id]
-          : business.id === state.business?.id ? (state.config.ledgerMode === 'personal' ? 'personal' : 'business')
-          : '';
-        return mode === 'personal' ? '개인 가계부' : mode === 'business' ? '사업자' : '';
-      };
       const rows = list.length ? list.map(row => {
         const active = state.business && row.id === state.business.id;
         const switchBtn = active ? '' : `<button class="button small" type="button" data-switch-ledger="${row.id}">${icon('repeat')}전환</button>`;
         const deleteBtn = `<button class="button small danger" type="button" data-delete-ledger="${row.id}" data-ledger-name="${Utils.escape(row.name)}">${icon('trash-2')}삭제</button>`;
-        return `<div class="task-row"><div class="task-main"><div class="task-title">${Utils.escape(row.name)}${active ? ' ' + badge('사용 중', 'success') : ''}</div><div class="task-note">${Utils.escape(modeLabel(row))}</div></div>${switchBtn}${deleteBtn}</div>`;
+        return `<div class="task-row"><div class="task-main"><div class="task-title">${Utils.escape(row.name)}${active ? ' ' + badge('사용 중', 'success') : ''}</div><div class="task-note">${Utils.escape(ledgerModeLabel(row))}</div></div>${switchBtn}${deleteBtn}</div>`;
       }).join('') : `<p class="section-help">아직 가계부가 없습니다.</p>`;
       return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">가계부 관리</h2><p class="section-help">개인 생활비, 유학 생활비, 부업처럼 목적이 다른 가계부를 여러 개 만들어 따로 관리할 수 있습니다. 자료는 가계부별로 완전히 분리됩니다.</p></div></div>
         <div class="task-list">${rows}</div>
@@ -3441,6 +3449,32 @@
           <div class="field third"><div class="form-actions" style="margin-top:22px"><button class="button" type="submit">${icon('plus')}가계부 추가</button></div></div>
         </form>
       </section>`;
+    }
+
+    // 상단바 가계부 빠른 전환 모달 — 여러 가계부를 오갈 때 설정 화면까지 가지 않아도 되게 한다. 모바일
+    // 폭(≤780px)에서는 topbar-context(현재 가계부 이름)가 아예 숨어(CSS) 지금 보고 있는 가계부가 화면
+    // 어디에도 안 보이던 문제도 상단바 버튼 라벨로 함께 해소한다. 목록·모드 라벨은 가계부 관리 패널과
+    // 같은 데이터·같은 헬퍼(ledgerModeLabel)를 쓴다 — 목록 자체를 복제하지 않고 전환 액션만 여기 둔다.
+    function renderLedgerSwitchModal() {
+      const list = state.businesses;
+      const rows = list.length ? list.map(row => {
+        const active = state.business && row.id === state.business.id;
+        const switchBtn = active ? badge('사용 중', 'success') : `<button class="button small" type="button" data-quick-switch-ledger="${row.id}">${icon('repeat')}전환</button>`;
+        return `<div class="task-row"><div class="task-main"><div class="task-title">${Utils.escape(row.name)}</div><div class="task-note">${Utils.escape(ledgerModeLabel(row))}</div></div>${switchBtn}</div>`;
+      }).join('') : `<p class="section-help">아직 가계부가 없습니다.</p>`;
+      const body = `<div class="modal-head"><h3 class="modal-title">가계부 전환</h3><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
+        <div class="modal-body">
+          <div class="task-list">${rows}</div>
+        </div>
+        <div class="modal-actions"><button class="button" type="button" data-modal-close>닫기</button><button class="button primary" type="button" data-open-ledger-settings>${icon('settings')}가계부 관리로 이동</button></div>`;
+      openModal(body);
+      const root = el('modalRoot');
+      root.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', closeModal));
+      root.querySelectorAll('[data-quick-switch-ledger]').forEach(b => b.addEventListener('click', async () => {
+        try { await AppService.switchLedger(b.dataset.quickSwitchLedger); closeModal(); toast('가계부를 전환했습니다.', 'success'); render(); }
+        catch (error) { diagnostic(error); }
+      }));
+      root.querySelector('[data-open-ledger-settings]')?.addEventListener('click', () => { closeModal(); routeTo('settings'); });
     }
 
     function renderSettings() {
@@ -4122,6 +4156,7 @@
     el('mobileMenuButton').addEventListener('click', () => el('sidebar').classList.toggle('open'));
     el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
     el('monthlyUsageButton').addEventListener('click', () => { if (!state.business) return toast('먼저 사업자 정보를 설정해 주세요.', 'error'); renderMonthlyUsageModal(); });
+    el('ledgerSwitchButton').addEventListener('click', () => { if (!state.businesses.length) return; renderLedgerSwitchModal(); });
     window.addEventListener('hashchange', () => { state.route = (location.hash || '#dashboard').slice(1); render(); });
     window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 자동으로 동기화합니다.','success'); SyncService.scheduleAutoSync(500); });
     window.addEventListener('offline', () => { state.online=false; renderShellStatus(); toast('오프라인입니다. 거래는 이 기기에 계속 저장됩니다.'); });
