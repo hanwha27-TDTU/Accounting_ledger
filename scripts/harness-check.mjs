@@ -404,6 +404,65 @@ addGate('concept-ledger-contract', 'REQUIRED', () => {
   return { detail: `${rows.length} concepts with ${anchors.length} enforcement anchors verified to exist` };
 });
 
+addGate('apk-link-contract', 'REQUIRED', () => {
+  if (!existsSync(absolute('index.html')) || !existsSync(absolute('.github/workflows/android-apk.yml'))) {
+    return { status: 'BASELINE', detail: 'android shell not present yet' };
+  }
+  const html = readText('index.html');
+  const workflow = readText('.github/workflows/android-apk.yml');
+
+  const apkInfoBlock = html.match(/const APK_INFO = Object\.freeze\(\{([\s\S]*?)\}\);/);
+  if (!apkInfoBlock) throw new Error('index.html must define APK_INFO as a frozen object');
+  const releaseTag = apkInfoBlock[1].match(/releaseTag:\s*'([^']+)'/)?.[1];
+  const assetName = apkInfoBlock[1].match(/assetName:\s*'([^']+)'/)?.[1];
+  const versionAssetName = apkInfoBlock[1].match(/versionAssetName:\s*'([^']+)'/)?.[1];
+  const downloadUrl = apkInfoBlock[1].match(/downloadUrl:\s*'([^']+)'/)?.[1];
+  const versionManifestUrl = apkInfoBlock[1].match(/versionManifestUrl:\s*'([^']+)'/)?.[1];
+  if (!releaseTag || !assetName || !versionAssetName || !downloadUrl || !versionManifestUrl) {
+    throw new Error('APK_INFO must define releaseTag, assetName, versionAssetName, downloadUrl, and versionManifestUrl as literal strings');
+  }
+  if (!downloadUrl.includes(releaseTag) || !downloadUrl.includes(assetName)) {
+    throw new Error('APK_INFO.downloadUrl does not actually contain releaseTag/assetName (copy-paste drift)');
+  }
+  if (!versionManifestUrl.includes(releaseTag) || !versionManifestUrl.includes(versionAssetName)) {
+    throw new Error('APK_INFO.versionManifestUrl does not actually contain releaseTag/versionAssetName (copy-paste drift)');
+  }
+
+  const workflowTag = workflow.match(/RELEASE_TAG:\s*(\S+)/)?.[1];
+  const workflowAsset = workflow.match(/APK_ASSET_NAME:\s*(\S+)/)?.[1];
+  const workflowVersionAsset = workflow.match(/VERSION_ASSET_NAME:\s*(\S+)/)?.[1];
+  if (!workflowTag || !workflowAsset || !workflowVersionAsset) {
+    throw new Error('android-apk.yml must define RELEASE_TAG, APK_ASSET_NAME, and VERSION_ASSET_NAME in env:');
+  }
+  if (workflowTag !== releaseTag) {
+    throw new Error(`release tag mismatch: workflow has "${workflowTag}", index.html APK_INFO.releaseTag has "${releaseTag}"`);
+  }
+  if (workflowAsset !== assetName) {
+    throw new Error(`asset filename mismatch: workflow has "${workflowAsset}", index.html APK_INFO.assetName has "${assetName}"`);
+  }
+  if (workflowVersionAsset !== versionAssetName) {
+    throw new Error(`version manifest filename mismatch: workflow has "${workflowVersionAsset}", index.html APK_INFO.versionAssetName has "${versionAssetName}"`);
+  }
+
+  const guideBlock = html.match(/function androidInstallGuideHtml\(\)[\s\S]*?\n    \}/);
+  if (!guideBlock) throw new Error('index.html must define androidInstallGuideHtml()');
+  if (!guideBlock[0].includes('APK_INFO.downloadUrl')) {
+    throw new Error('androidInstallGuideHtml() must read the download link from APK_INFO.downloadUrl, not a hardcoded URL');
+  }
+
+  // 안내 화면 밖에서 릴리스 다운로드 URL을 손으로 복붙해 하드코딩했는지도 확인한다 — APK_INFO
+  // 정의 자체는 당연히 이 문자열을 담고 있어야 하므로 그 블록만 예외로 둔다.
+  const withoutApkInfoBlock = html.replace(apkInfoBlock[0], '');
+  if (withoutApkInfoBlock.includes(downloadUrl)) {
+    throw new Error('index.html hardcodes the APK download URL outside APK_INFO — read APK_INFO.downloadUrl instead');
+  }
+  if (withoutApkInfoBlock.includes(versionManifestUrl)) {
+    throw new Error('index.html hardcodes the shell version manifest URL outside APK_INFO — read APK_INFO.versionManifestUrl instead');
+  }
+
+  return { detail: `release tag "${releaseTag}" and asset "${assetName}" agree across workflow, APK_INFO, and the install guide` };
+});
+
 addGate('browser-roundtrip', 'MANUAL', () => {
   if (!existsSync(absolute('index.html'))) {
     return { status: 'MANUAL', detail: 'no runtime file or browser test runner exists yet' };

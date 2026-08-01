@@ -1,0 +1,16 @@
+{
+  "name": "bareunjangbu-android-shell",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Thin Capacitor WebView shell for 바른장부 (Accounting Ledger). Loads the deployed web app by URL — no web assets are bundled here, so the app always shows the latest deployed site.",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/browser": "^7.0.5",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/core": "^7.6.8"
+  }
+}

@@ -19,6 +19,7 @@
 ## 스택과 구조 (요약; SSOT는 설계지침·아키텍처 스킬)
 
 - V1은 단일 HTML(`index.html`) + GitHub Pages다. 빌드 도구가 없고, 외부 CDN은 lucide와 supabase-js만 버전을 고정해 쓴다.
+- `android-shell/`은 이 규칙의 예외가 아니라 별개 하위 프로젝트다(웹앱을 그대로 불러오는 얇은 Capacitor WebView 셸, npm 기반 빌드 도구를 그 폴더 안에서만 쓴다 — index.html 자체는 여전히 빌드 도구가 없다). 웹 자산을 셸에 번들링하지 않으며(`capacitor.config.json`의 `server.url`이 배포 주소를 가리킴), APK 다운로드 링크·릴리스 태그의 SSOT는 `index.html`의 `APK_INFO` 상수 하나이고 `.github/workflows/android-apk.yml`·설치 안내 화면이 그 값을 그대로 읽는다(하네스 게이트 `apk-link-contract`가 일치를 강제). 상세는 `android-shell/README.md`.
 - 저장은 로컬(IndexedDB/localStorage), 클라우드(Supabase Postgres + RLS), 증빙 원본(Cloudinary, 일부 계획)으로 나눈다.
 - 내부 원장은 복식부기 SSOT, 간편장부는 입력 UX와 출력 view다.
 - 레이어를 분리한다: UI → State → Domain(회계·세무) → Persistence → Remote Adapter → Validation → Report. 회계·세무 판단을 DOM 이벤트 핸들러나 Supabase 호출 안에 직접 섞지 않는다. 상세는 `docs/skills/accounting-code-architecture-guardians-skill.md`.
@@ -27,7 +28,7 @@
 ## 하드 룰 (위반하면 작업을 멈추고 사용자에게 확인한다)
 
 - Supabase RLS를 제거하거나 `authenticated` 전체 허용 정책으로 바꾸지 않는다. Google OAuth allowlist와 owner 권한을 약화하지 않는다. `hanwha27@gmail.com`은 bootstrap owner다.
-- service role key, Cloudinary secret, OAuth client secret을 코드·문서·커밋·앱 상태에 넣지 않는다.
+- service role key, Cloudinary secret, OAuth client secret, Android release keystore(파일·비밀번호)를 코드·문서·커밋·앱 상태에 넣지 않는다. keystore는 GitHub Secrets에만 둔다.
 - 법정서식은 최신 스냅샷 검증 없이 신고용 확정 출력으로 표시하지 않는다.
 - 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI를 만들지 않는다.
 - 참고용 Excel·PDF·ZIP 원본은 명시적 요청 없이 Git에 추가하지 않는다.

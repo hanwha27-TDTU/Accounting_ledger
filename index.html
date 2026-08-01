@@ -591,7 +591,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.49',
+      version: '0.50',
       schemaVersion: '0.03',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
@@ -606,7 +606,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.49', date: '2026-07-15', label: '최신 · 상단바 가계부 빠른 전환', detail: '화면 위쪽(동기화 상태 배지 옆)에 지금 보고 있는 가계부 이름이 적힌 버튼이 생겼습니다. 눌러서 다른 가계부로 바로 전환할 수 있어 설정 화면까지 갈 필요가 없습니다. 모바일 화면에서는 지금까지 현재 가계부 이름이 아예 안 보였는데(공간이 좁아 숨겼음), 이 버튼이 그 자리를 대신해 항상 어떤 가계부를 보고 있는지 알 수 있습니다.' },
+      { version: '0.50', date: '2026-08-01', label: '최신 · 안드로이드 앱 설치 지원', detail: '안드로이드 휴대폰에 앱처럼 설치할 수 있게 됐습니다. 가이드에 "안드로이드 앱 설치" 안내가 새로 생겼고, 항상 최신 버전을 가리키는 다운로드 링크와 초등학생도 따라 할 수 있는 순서(다운로드 → "출처를 알 수 없는 앱" 경고 대처 → 설치 → 로그인)를 안내합니다. 웹 화면(계산기, 새 기능 등)은 앱을 열 때마다 재설치 없이 저절로 최신 상태로 바뀌고, 입력 중인 내용이 있으면 그 입력을 마칠 때까지 갱신을 미룹니다. 앱 자체(로그인 방식, 권한 등)가 바뀌는 드문 경우에는 새 버전 다운로드가 자동으로 시작되고, 설치 확인만 한 번 눌러주면 됩니다(안드로이드 보안 정책상 이 한 번의 확인은 어떤 앱도 건너뛸 수 없습니다). 구글 로그인은 앱 안이 아니라 별도 브라우저 창에서 진행되고 자동으로 앱에 돌아옵니다(구글이 앱 내장 로그인을 막기 때문입니다).' },
+      { version: '0.49', date: '2026-07-15', label: '상단바 가계부 빠른 전환', detail: '화면 위쪽(동기화 상태 배지 옆)에 지금 보고 있는 가계부 이름이 적힌 버튼이 생겼습니다. 눌러서 다른 가계부로 바로 전환할 수 있어 설정 화면까지 갈 필요가 없습니다. 모바일 화면에서는 지금까지 현재 가계부 이름이 아예 안 보였는데(공간이 좁아 숨겼음), 이 버튼이 그 자리를 대신해 항상 어떤 가계부를 보고 있는지 알 수 있습니다.' },
       { version: '0.48', date: '2026-07-15', label: '지역자원시설세(소방분)·공시가격 읽기 쉬운 표기·재산세 용어 설명', detail: '재산세 계산기에 세 가지를 추가했습니다. (1) 공시가격 입력칸 아래에 "15억 8,000만원"처럼 읽기 쉬운 금액 표기를 실시간으로 보여줍니다. (2) 지역자원시설세(소방분)를 새로 계산합니다 — 건물 시가표준액(공시가격과는 다른 값, 위택스에서 확인)을 넣으면 지방세법 §146의 6단계 누진세율표로 계산해 별도로 보여줍니다(재산세와 과세표준이 달라 통합하지 않고 별도 표시). (3) "계산 근거" 아래에 공정시장가액비율·과세표준·과세표준상한액·도시지역분·지방교육세·지역자원시설세 등 용어를 쉬운 말과 그 세금이 왜 있는지(취지)로 설명하는 용어 카드를 추가했습니다.' },
       { version: '0.47', date: '2026-07-15', label: '재산세 반기분납 금액 표시', detail: '재산세 계산기 결과에 실제 납부 시기별 금액을 추가했습니다. 지방세법 §115①3호에 따라 주택분 재산세는 연세액을 절반씩 나눠 7월 16~31일(1기분)과 9월 16~30일(2기분)에 냅니다 — 계산기가 이제 예상 납부세액 합계 아래에 두 기분 금액을 각각 보여줍니다. 연세액이 20만원 이하면 지자체 조례에 따라 7월에 한꺼번에 낼 수도 있어(법령이 지자체 조례에 위임한 부분이라 지자체마다 다를 수 있음), 이 경우엔 분납 대신 그 안내를 보여줍니다.' },
       { version: '0.46', date: '2026-07-15', label: '과세표준상한액 계산 정정(직전연도 공시가격 입력)', detail: '재산세 계산기의 "직전연도 과세표준" 입력을 "직전연도 공시가격"으로 바꿨습니다. 지방세법 시행령 제109조의2 제1항을 다시 확인해보니, 과세표준상한액 계산에 쓰는 "직전연도 과세표준 상당액"은 직전연도 공시가격에 직전연도에 실제 적용됐던 비율이 아니라 "올해" 공정시장가액비율을 곱해서 구하도록 정해져 있었습니다(0.45의 "작년 고지서의 재산세과표를 그대로 넣으라"는 안내는 부정확했습니다 — 바로잡았습니다). 이제 직전연도 공시가격만 넣으면 계산기가 올해 비율을 곱해 정확한 상당액을 자동으로 구합니다.' },
@@ -656,6 +657,21 @@
       { version: '0.02', date: '2026-07-11', label: 'Supabase 연결 진단', detail: '프로젝트 publishable key를 기본 연결하고 익명 RLS 격리와 Google provider 상태를 로그인 전에 진단합니다.' },
       { version: '0.01', date: '2026-07-11', label: '첫 앱 구현', detail: '업무 대시보드, 사업자 설정, 거래 입력, 복식분개, IndexedDB, JSON 백업, Supabase 연결 골격을 추가했습니다.' }
     ]);
+
+    // 안드로이드 APK 배포 SSOT — 고정 릴리스 태그·자산 파일명. android-shell/ 변경이 main에
+    // 반영될 때마다 .github/workflows/android-apk.yml이 이 태그에 --clobber로 계속 덮어써서
+    // (새 태그를 만들지 않음) downloadUrl은 절대 바뀌지 않는다. 워크플로 파일·이 상수·설치 안내
+    // 화면 세 곳이 같은 값을 가리키는지는 scripts/verify-apk-link.mjs가 검사한다(하네스 게이트
+    // apk-link-contract) — 값을 여기서만 바꾸고 다른 두 곳에 손으로 옮겨 적지 않는다.
+    const APK_INFO = Object.freeze({
+      repo: 'hanwha27-TDTU/Accounting_ledger',
+      releaseTag: 'apk-latest',
+      assetName: 'bareunjangbu-latest.apk',
+      versionAssetName: 'bareunjangbu-shell-version.json',
+      downloadUrl: 'https://github.com/hanwha27-TDTU/Accounting_ledger/releases/download/apk-latest/bareunjangbu-latest.apk',
+      versionManifestUrl: 'https://github.com/hanwha27-TDTU/Accounting_ledger/releases/download/apk-latest/bareunjangbu-shell-version.json',
+      releasePageUrl: 'https://github.com/hanwha27-TDTU/Accounting_ledger/releases/tag/apk-latest'
+    });
 
     const NAV_ITEMS = Object.freeze([
       { group: '업무', id: 'dashboard', label: '대시보드', icon: 'layout-dashboard' },
@@ -1680,6 +1696,7 @@
         const diagnostic = await this.diagnose();
         if (diagnostic.googleProvider !== 'ready') throw new Error('GOOGLE_PROVIDER_DISABLED');
         const client = await this.ensureClient();
+        if (CapacitorShell.isNative()) { await CapacitorShell.signInWithGoogle(client); return; }
         const redirectTo = `${location.origin}${location.pathname}`;
         const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
         if (error) throw error;
@@ -1842,6 +1859,65 @@
         return { status, steps, checkedAt: Utils.now(), detail };
       }
     }
+
+    // 캡시터 안드로이드 셸(android-shell/) 안에서 실행 중인지 감지하는 유일한 지점 — 이 파일
+    // 어디서도 window.Capacitor를 직접 참조하지 않고 항상 이 객체를 거친다(브라우저에서는
+    // window.Capacitor가 없어 isNative()가 항상 false, 이 객체의 나머지 메서드는 아예 안 불림).
+    // 구글은 앱 내장 웹뷰 안에서의 OAuth 로그인을 막는다(disallowed_useragent) — 그래서 셸 안에서는
+    // 로그인 URL을 웹뷰가 직접 열지 않고 시스템 브라우저(Chrome Custom Tabs)로 열고, 승인 후
+    // 커스텀 스킴 딥링크로 앱에 돌아오면 그 코드로 세션을 완성한다(PKCE). npm 패키지를 번들링하지
+    // 않는 이 앱의 구조상, 셸이 주입하는 원시 브리지(window.Capacitor.Plugins.*)를 그대로 쓴다.
+    const CapacitorShell = Object.freeze({
+      AUTH_CALLBACK_URL: 'io.github.hanwha27tdtu.bareunjangbu://auth-callback',
+      isNative() { return Boolean(window.Capacitor?.isNativePlatform?.()); },
+      async signInWithGoogle(client) {
+        const { data, error } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: this.AUTH_CALLBACK_URL, skipBrowserRedirect: true }
+        });
+        if (error) throw error;
+        await window.Capacitor.Plugins.Browser.open({ url: data.url });
+      },
+      // App.addListener('appUrlOpen', ...)로 딥링크를 받았을 때만 호출한다. code가 없으면(사용자가
+      // 브라우저에서 취소한 경우 등) 조용히 아무것도 하지 않는다.
+      async completeSignIn(client, url) {
+        const code = new URL(url).searchParams.get('code');
+        if (!code) return false;
+        const { error } = await client.auth.exchangeCodeForSession(code);
+        await window.Capacitor.Plugins.Browser.close().catch(() => {});
+        if (error) throw error;
+        return true;
+      },
+      bindDeepLinkListener(onUrl) {
+        if (!this.isNative()) return;
+        window.Capacitor.Plugins.App.addListener('appUrlOpen', ({ url }) => { if (String(url || '').startsWith(this.AUTH_CALLBACK_URL)) onUrl(url); });
+      },
+      // 셸(APK) 자체의 새 빌드가 나왔는지 확인한다 — index.html의 checkForWebUpdate()가 "웹
+      // 내용"을 재설치 없이 갱신하는 것과 달리, 이건 앱 패키지 자체를 새로 받아야 하는 경우다.
+      // 🔴 정직하게 밝혀둔다: 안드로이드는 플레이스토어를 거치지 않은(사이드로드) 앱이 스스로를
+      // 완전히 조용히(탭 0번) 덮어쓰는 것을 OS 보안 정책으로 막는다 — 이건 구현 미비가 아니라
+      // 넘을 수 없는 플랫폼 제약이다. 여기서 할 수 있는 최선은 "새 버전 감지→다운로드 자동 시작
+      // →설치 확인 탭 1번만 사용자가 하면 끝"까지 자동화하는 것이다(플레이스토어 앱 수준의 완전
+      // 무탭 업데이트는 사이드로드 앱에 원리적으로 불가능하다).
+      async checkForShellUpdate() {
+        if (!this.isNative()) return;
+        try {
+          const info = await window.Capacitor.Plugins.App.getInfo();
+          const installedBuild = Number(info.build);
+          const response = await fetch(`${APK_INFO.versionManifestUrl}?_=${Date.now()}`, { cache: 'no-store' });
+          if (!response.ok) return;
+          const manifest = await response.json();
+          const remoteBuild = Number(manifest.versionCode);
+          if (!Number.isFinite(remoteBuild) || !Number.isFinite(installedBuild) || remoteBuild <= installedBuild) return;
+          // 같은 새 빌드를 반복해서 다시 안내하지 않는다(앱을 열 때마다 브라우저가 계속 뜨는 걸 방지).
+          if (Number(state.config.shellUpdatePromptedBuild) === remoteBuild) return;
+          state.config.shellUpdatePromptedBuild = remoteBuild;
+          ConfigAdapter.save(state.config);
+          toast('앱 업데이트가 있어요. 다운로드가 끝나면 알림을 눌러 "설치"를 완료해 주세요.', 'info');
+          await window.Capacitor.Plugins.Browser.open({ url: APK_INFO.downloadUrl });
+        } catch { /* 네트워크 문제면 다음 확인 때 다시 시도 — 조용히 넘어간다 */ }
+      }
+    });
 
     // 6. Application state and services
     const storage = new IndexedDbAdapter();
@@ -3588,6 +3664,7 @@
     }
 
     const GUIDE_TOPICS = Object.freeze([
+      { id: 'android-install', icon: 'smartphone', title: '안드로이드 앱 설치', note: '휴대폰에 앱처럼 설치하는 방법을 순서대로 안내합니다. 항상 최신 버전 링크입니다.' },
       { id: 'google-cloud', icon: 'cloud-cog', title: '구글클라우드 연결방법', note: 'Google 로그인부터 Supabase 연결과 앱 진단까지 한 단계씩 확인합니다.' },
       { id: 'bookkeeping-duty', icon: 'book-open-check', title: '기장의무 판단 (간편장부·복식부기)', note: '내 사업이 간편장부인지 복식부기인지 근거 법령과 함께 설명합니다.' },
       { id: 'vat-exemption', icon: 'badge-percent', title: '부가가치세 면세', note: '어떤 공급이 면세인지 부가가치세법 근거와 함께 설명합니다.' },
@@ -3605,6 +3682,7 @@
     function renderGuide() {
       const header = `${pageHeader('가이드','필요한 주제를 선택하면 쉬운 설명과 법적 근거를 함께 보여드립니다.')}<div class="guide-topic-list">${guideTopicButtons()}</div>`;
       const topic = state.guideTopic;
+      if (topic === 'android-install') return `${header}${androidInstallGuideHtml()}`;
       if (topic === 'google-cloud') return `${header}${googleCloudGuideHtml()}`;
       if (topic === 'tax-terms') return `${header}${termsGuideHtml()}`;
       if (topic === 'account-guide') return `${header}${accountGuideHtml()}`;
@@ -3630,6 +3708,23 @@
         <div class="guide-why">${icon('lightbulb')}<div><strong>자주 헷갈리는 것 (구분법)</strong><br>· <strong>소모품비 vs 비품</strong> — 금방 쓰고 없어지면 소모품비(비용), <strong>1년 이상</strong> 오래 쓰는 값비싼 물건이면 비품(자산)이에요.<br>· <strong>기업업무추진비 vs 복리후생비</strong> — 거래처 접대·선물이면 기업업무추진비, <strong>직원</strong>을 위한 지출이면 복리후생비예요.<br>· <strong>여비교통비 vs 차량유지비</strong> — 출장·이동에 쓴 돈이면 여비교통비, 회사 차량 자체의 유지비면 차량유지비예요.<br>· 그래도 애매하면 <strong>기타(비용)</strong>에 적어도 괜찮지만, 가능하면 가까운 계정과목을 찾는 편이 경비율 계산 등에 도움이 됩니다.</div></div>
         ${groups}</section>`;
     }
+    // 안드로이드 설치 안내 — 문장·주소를 손으로 적지 않고 전부 APK_INFO에서 읽는다(SSOT, 하네스
+    // 게이트 apk-link-contract가 워크플로·이 화면·상수 세 곳의 일치를 강제한다). 이 링크는
+    // 항상 최신 셸 빌드를 가리키므로(고정 태그에 덮어쓰기), 앱을 다시 설치할 필요 없이 웹 내용은
+    // 자동으로 최신 상태를 보여준다 — 재설치는 셸 자체(예: 새 권한, 로그인 방식)가 바뀔 때만 필요.
+    function androidInstallGuideHtml() {
+      return `<div class="notice info">${icon('smartphone')}<div><strong>안드로이드 휴대폰에만 설치할 수 있습니다.</strong> 아이폰(iOS)은 지원하지 않습니다. 이 링크는 항상 최신 버전을 가리켜서, 새로 눌러 받을 때마다 최신 앱이 설치됩니다(대부분의 경우 재설치 없이 웹 내용은 앱을 열 때마다 자동으로 최신 상태로 바뀝니다).</div></div>
+        <div class="panel">
+          ${guideSection(1, 'APK 파일을 내려받습니다', '휴대폰의 인터넷(크롬 등) 브라우저로 이 페이지를 열고 아래 버튼을 누르세요.', `<div class="form-actions"><a class="button primary" href="${Utils.escape(APK_INFO.downloadUrl)}" target="_blank" rel="noopener">${icon('download')}바른장부 APK 내려받기</a></div><div class="guide-values">${guideValue('다운로드 주소', APK_INFO.downloadUrl)}</div>`)}
+          ${guideSection(2, '"차단된 파일" 또는 "알 수 없는 출처" 경고가 뜨면', '안드로이드가 새로운 앱을 설치할 때 항상 보여주는 안내입니다 — 겁먹지 않아도 됩니다.', `<ol class="guide-steps"><li>다운로드 알림을 눌렀을 때 <strong>"이 파일 형식은 이 기기에서 지원되지 않습니다"</strong> 또는 <strong>"차단된 파일"</strong>이 뜨면, 화면의 <strong>설정</strong>을 누릅니다.</li><li><strong>"알 수 없는 앱 설치"</strong> 또는 <strong>"출처를 알 수 없는 앱"</strong> 항목에서 지금 쓰는 브라우저(크롬 등)를 찾아 <strong>허용</strong>으로 켭니다.</li><li>뒤로 돌아가 방금 받은 파일을 다시 누릅니다.</li><li>이번엔 정상적으로 설치 화면이 뜹니다 — <strong>설치</strong>를 누릅니다.</li></ol><div class="notice">${icon('shield-check')}<div>이 경고는 "구글 플레이스토어를 거치지 않은 앱"이라는 뜻일 뿐, 위험하다는 뜻이 아닙니다. 이 앱은 오픈소스 저장소(GitHub)에서 자동으로 만들어져 배포됩니다.</div></div>`)}
+          ${guideSection(3, '설치 후 실행하고 로그인합니다', '앱을 열면 평소 웹에서 쓰던 것과 완전히 같은 화면이 나옵니다.', `<ol class="guide-steps"><li>홈 화면이나 앱 서랍에서 <strong>바른장부</strong> 아이콘을 눌러 엽니다.</li><li>왼쪽 메뉴에서 <strong>설정</strong>으로 이동해 평소처럼 <strong>Google로 로그인</strong>을 누릅니다.</li><li>구글 로그인 화면은 앱 안이 아니라 별도 브라우저 창으로 열립니다(구글이 보안상 앱 내부 로그인을 막기 때문입니다) — 로그인을 마치면 자동으로 앱으로 돌아옵니다.</li><li>돌아온 뒤 위쪽 상태가 <strong>동기화 완료</strong>이면 끝입니다.</li></ol>`)}
+          ${guideSection(4, '업데이트는 대부분 저절로 됩니다', '두 가지 갱신이 있어요 — 하나는 완전 자동, 하나는 탭 한 번만 필요해요.', `<div class="notice info">${icon('refresh-cw')}<div><strong>① 화면·기능 갱신 — 완전 자동, 할 일 없음.</strong><br>계산기나 새 기능처럼 눈에 보이는 내용이 바뀌면 앱을 열거나 다른 화면으로 넘어갈 때 저절로 최신 내용으로 바뀝니다. 아무것도 누를 필요가 없습니다.</div></div>
+            <div class="notice">${icon('download')}<div><strong>② 앱 자체 갱신 — 자동으로 시작되고, 설치 확인만 한 번 눌러주세요.</strong><br>로그인 방식이나 권한처럼 앱 안쪽 구조가 바뀌면, 앱을 열 때 새 버전이 있는지 스스로 확인해서 다운로드까지 자동으로 시작합니다. 다운로드가 끝나면 안드로이드가 "설치하시겠습니까?" 화면을 보여주는데, 이건 안드로이드가 모든 앱에 강제하는 보안 확인이라 앱이 대신 눌러줄 수 없습니다 — <strong>이때 한 번만 "설치"를 눌러주면</strong> 갱신이 끝납니다(플레이스토어를 거치지 않은 앱은 이 한 번의 확인을 건너뛸 방법이 안드로이드에 없습니다).</div></div>
+            <div class="section-help">혹시 이 자동 확인을 놓쳤거나 지금 바로 최신 버전인지 확인하고 싶으면, 이 페이지에서 위 1단계 버튼을 다시 눌러 받으면 됩니다. 링크 주소는 항상 똑같아서(<code>${Utils.escape(APK_INFO.releaseTag)}</code>), 즐겨찾기해두면 매번 최신 버전을 받을 수 있습니다.</div>
+            <div class="form-actions"><a class="button" href="${Utils.escape(APK_INFO.releasePageUrl)}" target="_blank" rel="noopener">${icon('external-link')}배포 기록 보기</a></div>`)}
+        </div>`;
+    }
+
     function googleCloudGuideHtml() {
       const status = GuideService.status();
       const statusItem = (label, passed, successText, waitText) => `<div class="guide-check"><div class="guide-check-label">${label}</div><div class="guide-check-state ${passed ? 'success' : 'warning'}">${passed ? successText : waitText}</div></div>`;
@@ -3709,12 +3804,59 @@
 
     function emptyState(iconName, title, note) { return `<div class="empty-state">${icon(iconName)}<div class="empty-title">${title}</div><div class="empty-note">${note}</div></div>`; }
 
+    // 웹 내용 자동 갱신(재설치 없이) — 이 앱은 빌드 단계가 없는 단일 HTML이라 별도 version.json을
+    // 새로 만들지 않는다(만들면 APP_INFO.version과 두 곳에 같은 값을 손으로 맞춰야 하는 SSOT 중복이
+    // 생긴다). 대신 index.html 자기 자신을 캐시 우회로 다시 받아 그 안의 APP_INFO.version만 정규식
+    // 으로 읽어 비교한다 — 값의 출처는 오직 하나다.
+    //
+    // inputDirty는 keydown이 아니라 beforeinput으로 잡는다(붙여넣기·음성입력·IME 조합·드래그로
+    // 넣은 텍스트는 keydown이 안 뜰 수 있어 keydown만 보면 "입력 중"을 놓친다). 화면 복귀
+    // (visibilitychange)마다 이 플래그를 리셋하지 않는다 — 글 쓰다 잠깐 다른 앱을 보고 돌아온
+    // 것이 "안전"으로 둔갑해 새로고침이 입력을 날리면 안 된다. 리셋은 오직 markScreenTransition()
+    // (아래 render()가 호출)에서만 한다 — render()는 이 앱의 유일한 화면 그리기 함수라(해시 라우팅
+    // 이동이든, 같은 라우트에서 액션 후 재렌더든 전부 이 함수를 거친다) hashchange만 듣는 것보다
+    // "다음 화면 전환"을 훨씬 정확히 포착한다. render()가 DOM을 막 새로 그린 직후는 입력 중이던
+    // 값이 이미 사라진 뒤이므로 그 시점에 대기 중인 갱신을 적용해도 추가로 잃는 게 없다.
+    // 순수 함수만 따로 빼서(네트워크·DOM 없이) 로직 테스트로 고정한다 — checkForWebUpdate()는
+    // 이 두 함수만 부른다.
+    const WebUpdateService = Object.freeze({
+      parseVersion(html) {
+        const match = String(html || '').match(/version:\s*'([0-9]+\.[0-9]+)'/);
+        return match ? match[1] : null;
+      },
+      isNewer(remoteVersion, currentVersion) {
+        return remoteVersion !== null && Number(remoteVersion) > Number(currentVersion);
+      }
+    });
+
+    let inputDirty = false;
+    let pendingWebUpdate = false;
+    document.addEventListener('beforeinput', () => { inputDirty = true; }, true);
+
+    function markScreenTransition() {
+      inputDirty = false;
+      if (pendingWebUpdate) location.reload();
+    }
+
+    async function checkForWebUpdate() {
+      try {
+        const response = await fetch(`${location.origin}${location.pathname}?_=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const remoteVersion = WebUpdateService.parseVersion(await response.text());
+        if (!WebUpdateService.isNewer(remoteVersion, APP_INFO.version)) return;
+        pendingWebUpdate = true;
+        const modalOpen = !el('modalRoot').hidden;
+        if (!inputDirty && !modalOpen) location.reload();
+      } catch { /* 네트워크 문제면 다음 확인 때 다시 시도 — 조용히 넘어간다 */ }
+    }
+
     function render() {
       if (!state.business && !state.config.ledgerMode) {
         el('topbarTitle').textContent = '시작하기';
         el('app').innerHTML = renderModeSelect();
         renderNav(); renderShellStatus(); bindViewEvents(); refreshIcons();
         el('app').focus({ preventScroll: true });
+        markScreenTransition();
         return;
       }
       const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, data:renderData, guide:renderGuide, propertyTax:renderPropertyTaxCalculator };
@@ -3724,6 +3866,7 @@
       el('app').innerHTML = renderers[state.route]();
       renderNav(); renderShellStatus(); bindViewEvents(); refreshIcons();
       el('app').focus({ preventScroll: true });
+      markScreenTransition();
     }
 
     // 8. UI event layer delegates to services and domain functions
@@ -4163,7 +4306,7 @@
     // 기기간 자동 동기화 트리거 — 이 화면으로 돌아오거나(포커스·탭 전환) 일정 시간이 지나면
     // 사용자가 버튼을 누르지 않아도 클라우드와 맞춘다(기본값). 세부 규칙은 SyncService.runAutoSync 참고.
     window.addEventListener('focus', () => SyncService.scheduleAutoSync());
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SyncService.scheduleAutoSync(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { SyncService.scheduleAutoSync(); checkForWebUpdate(); CapacitorShell.checkForShellUpdate(); } });
     setInterval(() => SyncService.scheduleAutoSync(0), 30000);
 
     async function init() {
@@ -4180,6 +4323,15 @@
         // 자동으로 클라우드와 맞춘다 — 이게 기본 동작이다. 수동 "동기화" 버튼은 즉시 실행용으로 남긴다.
         if (state.session) SyncService.scheduleAutoSync(300);
         if (!state.business) setTimeout(() => toast('사업자 정보를 설정하면 거래 입력을 시작할 수 있습니다.'), 500);
+        CapacitorShell.bindDeepLinkListener(async url => {
+          try {
+            const client = await remote.ensureClient();
+            const completed = await CapacitorShell.completeSignIn(client, url);
+            if (completed) { await SyncService.initializeAuth(); render(); toast('로그인되었습니다.', 'success'); SyncService.scheduleAutoSync(300); }
+          } catch (error) { diagnostic(error); }
+        });
+        checkForWebUpdate();
+        CapacitorShell.checkForShellUpdate();
       } catch (error) {
         state.ready = false;
         el('app').innerHTML = `<div class="notice danger">${icon('circle-alert')}<div><strong>앱 저장소를 열지 못했습니다.</strong><br>${Utils.escape(errorMessage(error))}</div></div>`;
@@ -4187,7 +4339,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate });
     init();
   })();
   </script>

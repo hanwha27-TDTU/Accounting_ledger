@@ -1,0 +1,9 @@
+# android-shell/ is its own npm/Capacitor sub-project (see CLAUDE.md) — its own dependency
+# tree and native build artifacts don't belong in version control, but package-lock.json does
+# (CI's `npm ci` requires it) and android-shell/android/ (the generated gradle project) does too.
+android-shell/node_modules/
+
+# Defense in depth: never commit a real signing keystore even if one is generated locally by
+# mistake. The release keystore lives only in GitHub Secrets (see android-shell/README.md).
+*.jks
+*.keystore

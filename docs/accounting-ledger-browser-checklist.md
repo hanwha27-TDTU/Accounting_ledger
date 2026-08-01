@@ -1,6 +1,6 @@
 # Accounting Ledger 브라우저 수동 체크리스트
 
-> 개정 2026-07-15 · 대상 앱 버전 `0.49`
+> 개정 2026-08-01 · 대상 앱 버전 `0.50`
 
 이 문서는 하네스의 `browser-roundtrip`(MANUAL) 게이트와 `CLAUDE.md` 검증 절차 6단계가 가리키는 **반복 실행용 시나리오 목록**이다. 자동 브라우저 러너가 도입되기 전까지, `index.html`을 실제로 바꾼 릴리스에서는 아래를 데스크톱과 모바일 폭에서 실행하고 결과(통과/실패/미확인)를 `docs/accounting-ledger-harness-baseline.md`에 남긴다.
 
@@ -258,3 +258,15 @@ owner(`hanwha27@gmail.com`)로 로그인:
 
 - [ ] 개발 기록: 앱 버전, 저장소·동기화 상태(CRUD 왕복 포함), Guardian 레지스트리가 보인다.
 - [ ] 키보드 이동, 버튼 라벨, 터치 크기, 색 대비가 무리 없다.
+
+## 10. 안드로이드 앱 설치·셸 (0.50) — 아래 항목은 실제 안드로이드 기기 필요, 브라우저로 확인 불가
+
+가이드의 "안드로이드 앱 설치" 화면(브라우저에서도 열림)은 헤드리스로 검증됐다(다운로드 링크·안내 문구·`checkForWebUpdate()` 안전 동작). 아래는 실기기(또는 에뮬레이터)에서만 확인할 수 있는 항목이다 — 이 개발 환경(샌드박스, Android SDK 없음)에서는 실행하지 못했다.
+
+- [x] 가이드 → "안드로이드 앱 설치"에서 다운로드 버튼을 누르면 `APK_INFO.downloadUrl`(고정 태그 `apk-latest`)로 이동한다. **헤드리스 검증됨(링크 값 일치만 — 실제 GitHub 릴리스 존재 여부는 CI가 최소 1회 성공 실행된 뒤에만 확인 가능).**
+- [ ] (실기기) 안드로이드 폰의 크롬에서 위 링크로 APK를 내려받으면 "출처를 알 수 없는 앱" 또는 "차단된 파일" 경고가 뜨고, 가이드 안내대로 크롬을 허용하면 정상적으로 설치 화면이 뜬다.
+- [ ] (실기기) 설치 후 앱을 열면 배포된 웹과 화면이 완전히 동일하다(셸이 웹 자산을 번들링하지 않고 `server.url`로 불러오므로).
+- [ ] (실기기) 설정에서 "Google로 로그인"을 누르면 앱 내장 화면이 아니라 시스템 브라우저(Chrome Custom Tabs)가 열리고, 로그인 완료 후 자동으로 앱에 돌아와 "동기화 완료" 상태가 된다(딥링크 `io.github.hanwha27tdtu.bareunjangbu://auth-callback` 왕복). **사전 조건**: Supabase 대시보드 Authentication → URL Configuration → Redirect URLs에 이 커스텀 스킴이 등록돼 있어야 한다(`android-shell/README.md` 참고) — 등록 전이면 Supabase가 리다이렉트를 거부한다.
+- [ ] (실기기) 웹만 바뀐 배포(예: 재산세 계산기 수정) 후 앱을 다시 열거나 다른 화면으로 이동하면, 재설치 없이 최신 화면으로 자동 갱신된다. 어떤 입력칸에 타이핑 중일 때는 그 입력을 마칠 때까지(다음 화면 전환까지) 갱신이 미뤄지고 입력값이 사라지지 않는다.
+- [ ] (실기기, `android-shell/**`가 바뀌어 새 셸 빌드가 나온 뒤) 앱을 열면 새 버전이 있다는 토스트가 뜨고 다운로드가 자동으로 시작된다. 다운로드 완료 알림을 누르면 안드로이드 표준 설치 확인 화면이 뜨고, "설치"를 누르면 갱신이 끝난다(이 한 번의 확인은 안드로이드 보안 정책상 앱이 대신 눌러줄 수 없다 — 정상 동작). 같은 버전에 대해 반복해서 안내가 뜨지 않는다.
+- [ ] (CI, GitHub Actions) `android-shell/**` 변경을 main에 반영하면 `.github/workflows/android-apk.yml`이 성공적으로 실행되어 `apk-latest` 릴리스에 `bareunjangbu-latest.apk`·`bareunjangbu-shell-version.json`이 갱신된다. GitHub Secrets에 release keystore 3종(`ANDROID_KEYSTORE_BASE64`/`ANDROID_KEYSTORE_PASSWORD`/`ANDROID_KEY_ALIAS`)이 등록돼 있으면 release 서명, 없으면 debug 서명으로 폴백한다(경고 로그와 함께).

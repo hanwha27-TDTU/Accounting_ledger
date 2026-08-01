@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.hanwha27tdtu.bareunjangbu",
+  "appName": "바른장부",
+  "webDir": "www",
+  "server": {
+    "url": "https://hanwha27-tdtu.github.io/Accounting_ledger/",
+    "allowNavigation": ["hanwha27-tdtu.github.io"]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

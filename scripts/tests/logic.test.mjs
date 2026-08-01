@@ -481,5 +481,29 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   ok(api.Utils.wonKorean(0) === '0원', 'Utils.wonKorean: 0 -> "0원"');
 }
 
+// 안드로이드 셸(0.50) — WebUpdateService(재설치 없는 자동 갱신)와 CapacitorShell(OAuth 딥링크)의
+// 순수 로직만 검증한다. 실제 fetch·DOM·네이티브 브리지는 헤드리스/실기기 확인 영역.
+{
+  const W = api.WebUpdateService;
+  ok(W.parseVersion("      version: '0.50',") === '0.50', 'WebUpdateService.parseVersion: APP_INFO.version 줄에서 버전 문자열 추출');
+  ok(W.parseVersion('버전 정보 없음') === null, 'WebUpdateService.parseVersion: 매치 없으면 null');
+  ok(W.parseVersion('') === null, 'WebUpdateService.parseVersion: 빈 문자열 -> null');
+  ok(W.isNewer('0.50', '0.49') === true, 'WebUpdateService.isNewer: 0.50 > 0.49 -> true');
+  ok(W.isNewer('0.49', '0.49') === false, 'WebUpdateService.isNewer: 같은 버전 -> false(자기 자신을 최신이라고 안 함)');
+  ok(W.isNewer('0.48', '0.49') === false, 'WebUpdateService.isNewer: 서버가 더 낮은 버전(캐시 지연 등) -> false');
+  ok(W.isNewer(null, '0.49') === false, 'WebUpdateService.isNewer: 버전을 못 읽었으면(null) -> false(안전 쪽으로)');
+  ok(W.isNewer('1.00', '0.99') === true, 'WebUpdateService.isNewer: x.99 다음 (x+1).00 승급도 올바르게 비교');
+
+  ok(api.CapacitorShell.isNative() === false, 'CapacitorShell.isNative: Node/일반 브라우저(window.Capacitor 없음) -> 항상 false');
+
+  // APK_INFO SSOT 자기 일관성 — downloadUrl·releasePageUrl이 releaseTag/assetName과 실제로
+  // 어긋나지 않는지(문자열을 손으로 두 번 적다 생기는 오탈자를 잡는다). 워크플로 파일과의 일치는
+  // scripts/verify-apk-link.mjs(하네스 게이트 apk-link-contract)가 별도로 검사한다.
+  const K = api.APK_INFO;
+  ok(K.downloadUrl.includes(K.releaseTag) && K.downloadUrl.includes(K.assetName), 'APK_INFO: downloadUrl에 releaseTag·assetName이 실제로 들어있음');
+  ok(K.releasePageUrl.includes(K.releaseTag), 'APK_INFO: releasePageUrl에 releaseTag가 실제로 들어있음');
+  ok(K.downloadUrl.includes(K.repo) && K.releasePageUrl.includes(K.repo), 'APK_INFO: 두 URL 모두 같은 저장소(repo)를 가리킴');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
