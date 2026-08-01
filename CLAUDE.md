@@ -41,6 +41,7 @@
 - 세무 법적 기준(기장의무, 단순·기준경비율 적용, 추계 소득 계산, 부가세 면세)의 **값·조문·출처는 `docs/skills/accounting-legal-basis-reference-skill.md`를 SSOT**로 본다. 같은 숫자를 코드·문서에 중복 정의하지 않는다.
 - 거래, 분개, 계정과목, 세무 매핑, 마감, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 먼저 적용한다.
 - 단일 HTML 구조, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 먼저 적용한다.
+- `android-shell/`, `.github/workflows/android-apk.yml`, `CapacitorShell`, `APK_INFO`, safe-area/edge-to-edge CSS 등 안드로이드 셸 관련 작업은 `docs/skills/accounting-mobile-apk-readiness-skill.md`를 먼저 적용한다 — 실기기에서만 드러난 함정(PKCE flowType, 모바일 드로어 z-index, edge-to-edge 안전영역, allowNavigation 호스트 한계)을 정리해 둔 별도 관리 문서다.
 - 기능 추가·버그 수정의 실행 순서(브랜치 확인→조사→설계→구현→로직 테스트→하네스→헤드리스 실증 검증→문서 4종 갱신→버전→커밋)는 `docs/skills/accounting-development-governance-skill.md`의 "실행 루프" 절을 따른다.
 
 ## 버전 규칙 (하네스가 강제한다)
