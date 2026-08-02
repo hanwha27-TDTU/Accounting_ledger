@@ -127,7 +127,9 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/skills/accounting-domain-guardians-skill.md',
     'docs/skills/accounting-code-architecture-guardians-skill.md',
     'scripts/build-install-playbook.mjs',
-    'docs/bareunjangbu-apk-install-playbook.md'
+    'docs/bareunjangbu-apk-install-playbook.md',
+    'docs/CONSTITUTION.md',
+    'scripts/build-agent-adapters.mjs'
   ];
   const missing = requiredFiles.filter((file) => !existsSync(absolute(file)));
   if (missing.length > 0) {
@@ -149,6 +151,22 @@ addGate('instruction-contract', 'REQUIRED', () => {
   hasRequiredText(claude, 'accounting-domain-guardians-skill.md', 'CLAUDE.md');
   hasRequiredText(claude, 'accounting-code-architecture-guardians-skill.md', 'CLAUDE.md');
   return { detail: 'shared AI instructions include sync, security, and harness rules' };
+});
+
+// CLAUDE.md와 AGENTS.md는 docs/CONSTITUTION.md에서 통째로 생성된다 — 같은 규칙을 두 파일에
+// 손으로 두 번 적어 서로 어긋나는 사고(실제로 3건 발생했다: 안드로이드 셸 서술, keystore 금지
+// 목록 누락, 스킬 라우팅 목록 분기)를 구조적으로 불가능하게 만들기 위해서다. 어댑터를 직접
+// 고치면 이 게이트가 막는다. 고치는 법: 헌법 파일 수정 후 npm run gen:adapters.
+addGate('adapter-parity', 'REQUIRED', () => {
+  if (!existsSync(absolute('scripts/build-agent-adapters.mjs')) || !existsSync(absolute('docs/CONSTITUTION.md'))) {
+    return { status: 'BASELINE', detail: 'constitution/adapter generator not present yet' };
+  }
+  try {
+    execFileSync('node', ['scripts/build-agent-adapters.mjs', '--check'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    throw new Error(String(error.stderr || error.message).trim() || 'agent adapters out of sync — run npm run gen:adapters');
+  }
+  return { detail: 'CLAUDE.md and AGENTS.md byte-match what docs/CONSTITUTION.md generates' };
 });
 
 addGate('migration-contract', 'REQUIRED', () => {

@@ -1,20 +1,46 @@
 # Accounting Ledger Agent Instructions
 
+> ⚠ **이 파일은 `docs/CONSTITUTION.md`에서 자동 생성됩니다 — 직접 고치지 마세요.**
+> 규칙을 바꾸려면 헌법 파일을 고치고 `npm run gen:adapters`를 실행합니다.
+> 손으로 고치면 하네스 게이트 `adapter-parity`가 실패합니다.
+
 이 저장소의 Codex, Claude, 기타 AI 협업자는 작업 전 `CLAUDE.md`와 `docs/claude-handoff.md`를 읽고, 관련 스킬 문서를 적용한다. 사용자 최신 지시와 Git 작업 트리가 실제 작업 범위의 최종 기준이다. **처음 오거나 오랜만에 복귀한 협업자는 `docs/codex-handoff.md`(복귀 온보딩 인계서)부터 읽는다** — 저장소 지도, 그동안의 변화, 하네스 게이트 전체, 실무 함정이 정리되어 있다.
 
-## 제품 불변조건
+## 앱 목적 (미션)
 
-- 앱 목적(미션): 초등학생도 이해할 만큼 쉬운 화면으로 수입·지출을 관리하면서, 그 기록이 복식부기 SSOT와 최신 법정서식·세법 근거로 뒷받침되어, 사용자가 세무사 없이도 스스로 국세청에 세무사 수준의 최신 법적 신고자료를 만들 수 있게 AI 역량을 총동원해 돕는다. 쉬움과 정확성 어느 하나도 포기하지 않으며, 법정 확정 출력은 최신 서식 스냅샷 검증 전에는 확정으로 표시하지 않는다. SSOT는 `docs/accounting-ledger-design-directive-v2.md`의 `0. 최상위 결론`이다.
-- V1은 단일 HTML + GitHub Pages다. 어댑터 경계를 유지한다. 안드로이드 앱은 이미 존재한다 — `android-shell/`(웹앱을 그대로 불러오는 얇은 Capacitor 셸, 별개 하위 프로젝트)이며, 셸·CI·자동 업데이트 관련 작업은 `docs/skills/accounting-mobile-apk-readiness-skill.md`를 먼저 적용한다.
-- 내부 원장은 복식부기 SSOT이며 간편장부는 입력 UX와 출력 view다.
-- 앱 버전은 `0.00`에서 시작하고, 확정 사용자 변경마다 `0.01` 증가한다.
-- 스킬 문서는 개별 `Sub_<name>_<version>` 체계를 유지한다.
-- 중요 설계·스키마·보안·마이그레이션 변경은 연구노트와 Claude handoff를 함께 갱신한다.
-- 거래, 분개, 계정과목, 대사, 마감, 감사, 세무 매핑, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 적용한다.
-- `index.html`, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 적용한다.
-- 위 두 줄은 대표 라우팅이고, **스킬 라우팅의 전체 최신 목록(세무 법령 SSOT, 안드로이드 셸, 개발 거버넌스 실행 루프 포함)은 `CLAUDE.md`의 "먼저 적용할 도메인·코드 스킬" 절이 SSOT다** — 여기에 목록을 복제하지 않는다(과거 이 파일과 CLAUDE.md의 라우팅 목록이 따로 놀다 어긋난 전력이 있어 위임으로 바꿈).
+이 앱은 초등학생도 이해할 만큼 쉬운 화면으로 수입·지출을 관리하면서, 그 기록이 복식부기 SSOT와 최신 법정서식·세법 근거로 뒷받침되어, 사용자가 세무사 없이도 스스로 국세청에 세무사 수준의 최신 법적 신고자료를 만들 수 있게 AI 역량을 총동원해 돕는다. 쉬움과 정확성 어느 하나도 포기하지 않는다. 법정 확정 출력은 최신 서식 스냅샷 검증 전에는 확정으로 표시하지 않는다. 상세는 `docs/accounting-ledger-design-directive-v2.md`의 `0. 최상위 결론`을 SSOT로 본다.
 
-## 동기화 불변조건
+## 스택과 구조 (요약; SSOT는 설계지침·아키텍처 스킬)
+
+- V1은 단일 HTML(`index.html`) + GitHub Pages다. 빌드 도구가 없고, 외부 CDN은 lucide와 supabase-js만 버전을 고정해 쓴다.
+- `android-shell/`은 이 규칙의 예외가 아니라 별개 하위 프로젝트다(웹앱을 그대로 불러오는 얇은 Capacitor WebView 셸, npm 기반 빌드 도구를 그 폴더 안에서만 쓴다 — index.html 자체는 여전히 빌드 도구가 없다). 웹 자산을 셸에 번들링하지 않으며(`capacitor.config.json`의 `server.url`이 배포 주소를 가리킴), APK 다운로드 링크·릴리스 태그의 SSOT는 `index.html`의 `APK_INFO` 상수 하나이고 `.github/workflows/android-apk.yml`·설치 안내 화면이 그 값을 그대로 읽는다(하네스 게이트 `apk-link-contract`가 일치를 강제). 상세는 `android-shell/README.md`.
+- 저장은 로컬(IndexedDB/localStorage), 클라우드(Supabase Postgres + RLS), 증빙 원본(Cloudinary, 일부 계획)으로 나눈다.
+- 내부 원장은 복식부기 SSOT, 간편장부는 입력 UX와 출력 view다.
+- 레이어를 분리한다: UI → State → Domain(회계·세무) → Persistence → Remote Adapter → Validation → Report. 회계·세무 판단을 DOM 이벤트 핸들러나 Supabase 호출 안에 직접 섞지 않는다. 상세는 `docs/skills/accounting-code-architecture-guardians-skill.md`.
+- 품질 하네스는 `npm run harness:check`(Node, `scripts/harness-check.mjs`)이고, CI는 push/PR에서 같은 명령을 실행한다.
+- 앱 버전은 `0.00`에서 시작하고, 확정 사용자 변경마다 `0.01` 증가한다. 스킬 문서는 개별 `Sub_<name>_<version>` 체계를 유지한다.
+- 중요 설계·스키마·보안·마이그레이션 변경은 연구노트(`docs/accounting-ledger-app-research-notes.md`)와 `docs/claude-handoff.md`를 같은 작업에서 갱신한다.
+
+## 하드 룰 (위반하면 작업을 멈추고 사용자에게 확인한다)
+
+- Supabase public 테이블의 RLS를 제거하거나 `authenticated` 전체 허용 정책으로 바꾸지 않는다. RLS와 explicit GRANT, 정책을 함께 검토한다. Google OAuth allowlist와 owner 권한을 약화하지 않는다. `hanwha27@gmail.com`은 bootstrap owner다.
+- service role key, Cloudinary API secret, OAuth client secret, Android release keystore(파일·비밀번호), 원본 세무자료를 코드·문서·커밋·앱 상태에 넣지 않는다. keystore는 GitHub Secrets에만 둔다.
+- 법정서식은 최신 스냅샷 검증 없이 신고용 확정 출력으로 표시하지 않는다.
+- 아직 구현하지 않은 기능을 완료된 기능처럼 보이게 하는 UI를 만들지 않는다.
+- 참고용 Excel·PDF·ZIP 원본은 명시적 요청 없이 Git에 추가하지 않는다.
+- 원격 push, main 반영, 호스팅 배포, 파괴적 DB 작업은 사용자가 명시적으로 요청한 경우에만 한다.
+- 동기화 대상 레코드는 `id`, `created_at`, `updated_at`, `deleted_at`을 유지하고 `canonical_version` 규칙을 지킨다. 마이그레이션 계획 없이 Supabase·IndexedDB·백업·import/export의 데이터 계약을 바꾸지 않는다. 기존 비회계 Supabase 테이블을 회계 앱 작업 범위로 임의 변경하지 않는다.
+- SSOT를 중복하지 않는다. 연결 가이드의 주소·이메일·버전·상태는 `APP_INFO`, `GuideService`, 런타임 진단 state에서 읽고, 같은 값을 별도 문장에 하드코딩하지 않는다.
+
+## 먼저 적용할 도메인·코드 스킬
+
+- 세무 법적 기준(기장의무, 단순·기준경비율 적용, 추계 소득 계산, 부가세 면세)의 **값·조문·출처는 `docs/skills/accounting-legal-basis-reference-skill.md`를 SSOT**로 본다. 같은 숫자를 코드·문서에 중복 정의하지 않는다.
+- 거래, 분개, 계정과목, 대사, 마감, 감사, 세무 매핑, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 먼저 적용한다.
+- 단일 HTML 구조, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 먼저 적용한다.
+- `android-shell/`, `.github/workflows/android-apk.yml`, `CapacitorShell`, `APK_INFO`, safe-area/edge-to-edge CSS 등 안드로이드 셸 관련 작업은 `docs/skills/accounting-mobile-apk-readiness-skill.md`를 먼저 적용한다 — 실기기에서만 드러난 함정(PKCE flowType, 모바일 드로어 z-index, edge-to-edge 안전영역, allowNavigation 호스트 한계)을 정리해 둔 별도 관리 문서다.
+- 기능 추가·버그 수정의 실행 순서(브랜치 확인→조사→설계→구현→로직 테스트→하네스→헤드리스 실증 검증→문서 4종 갱신→버전→커밋)는 `docs/skills/accounting-development-governance-skill.md`의 "실행 루프" 절을 따른다.
+
+## 동기화 불변조건 (이 절이 SSOT)
 
 1. 동기화 대상 레코드에는 `id`, `created_at`, `updated_at`을 둔다.
 2. 저장, 수정, 증빙 연결, 삭제, 상태 변경 등 모든 변경에서 `updated_at`을 갱신한다.
@@ -29,15 +55,9 @@
 11. batch upsert는 네트워크 성공 여부뿐 아니라 반드시 `res.ok`를 확인한다.
 12. 연결 테스트가 성공하면 단순 표시로 끝내지 말고 즉시 동기화를 실행한다.
 
-## 보안 및 데이터 규칙
+## 버전 규칙
 
-- Supabase public 테이블의 RLS를 제거하지 않는다. RLS와 explicit GRANT, 정책을 함께 검토한다.
-- `hanwha27@gmail.com`은 bootstrap owner다. Google OAuth allowlist와 owner 권한을 약화하지 않는다.
-- service role key, Cloudinary API secret, OAuth client secret, Android release keystore(파일·비밀번호), 원본 세무자료를 코드·문서·Git에 넣지 않는다. keystore는 GitHub Secrets에만 둔다.
-- 기존 비회계 Supabase 테이블을 회계 앱 작업 범위로 임의 변경하지 않는다.
-- Supabase, IndexedDB, localStorage, JSON 백업, import/export의 데이터 계약은 마이그레이션 계획 없이 변경하지 않는다.
-- 최신 법정서식 스냅샷 확인 없이는 확정 세무 리포트로 표시하지 않는다.
-- 참고용 Excel·PDF·ZIP 원본은 명시적 요청 없이는 커밋하지 않는다.
+앱 버전 증가·`UPDATE_HISTORY`·`최신 ·` 마커의 상세 규칙은 `CLAUDE.md`의 `버전 규칙` 절이 SSOT다. 여기에 복제하지 않는다 — `index.html`을 바꾸기 전에 그 절을 읽는다.
 
 ## 작업 및 릴리스 규칙
 
@@ -47,9 +67,8 @@
 - 변경 후 `npm run harness:check`를 실행한다. Required 게이트가 모두 통과하지 않으면 작업 완료를 선언하지 않는다.
 - 실행하지 않은 검사를 통과했다고 보고하지 않는다. 실패·생략·실행 불가·수동 확인 항목을 모두 남긴다.
 - 작업 후 변경 파일, 핵심 변경, 스키마·마이그레이션 영향, 실행한 검증 명령과 결과, 잔여 위험, 수동 확인 항목을 남긴다.
-- 원격 push, GitHub Pages 배포, 파괴적 DB 작업은 사용자가 명시적으로 요청한 경우에만 수행한다.
 
-## 배포 명령 해석
+## 배포 명령 해석 (이 절이 SSOT)
 
 사용자가 “배포해주세요”라고 말하면 다음 범위를 명시 요청으로 간주한다.
 
@@ -61,3 +80,7 @@
 6. GitHub Pages 또는 별도 호스팅 설정이 존재하면 해당 배포 절차도 수행한다.
 7. Claude가 이어서 볼 수 있도록 변경 요약, 최신 커밋, 검증 결과, 남은 위험, 다음 작업 지시문을 최종 보고에 포함한다.
 8. 원본 참고 Excel·PDF·ZIP, 비밀키, service role, OAuth secret, Cloudinary secret은 배포 범위에 포함하지 않는다.
+
+---
+
+세부 현황과 인수인계 형식은 `docs/claude-handoff.md`를 기준으로 한다. 이 파일을 고치려면 `docs/CONSTITUTION.md`를 고치고 `npm run gen:adapters`를 실행한다.

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "harness:check": "node scripts/harness-check.mjs",
-    "playbook:build": "node scripts/build-install-playbook.mjs"
+    "playbook:build": "node scripts/build-install-playbook.mjs",
+    "gen:adapters": "node scripts/build-agent-adapters.mjs"
   }
 }

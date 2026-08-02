@@ -6,14 +6,15 @@
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(외부 CDN은 lucide·supabase-js 버전 고정 2개뿐).
-- **버전 0.57**까지 main에 전부 배포됨. 자동 테스트: 로직 188 assertion + 하네스 게이트 14개(13 REQUIRED + 1 MANUAL) — 전부 통과 상태.
+- **버전 0.57**까지 main에 전부 배포됨. 자동 테스트: 로직 188 assertion + 하네스 게이트 15개(14 REQUIRED + 1 MANUAL) — 전부 통과 상태.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
 ## 2. 읽기 순서 (기존 체계 그대로 — 건너뛰지 말 것)
 
 1. `AGENTS.md` — 제품 불변조건, **동기화 12조**, 보안 규칙, "배포해주세요" 명령의 해석 범위
-2. `CLAUDE.md` — 하드룰(위반 시 작업 중단), **버전 규칙**, 스킬 라우팅 SSOT, 완료의 정의
+2. `CLAUDE.md` — 하드룰(위반 시 작업 중단), **버전 규칙**, 스킬 라우팅, 완료의 정의
+   ⚠ 위 두 파일은 **`docs/CONSTITUTION.md`에서 자동 생성되는 산출물**이다. 지침을 고치려면 두 파일이 아니라 헌법 파일을 고치고 `npm run gen:adapters`를 실행한다(직접 고치면 `adapter-parity` 게이트가 막는다).
 3. `docs/claude-handoff.md` — 현재 상태·완료 사항 표·다음 우선순위의 SSOT
 4. 작업 주제에 맞는 `docs/skills/` 문서 (라우팅은 CLAUDE.md의 "먼저 적용할" 절)
 5. 이 문서의 3~7장 — 복귀자용 압축 맥락
@@ -48,8 +49,9 @@
 
 | 게이트 | 강제하는 것 |
 |---|---|
-| project-contract | 필수 파일 17개 존재(생성기·플레이북 포함) |
+| project-contract | 필수 파일 19개 존재(헌법·생성기·플레이북 포함) |
 | instruction-contract | AGENTS.md/CLAUDE.md에 동기화·보안·하네스 핵심 문구 존재 |
+| adapter-parity | CLAUDE.md·AGENTS.md가 `docs/CONSTITUTION.md` 생성 결과와 바이트 일치 |
 | migration-contract | 마이그레이션 5파일 + RLS/canonical 마커 |
 | tracked-scope-and-secrets | 참고자료 원본·비밀값류 커밋 금지 |
 | git-diff-integrity | 공백 오류 0 |
@@ -77,7 +79,8 @@
 - **`Object.freeze` 객체(서비스 대부분)에 상태를 넣지 말 것** — 조용히 무시된다. 상태는 `state` 또는 모듈 `let`.
 - **VM으로 index.html을 로드하는 스크립트**(logic.test, 플레이북 생성기)는 앱이 등록한 타이머 때문에 `process.exit` 명시 종료 필수.
 - 게이트/검증을 약화하는 수정은 금지 — 검사 자체가 잘못됐다는 근거가 있을 때만, 근거와 함께.
-- 버전 문자열·주소·이메일을 문장에 하드코딩하지 말 것 — `APP_INFO`/`APK_INFO`/`GuideService`에서 읽는다(SSOT 중복 금지).
+- **`CLAUDE.md`/`AGENTS.md`를 직접 편집하지 말 것** — 둘 다 `docs/CONSTITUTION.md`에서 나오는 생성물이다. 헌법을 고치고 `npm run gen:adapters`를 실행한다. 양쪽에 필요한 규칙은 헌법에 한 번만 쓰면 두 파일에 자동으로 나가고(`emit:claude,codex`), 한쪽이 SSOT인 규칙은 반대쪽에 포인터 블록만 둔다.
+- 버전 문자열·주소·이메일을 문장에 하드코딩하지 말 것 — `APP_INFO`/`APK_INFO`/`GuideService`에서 읽는다(SSOT 중복 금지). 같은 내용을 두 문서에 적고 싶어지면 먼저 "한쪽을 생성물로 만들 수 있나"를 검토한다(이 저장소는 지침·설치안내·APK 링크 세 곳에서 이 패턴을 쓴다).
 - 커밋은 의도한 파일만. 참고용 Excel/PDF/ZIP·키스토어·비밀값은 어떤 형태로도 커밋 금지.
 
 ## 8. 지금 남아 있는 것 (백로그 SSOT: `docs/claude-handoff.md`의 "다음 구현 우선순위")
