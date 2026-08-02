@@ -125,7 +125,9 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/skills/accounting-legal-basis-reference-skill.md',
     'scripts/tests/logic.test.mjs',
     'docs/skills/accounting-domain-guardians-skill.md',
-    'docs/skills/accounting-code-architecture-guardians-skill.md'
+    'docs/skills/accounting-code-architecture-guardians-skill.md',
+    'scripts/build-install-playbook.mjs',
+    'docs/bareunjangbu-apk-install-playbook.md'
   ];
   const missing = requiredFiles.filter((file) => !existsSync(absolute(file)));
   if (missing.length > 0) {
@@ -482,6 +484,21 @@ addGate('apk-link-contract', 'REQUIRED', () => {
   }
 
   return { detail: `release tag "${releaseTag}" and asset "${assetName}" agree across workflow, APK_INFO, and the install guide` };
+});
+
+// 설치 플레이북 파일은 앱의 설치 안내 화면에서 자동 생성된다(SSOT = androidInstallGuideHtml).
+// 화면을 고쳐놓고 파일 재생성을 잊으면 문서가 낡은 채 배포되므로, 생성기를 --check로 돌려
+// 바이트 단위로 일치를 강제한다. 고치는 법: npm run playbook:build 후 함께 커밋.
+addGate('install-playbook-sync', 'REQUIRED', () => {
+  if (!existsSync(absolute('scripts/build-install-playbook.mjs'))) {
+    return { status: 'BASELINE', detail: 'playbook generator not present yet' };
+  }
+  try {
+    execFileSync('node', ['scripts/build-install-playbook.mjs', '--check'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    throw new Error(String(error.stderr || error.message).trim() || 'playbook out of sync — run npm run playbook:build');
+  }
+  return { detail: 'docs/bareunjangbu-apk-install-playbook.md matches the in-app install guide (same app version)' };
 });
 
 addGate('browser-roundtrip', 'MANUAL', () => {

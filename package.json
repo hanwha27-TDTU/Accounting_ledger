@@ -7,6 +7,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "harness:check": "node scripts/harness-check.mjs"
+    "harness:check": "node scripts/harness-check.mjs",
+    "playbook:build": "node scripts/build-install-playbook.mjs"
   }
 }
