@@ -1,4 +1,4 @@
-> **Sub_development-governance_0.07** · 개정 2026-07-12
+> **Sub_development-governance_0.08** · 개정 2026-08-02
 
 # Accounting Ledger Development Governance Skill
 
@@ -47,6 +47,7 @@
 | Cloudinary 증빙 업로드 변경 | 위 전체 | Security, Schema/Contract, UI/UX |
 | 법정서식·세법 규칙 변경 | 위 전체 | Schema/Contract, Migration, Security |
 | 보관기간·삭제·복원 정책 변경 | 위 전체 | Retention & Deletion, Schema/Contract, Security, Migration |
+| 반복 일정·고정지출·자동 거래 연결 변경 | 위 전체 | Schema/Contract, UI/UX, Audit Trail, Backup & Restore, Migration, Security |
 | 샘플 데이터·테스트 케이스 변경 | Mapper, Planner, Implementer, Test, Reviewer, Release | Test Data & Fixture, Security |
 | 오류 수정 | Mapper, Debugger, Implementer, Test, Reviewer, Release | 영향 범위에 따른 추가 역할 |
 | 배포 | Mapper, Test, Reviewer, Release | Security, UI/UX |
@@ -99,6 +100,7 @@ flowchart LR
 4. `이 기기 → 클라우드`는 단순 upsert가 아니라 `canonical_version`을 올려 최종본을 지정하는 동작으로 구현한다.
 5. 브라우저와 외부 서비스 접근은 adapter를 통해 수행한다.
 6. service role key, Cloudinary API secret, OAuth client secret을 HTML·IndexedDB·localStorage·Git 저장소에 넣지 않는다.
+7. 반복 일정과 실제 거래를 분리하고, 실제 거래 저장·일정 전진을 같은 로컬 원자 작업으로 묶는다. 월말 기준일과 거래 연결 ID를 보존한다.
 
 ### 검증 및 검토
 
@@ -107,6 +109,7 @@ flowchart LR
 | 회계 | 차변 합계와 대변 합계 일치, 원천거래와 전표 연결, 수정·취소 이력 |
 | 세무 | 분류 근거·기준일·규칙 버전 표시, 확정신고 자동제출 없음 |
 | 동기화 | 최신 `updated_at` 선택, tombstone 반영, canonical 변경 시 클라우드 기준 수렴, batch 응답 `res.ok` 확인 |
+| 반복 일정 | 월간·연간 다음 일정, 29/30/31일·윤년 보정, 미납 catch-up, 실제 거래 연결, 중지·해지·삭제, 기기 간 수렴 |
 | 데이터 이전 | 구버전 로컬 데이터, 빈 데이터, 부분 실패, 재실행 안전성, 복원 경로 |
 | 보안 | Google allowlist, RLS, owner 권한, 입력 검증, 비밀키 부재 |
 | 증빙 | 이미지/PDF 형식·크기·실패 상태·거래 연결·권한 없는 URL 노출 여부 |

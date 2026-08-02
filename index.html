@@ -175,6 +175,20 @@
       font-size: 12px;
       font-weight: 700;
     }
+    .fixed-expense-trigger {
+      min-width: 172px;
+      min-height: 42px;
+      justify-content: flex-start;
+      padding: 6px 11px;
+      border-color: #c8d5d0;
+      background: linear-gradient(135deg, #f8fbfa, #edf6f2);
+      color: var(--brand-strong);
+    }
+    .fixed-expense-trigger:hover { border-color: var(--brand); background: var(--brand-soft); }
+    .fixed-expense-trigger > svg { color: var(--brand); }
+    .fixed-expense-trigger-copy { display: grid; gap: 1px; min-width: 0; text-align: left; line-height: 1.1; }
+    .fixed-expense-trigger-label { color: var(--muted); font-size: 10px; font-weight: 750; }
+    .fixed-expense-trigger-value { overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
 
     .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
     .page-title { margin: 0; font-size: 25px; line-height: 1.25; }
@@ -445,10 +459,27 @@
       background: #fff;
       box-shadow: 0 24px 70px rgba(9, 24, 20, .24);
     }
+    .modal.modal-wide { width: min(1100px, 100%); }
     .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
     .modal-title { margin: 0; font-size: 18px; }
     .modal-body { padding: 20px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 20px; border-top: 1px solid var(--line); }
+
+    .fixed-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .fixed-summary-card { padding: 13px 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
+    .fixed-summary-label { color: var(--muted); font-size: 11px; font-weight: 750; }
+    .fixed-summary-value { margin-top: 5px; font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .fixed-expense-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(340px, .8fr); gap: 18px; align-items: start; }
+    .fixed-expense-list { display: grid; gap: 8px; }
+    .fixed-expense-row { padding: 13px 14px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .fixed-expense-row.overdue { border-color: #e4bcbc; background: #fffafa; }
+    .fixed-expense-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .fixed-expense-name { font-weight: 850; }
+    .fixed-expense-meta { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .fixed-expense-amount { color: var(--ink); font-size: 16px; font-weight: 900; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .fixed-expense-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e8ecea; }
+    .fixed-expense-form { padding: 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
+    .fixed-expense-form-title { margin: 0 0 13px; font-size: 15px; }
 
     .toast-region { position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
 
@@ -539,6 +570,7 @@
     @media (max-width: 1100px) {
       .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .layout-two { grid-template-columns: 1fr; }
+      .fixed-expense-layout { grid-template-columns: 1fr; }
     }
     @media (max-width: 780px) {
       :root { --header: 60px; }
@@ -567,6 +599,9 @@
       .field, .field.third, .field.full { grid-column: 1; }
       .status-board, .developer-grid, .guide-checks, .data-grid { grid-template-columns: 1fr; }
       .topbar-actions .button-label { display: none; }
+      .fixed-expense-trigger { min-width: 38px; width: 38px; padding: 0; }
+      .fixed-expense-trigger-copy { display: none; }
+      .fixed-summary-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 480px) {
       .metric-grid { grid-template-columns: 1fr; }
@@ -610,6 +645,7 @@
           </div>
         </div>
         <div class="topbar-actions">
+          <button class="button fixed-expense-trigger" id="fixedExpensesButton" type="button" title="고정지출현황 열기" hidden><i data-lucide="calendar-clock"></i><span class="fixed-expense-trigger-copy"><span class="fixed-expense-trigger-label">고정지출현황</span><span class="fixed-expense-trigger-value" id="fixedExpenseTriggerValue">0원 · 0건</span></span></button>
           <button class="button ledger-switch-button" id="ledgerSwitchButton" type="button" title="가계부 전환" hidden><i data-lucide="repeat"></i><span class="button-label" id="ledgerSwitchLabel">가계부</span></button>
           <button type="button" class="sync-chip" id="syncChip" title="동기화 상태 · 눌러서 로그인하거나 설정 확인"><span class="status-dot" id="syncDot"></span><span id="syncLabel">로컬 전용</span></button>
           <button class="button" id="monthlyUsageButton" type="button"><i data-lucide="calendar-range"></i><span class="button-label">월별 사용현황</span></button>
@@ -638,9 +674,9 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.58',
-      schemaVersion: '0.04',
-      backupSchemaVersion: '0.01',
+      version: '0.59',
+      schemaVersion: '0.05',
+      backupSchemaVersion: '0.02',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
       googleCloudProjectName: 'Accounting Ledger',
@@ -653,7 +689,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.58', date: '2026-08-02', label: '최신 · 동기화 정본 정확성·대용량·공급망 보강', detail: '이 기기를 최종본으로 지정하면 이제 그 기기에 없는 클라우드 항목도 tombstone과 소프트삭제로 정리한 뒤 canonical_version을 올려, 다른 기기에서 다시 살아나지 않습니다. 실제 앱 동기화 알고리즘을 테스트가 직접 호출하도록 바꾸고, 500행 단위 전체 페이지네이션과 최근 변경분 동기화, 장부·전표·증빙 화면 100건 페이지 구분을 추가했습니다. 연결 진단이 성공한 로그인 상태에서는 즉시 동기화합니다. Lucide와 Supabase JS는 외부 CDN 실행 대신 저장소에 버전·해시를 고정했고 CSP를 추가했으며, Windows 줄바꿈에서도 품질 검사가 동일하게 통과하도록 보완했습니다. DB schema 표기도 실제 0.04로 바로잡았습니다.' },
+      { version: '0.59', date: '2026-08-02', label: '최신 · 고정지출현황 관리', detail: '상단바에 월 환산액과 활성 건수를 보여주는 고정지출현황 버튼을 추가했습니다. 항목별 지출처·계정과목·고정/변동 금액·월간/연간 주기·다음 납부일·결제수단·필수 여부·상태·메모를 관리할 수 있고, 결제정보는 안전하게 끝 4자리만 저장합니다. 예정 항목을 비용 거래로 바로 불러오면 거래와 균형 전표를 저장한 뒤 다음 납부일을 자동으로 이동합니다. fixed_expenses는 로컬 백업·복원·tombstone·정본 동기화 전 경로에 포함되며 RLS가 적용됩니다.' },
+      { version: '0.58', date: '2026-08-02', label: '동기화 정본 정확성·대용량·공급망 보강', detail: '이 기기를 최종본으로 지정하면 이제 그 기기에 없는 클라우드 항목도 tombstone과 소프트삭제로 정리한 뒤 canonical_version을 올려, 다른 기기에서 다시 살아나지 않습니다. 실제 앱 동기화 알고리즘을 테스트가 직접 호출하도록 바꾸고, 500행 단위 전체 페이지네이션과 최근 변경분 동기화, 장부·전표·증빙 화면 100건 페이지 구분을 추가했습니다. 연결 진단이 성공한 로그인 상태에서는 즉시 동기화합니다. Lucide와 Supabase JS는 외부 CDN 실행 대신 저장소에 버전·해시를 고정했고 CSP를 추가했으며, Windows 줄바꿈에서도 품질 검사가 동일하게 통과하도록 보완했습니다. DB schema 표기도 실제 0.04로 바로잡았습니다.' },
       { version: '0.57', date: '2026-08-02', label: '설치 안내를 플레이북 파일로 자동 발행(앱 버전과 동기화)', detail: '가이드의 "안드로이드 앱 설치" 안내가 저장소의 설치 플레이북 파일(docs/bareunjangbu-apk-install-playbook.md)로도 자동 발행됩니다. 파일은 앱 화면과 같은 내용을 담고 앱 버전(v0.57)과 항상 같은 버전으로 관리됩니다 — 손으로 옮겨 적는 게 아니라 앱 코드에서 스크립트가 자동 생성하고, 화면과 파일이 어긋나면 자동 검사(CI)가 실패해서 어긋난 채로는 배포 자체가 안 됩니다. 설치 안내 화면 맨 아래에 이 사실을 알리는 안내도 추가했습니다.' },
       { version: '0.56', date: '2026-08-02', label: 'APK 업데이트를 배너+버튼 방식으로 변경(자동 다운로드 강제 제거)', detail: '앱 새 버전이 있을 때 열자마자 다운로드가 강제로 시작되던 것을, 화면 하단 중앙에 작은 배너("새 버전 앱이 나왔어요" + 업데이트 버튼)를 띄우는 방식으로 바꿨습니다(사용자 제안 반영). 업데이트 버튼을 눌러야 다운로드가 시작되고, X(나중에)를 누르면 이번 실행 동안만 조용해집니다 — 설치를 미루고 앱을 다시 열면 배너가 다시 떠서, 이전처럼 안내가 한 번 나오고 영영 사라지는 문제가 없습니다. 설치를 마치면 버전이 같아져 배너가 자연히 사라집니다.' },
       { version: '0.55', date: '2026-08-02', label: 'APK 자동 업데이트 감지가 실제로 동작하도록 수정', detail: '새 아이콘 APK를 배포했을 때 "새 버전이 있어요" 안내가 자동으로 떠야 하는데 뜨지 않았습니다(사용자 실기기 제보). 원인을 실측해보니, 앱이 새 버전 정보를 확인하러 가는 주소(GitHub 릴리스 파일)가 보안 규칙(CORS) 때문에 앱 안에서는 읽는 것 자체가 차단되고 있었고, 실패도 조용히 삼켜져 아무 안내가 없었습니다. 이제 버전 정보를 보안 규칙상 읽기가 허용된 GitHub API 경로로 읽도록 바꾸고, 배포 자동화가 릴리스 설명에 버전 번호를 함께 기록하도록 했습니다. 같은 문제가 재발하면 CI가 잡아내는 검사도 추가했습니다. 다운로드 링크 자체(직접 받기)는 원래대로 그대로 동작합니다.' },
@@ -1400,7 +1437,7 @@
 
     const SYNC_TABLE_ORDER = Object.freeze([
       'businesses', 'business_sites', 'ledger_period_settings', 'accounts', 'counterparties',
-      'source_transactions', 'journal_entries', 'journal_entry_lines', 'evidence_files', 'audit_logs', 'period_closings'
+      'fixed_expenses', 'source_transactions', 'journal_entries', 'journal_entry_lines', 'evidence_files', 'audit_logs', 'period_closings'
     ]);
     const SYNC_DELETE_ORDER = Object.freeze(SYNC_TABLE_ORDER.filter(table => table !== 'audit_logs').slice().reverse());
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
@@ -1549,6 +1586,56 @@
         }
         return { upsertsByTable, deletesByTable, generatedTombstones };
       }
+    });
+
+    const FixedExpenseDomain = Object.freeze({
+      validate(input, accounts = []) {
+        const errors = {};
+        const account = accounts.find(row => row.id === input.accountId && !row.deleted_at);
+        if (!String(input.expenseName || '').trim()) errors.expenseName = '지출처 또는 서비스 이름을 입력해 주세요.';
+        if (!account || account.account_type !== 'expense') errors.accountId = '비용 계정과목을 선택해 주세요.';
+        if (Utils.number(input.amount) <= 0) errors.amount = '예상 금액은 0원보다 커야 합니다.';
+        if (!['fixed', 'variable'].includes(input.amountMode)) errors.amountMode = '금액 유형을 확인해 주세요.';
+        if (!['monthly', 'yearly'].includes(input.billingCycle)) errors.billingCycle = '납부 주기를 확인해 주세요.';
+        if (!/^20\d{2}-\d{2}-\d{2}$/.test(input.nextDueDate || '')) errors.nextDueDate = '다음 납부일을 선택해 주세요.';
+        if (input.paymentReferenceLast4 && !/^\d{4}$/.test(input.paymentReferenceLast4)) errors.paymentReferenceLast4 = '카드·계좌는 끝 4자리만 입력해 주세요.';
+        if (!['active', 'paused', 'ended'].includes(input.status || 'active')) errors.status = '상태를 확인해 주세요.';
+        return errors;
+      },
+      nextDueDate(date, cycle, anchorDay = null, anchorMonth = null) {
+        if (!/^20\d{2}-\d{2}-\d{2}$/.test(date || '') || !['monthly', 'yearly'].includes(cycle)) return date || null;
+        const [year, month, day] = date.split('-').map(Number);
+        const targetYear = cycle === 'yearly' ? year + 1 : year + Math.floor(month / 12);
+        const targetMonth = cycle === 'yearly' ? (Number(anchorMonth) || month) : (month % 12) + 1;
+        const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+        return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(Math.min(Number(anchorDay) || day, lastDay)).padStart(2, '0')}`;
+      },
+      advanceAfterBooking(row, bookedOn) {
+        let next = row.next_due_date;
+        for (let i = 0; i < 120 && next && next <= bookedOn; i += 1) next = this.nextDueDate(next, row.billing_cycle, row.billing_anchor_day, row.billing_anchor_month);
+        return next;
+      },
+      monthlyEquivalent(row) {
+        const amount = Number(row.amount || 0);
+        return row.billing_cycle === 'yearly' ? amount / 12 : amount;
+      },
+      summary(rows, today = Utils.today()) {
+        const active = rows.filter(row => !row.deleted_at && row.status === 'active');
+        const start = new Date(`${today}T00:00:00Z`);
+        const cutoff = new Date(start); cutoff.setUTCDate(cutoff.getUTCDate() + 30);
+        const cutoffText = cutoff.toISOString().slice(0, 10);
+        const scheduled = active.filter(row => row.next_due_date && row.next_due_date <= cutoffText);
+        return {
+          activeCount: active.length,
+          monthlyEquivalent: Math.round(active.reduce((sum, row) => sum + this.monthlyEquivalent(row), 0)),
+          due30Amount: Math.round(scheduled.reduce((sum, row) => sum + Number(row.amount || 0), 0)),
+          due30Count: scheduled.length,
+          overdueCount: active.filter(row => row.next_due_date && row.next_due_date < today).length
+        };
+      },
+      statusLabel(status) { return ({ active: '정상', paused: '일시중지', ended: '해지' }[status] || status); },
+      cycleLabel(cycle) { return cycle === 'yearly' ? '연간' : '매월'; },
+      amountModeLabel(mode) { return mode === 'variable' ? '변동' : '고정'; }
     });
 
     // 3. Accounting domain layer: no DOM, storage, or remote calls
@@ -1704,7 +1791,7 @@
 
     // 4. IndexedDB persistence adapter
     class IndexedDbAdapter {
-      constructor() { this.db = null; this.name = 'accounting-ledger-v1'; this.version = 2; }
+      constructor() { this.db = null; this.name = 'accounting-ledger-v1'; this.version = 3; }
       async open() {
         if (this.db) return this.db;
         this.db = await new Promise((resolve, reject) => {
@@ -1715,7 +1802,7 @@
               if (!db.objectStoreNames.contains(storeName)) {
                 const store = db.createObjectStore(storeName, { keyPath: 'id' });
                 if (storeName !== 'sync_queue' && storeName !== 'tombstones') store.createIndex('updated_at', 'updated_at');
-                if (['source_transactions','journal_entries','journal_entry_lines','accounts','counterparties','evidence_files'].includes(storeName)) store.createIndex('business_id', 'business_id');
+                if (['source_transactions','journal_entries','journal_entry_lines','accounts','counterparties','fixed_expenses','evidence_files'].includes(storeName)) store.createIndex('business_id', 'business_id');
                 if (storeName === 'evidence_files') store.createIndex('source_transaction_id', 'source_transaction_id');
               }
             }
@@ -2127,6 +2214,7 @@
       accounts: [],
       transactions: [],
       counterparties: [],
+      fixedExpenses: [],
       journals: [],
       journalLines: [],
       evidenceFiles: [],
@@ -2144,6 +2232,8 @@
       syncError: null,
       guideTopic: null,
       formType: 'expense',
+      pendingFixedExpense: null,
+      fixedExpenseEditingId: null,
       filters: { query: '', type: 'all', year: 'all' },
       pages: { ledger: 1, journals: 1, evidence: 1 },
       ready: false
@@ -2191,9 +2281,9 @@
 
     const AppService = Object.freeze({
       async reload() {
-        const [businesses, sites, accounts, transactions, counterparties, journals, journalLines, evidenceFiles, auditLogs, closings, queue] = await Promise.all([
+        const [businesses, sites, accounts, transactions, counterparties, fixedExpenses, journals, journalLines, evidenceFiles, auditLogs, closings, queue] = await Promise.all([
           storage.getAll('businesses'), storage.getAll('business_sites'), storage.getAll('accounts'), storage.getAll('source_transactions'),
-          storage.getAll('counterparties'), storage.getAll('journal_entries'), storage.getAll('journal_entry_lines'), storage.getAll('evidence_files'),
+          storage.getAll('counterparties'), storage.getAll('fixed_expenses'), storage.getAll('journal_entries'), storage.getAll('journal_entry_lines'), storage.getAll('evidence_files'),
           storage.getAll('audit_logs'), storage.getAll('period_closings'), storage.getAll('sync_queue')
         ]);
         // 여러 가계부를 지원한다 — 활성 가계부(state.business)를 고르고, 그 가계부 소유 자료만 화면에 보인다.
@@ -2210,6 +2300,8 @@
         state.transactions = (activeId ? transactions.filter(row => row.business_id === activeId) : [])
           .sort((a,b) => String(b.transaction_date).localeCompare(String(a.transaction_date)) || String(b.updated_at).localeCompare(String(a.updated_at)));
         state.counterparties = activeId ? counterparties.filter(row => row.business_id === activeId) : [];
+        state.fixedExpenses = (activeId ? fixedExpenses.filter(row => row.business_id === activeId && !row.deleted_at) : [])
+          .sort((a,b) => String(a.next_due_date).localeCompare(String(b.next_due_date)) || String(a.expense_name).localeCompare(String(b.expense_name), 'ko'));
         state.journals = activeId ? journals.filter(row => row.business_id === activeId) : [];
         state.journalLines = activeId ? journalLines.filter(row => row.business_id === activeId) : [];
         state.evidenceFiles = activeId ? evidenceFiles.filter(row => row.business_id === activeId) : [];
@@ -2353,9 +2445,9 @@
         if (!business) throw new Error('LEDGER_NOT_FOUND');
         const now = Utils.now();
         const soft = row => ({ ...row, deleted_at: now, updated_at: now });
-        const [sites, periods, accounts, counterparties, transactions, journals, journalLines, evidenceFiles, closings] = await Promise.all([
+        const [sites, periods, accounts, counterparties, fixedExpenses, transactions, journals, journalLines, evidenceFiles, closings] = await Promise.all([
           storage.getAll('business_sites'), storage.getAll('ledger_period_settings'), storage.getAll('accounts'),
-          storage.getAll('counterparties'), storage.getAll('source_transactions'), storage.getAll('journal_entries'),
+          storage.getAll('counterparties'), storage.getAll('fixed_expenses'), storage.getAll('source_transactions'), storage.getAll('journal_entries'),
           storage.getAll('journal_entry_lines'), storage.getAll('evidence_files'), storage.getAll('period_closings')
         ]);
         const scoped = rows => rows.filter(row => row.business_id === businessId && !row.deleted_at);
@@ -2365,6 +2457,7 @@
           ['ledger_period_settings', scoped(periods).map(soft)],
           ['accounts', scoped(accounts).map(soft)],
           ['counterparties', scoped(counterparties).map(soft)],
+          ['fixed_expenses', scoped(fixedExpenses).map(soft)],
           ['source_transactions', scoped(transactions).map(soft)],
           ['journal_entries', scoped(journals).map(soft)],
           ['journal_entry_lines', scoped(journalLines).map(soft)],
@@ -2444,6 +2537,63 @@
         return safe;
       },
 
+      async saveFixedExpense(input) {
+        if (!state.business) throw new Error('BUSINESS_REQUIRED');
+        const errors = FixedExpenseDomain.validate(input, state.accounts);
+        if (Object.keys(errors).length) return { ok: false, errors };
+        const existing = input.id ? state.fixedExpenses.find(row => row.id === input.id) : null;
+        if (input.id && !existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
+        const now = Utils.now();
+        const status = input.status || 'active';
+        const scheduleChanged = !existing || input.nextDueDate !== existing.next_due_date || input.billingCycle !== existing.billing_cycle;
+        const fixedExpense = {
+          id: existing?.id || Utils.uuid(), business_id: state.business.id, account_id: input.accountId,
+          category: String(input.category || '').trim() || null,
+          expense_name: String(input.expenseName || '').trim(), amount_mode: input.amountMode,
+          amount: Utils.number(input.amount), billing_cycle: input.billingCycle, next_due_date: input.nextDueDate,
+          billing_anchor_month: scheduleChanged ? Number(input.nextDueDate.slice(5, 7)) : existing.billing_anchor_month,
+          billing_anchor_day: scheduleChanged ? Number(input.nextDueDate.slice(8, 10)) : existing.billing_anchor_day,
+          payment_method: String(input.paymentMethod || '').trim() || null,
+          payment_provider: String(input.paymentProvider || '').trim() || null,
+          payment_reference_last4: String(input.paymentReferenceLast4 || '').replace(/\D/g, '').slice(-4) || null,
+          is_required: Boolean(input.isRequired), status,
+          started_on: input.startedOn || existing?.started_on || Utils.today(),
+          ended_on: status === 'ended' ? (existing?.ended_on || Utils.today()) : null,
+          last_booked_on: existing?.last_booked_on || null,
+          note: String(input.note || '').trim() || null,
+          created_at: existing?.created_at || now, updated_at: now, deleted_at: null
+        };
+        const audit = this.audit('fixed_expense', fixedExpense.id, existing ? 'update' : 'create', existing, fixedExpense, existing ? '고정지출 수정' : '고정지출 등록');
+        const queueRows = [this.queue('fixed_expenses', fixedExpense), this.queue('audit_logs', audit)];
+        await storage.putMany({ fixed_expenses: [fixedExpense], audit_logs: [audit], sync_queue: queueRows });
+        await this.reload();
+        return { ok: true, fixedExpense };
+      },
+
+      async setFixedExpenseStatus(id, status) {
+        const existing = state.fixedExpenses.find(row => row.id === id && !row.deleted_at);
+        if (!existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
+        if (!['active', 'paused', 'ended'].includes(status)) throw new Error('FIXED_EXPENSE_STATUS_INVALID');
+        const now = Utils.now();
+        const updated = { ...existing, status, ended_on: status === 'ended' ? (existing.ended_on || Utils.today()) : null, updated_at: now };
+        const audit = this.audit('fixed_expense', id, 'update', existing, updated, `고정지출 상태 ${FixedExpenseDomain.statusLabel(status)}`);
+        await storage.putMany({ fixed_expenses: [updated], audit_logs: [audit], sync_queue: [this.queue('fixed_expenses', updated), this.queue('audit_logs', audit)] });
+        await this.reload();
+        return updated;
+      },
+
+      async deleteFixedExpense(id) {
+        const existing = state.fixedExpenses.find(row => row.id === id && !row.deleted_at);
+        if (!existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
+        const now = Utils.now();
+        const deleted = { ...existing, deleted_at: now, updated_at: now };
+        const tombstone = this.tombstone('fixed_expenses', id);
+        const audit = this.audit('fixed_expense', id, 'delete', existing, deleted, '고정지출 삭제');
+        await storage.putMany({ fixed_expenses: [deleted], tombstones: [tombstone], audit_logs: [audit], sync_queue: [this.queue('fixed_expenses', deleted), this.queue('audit_logs', audit)] });
+        await this.reload();
+        return { deleted: 1 };
+      },
+
       accountMap() {
         const map = {};
         for (const template of ACCOUNT_TEMPLATES) {
@@ -2455,6 +2605,8 @@
 
       async saveTransaction(input) {
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
+        const linkedFixedExpense = input.fixedExpenseId ? state.fixedExpenses.find(row => row.id === input.fixedExpenseId && !row.deleted_at) : null;
+        if (input.fixedExpenseId && !linkedFixedExpense) throw new Error('FIXED_EXPENSE_NOT_FOUND');
         const errors = AccountingDomain.validateTransaction(input, state.closings);
         if (Object.keys(errors).length) return { ok: false, errors };
         const now = Utils.now();
@@ -2474,6 +2626,7 @@
           transaction_date: input.transactionDate, recognition_date: input.transactionDate,
           transaction_type: input.transactionType, description: input.description.trim(),
           counterparty_id: counterparty?.id || null, account_id: input.accountId,
+          fixed_expense_id: linkedFixedExpense?.id || null,
           supply_amount: amounts.supplyAmount, vat_amount: amounts.vatAmount, total_amount: amounts.totalAmount,
           is_overseas: !!input.isOverseas,
           foreign_currency: input.isOverseas ? ((input.foreignCurrency || '').trim().toUpperCase() || null) : null,
@@ -2481,7 +2634,7 @@
           exchange_rate: input.isOverseas ? (Utils.number(input.exchangeRate) || null) : null,
           vat_type: input.vatType, evidence_status: input.hasEvidence ? 'attached' : 'not_attached',
           payment_status: input.paymentStatus, review_status: reviewReasons.length ? 'requires_review' : 'normal',
-          source_channel: 'manual', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion,
+          source_channel: linkedFixedExpense ? 'fixed_expense' : 'manual', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion,
           created_at: now, updated_at: now, deleted_at: null
         };
         const journal = {
@@ -2493,17 +2646,26 @@
         const lines = AccountingDomain.buildPosting(transaction, this.accountMap()).map(line => ({ ...line, journal_entry_id: journal.id }));
         const validation = AccountingDomain.validateJournal(lines);
         if (validation.status !== 'pass') throw new Error(`JOURNAL_UNBALANCED:${validation.difference}`);
-        const audit = this.audit('source_transaction', transaction.id, 'create', null, transaction, '직접 입력');
+        const advancedFixedExpense = linkedFixedExpense ? {
+          ...linkedFixedExpense,
+          next_due_date: FixedExpenseDomain.advanceAfterBooking(linkedFixedExpense, transaction.transaction_date),
+          last_booked_on: transaction.transaction_date,
+          updated_at: now
+        } : null;
+        const audit = this.audit('source_transaction', transaction.id, 'create', null, transaction, linkedFixedExpense ? '고정지출에서 입력' : '직접 입력');
         const queueRows = [
           ...(counterparty && !state.counterparties.some(row => row.id === counterparty.id) ? [this.queue('counterparties', counterparty)] : []),
+          ...(advancedFixedExpense ? [this.queue('fixed_expenses', advancedFixedExpense)] : []),
           this.queue('source_transactions', transaction), this.queue('journal_entries', journal),
           ...lines.map(row => this.queue('journal_entry_lines', row)), this.queue('audit_logs', audit)
         ];
         await storage.putMany({
           ...(counterparty ? { counterparties: [counterparty] } : {}),
+          ...(advancedFixedExpense ? { fixed_expenses: [advancedFixedExpense] } : {}),
           source_transactions: [transaction], journal_entries: [journal], journal_entry_lines: lines,
           audit_logs: [audit], sync_queue: queueRows
         });
+        state.pendingFixedExpense = null;
         await this.reload();
         return { ok: true, transaction, journal, lines, validation };
       },
@@ -2742,7 +2904,7 @@
       // 백업 파일 안에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes 같은 이 기기
       // 전용 인프라 테이블)는 건드리지 않는다 — 없다고 그냥 비우면 아직 못 올린 로컬 변경이 사라질 수 있다.
       async restoreBackup(backup) {
-        if (!backup || backup.backupSchemaVersion !== APP_INFO.backupSchemaVersion || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
+        if (!backup || !['0.01', APP_INFO.backupSchemaVersion].includes(backup.backupSchemaVersion) || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
         const recordsByStore = SyncAlgorithms.restoreScope(LOCAL_STORES, backup.tables);
         for (const store of Object.keys(recordsByStore)) await storage.replaceStore(store, recordsByStore[store]);
         state.config.canonicalVersion = Number(backup.canonicalVersion || 0);
@@ -3097,6 +3259,8 @@
       if (code.includes('LEDGER_MODE_INVALID')) return '가계부 종류(개인 가계부/사업자)를 선택해 주세요.';
       if (code.includes('LEDGER_NOT_FOUND')) return '가계부를 찾지 못했습니다. 목록을 새로고침해 주세요.';
       if (code.includes('EVIDENCE_NOT_FOUND')) return '제거할 증빙을 찾지 못했습니다. 목록을 새로고침해 주세요.';
+      if (code.includes('FIXED_EXPENSE_NOT_FOUND')) return '고정지출 항목을 찾지 못했습니다. 목록을 새로고침해 주세요.';
+      if (code.includes('FIXED_EXPENSE_STATUS_INVALID')) return '고정지출 상태를 확인해 주세요.';
       if (code.includes('ALLOWLIST_EMAIL_INVALID')) return '올바른 이메일 형식을 입력해 주세요.';
       if (code.includes('ALLOWLIST_OWNER_PROTECTED')) return '소유자 계정은 차단할 수 없습니다.';
       if (code.includes('CANONICAL_OWNER_ONLY')) return '최종본 지정은 소유자 계정만 할 수 있습니다.';
@@ -3136,6 +3300,12 @@
       const hasLedgers = state.businesses && state.businesses.length > 0;
       el('ledgerSwitchButton').hidden = !hasLedgers;
       el('ledgerSwitchLabel').textContent = state.business ? state.business.name : '가계부 선택';
+      const fixedSummary = FixedExpenseDomain.summary(state.fixedExpenses || []);
+      el('fixedExpensesButton').hidden = !state.business;
+      el('fixedExpenseTriggerValue').textContent = `${Utils.won(fixedSummary.monthlyEquivalent)} · ${fixedSummary.activeCount}건`;
+      el('fixedExpensesButton').title = fixedSummary.overdueCount
+        ? `고정지출현황 · 납부일 지난 항목 ${fixedSummary.overdueCount}건`
+        : `고정지출현황 · 월 환산 ${Utils.won(fixedSummary.monthlyEquivalent)}`;
     }
 
     function pageHeader(title, subtitle, actions = '') {
@@ -3224,16 +3394,19 @@
       if (!state.business) return `${pageHeader('거래 입력','먼저 사업자 정보를 설정해야 원천거래와 전표를 연결할 수 있습니다.')}<div class="notice">${icon('triangle-alert')}<div>사업자 설정이 필요합니다.</div></div><button class="button primary" type="button" data-route="settings">사업자 설정 열기</button>`;
       const choices = AccountingDomain.accountChoices(state.accounts, state.formType);
       const personal = isPersonalMode();
+      const pending = state.pendingFixedExpense && !state.pendingFixedExpense.deleted_at ? state.pendingFixedExpense : null;
+      const suggestedDate = pending ? (pending.next_due_date < Utils.today() ? Utils.today() : pending.next_due_date) : Utils.today();
       return `
         ${pageHeader('거래 입력', `쉽게 입력한 한 건을 ${term('원천거래')}와 ${term('복식부기')} 전표로 함께 저장합니다.`)}
+        ${pending ? `<div class="notice info">${icon('calendar-clock')}<div><strong>${Utils.escape(pending.expense_name)}</strong> 고정지출에서 불러왔습니다.<br>금액과 실제 결제일을 확인해 저장하면 다음 납부일이 ${FixedExpenseDomain.cycleLabel(pending.billing_cycle)} 주기에 맞춰 자동 이동합니다.</div></div>` : ''}
         <form id="transactionForm" class="panel card-panel" novalidate>
           <div class="field full"><span class="field-label required">거래 유형</span><div class="segmented" role="group" aria-label="거래 유형">${[['income','수입'],['expense','비용'],['asset_purchase','자산구입']].map(([value,label])=>`<button class="segment ${state.formType===value?'active':''}" type="button" data-transaction-type="${value}" aria-pressed="${state.formType===value}">${label}</button>`).join('')}</div></div>
           <div class="form-grid" style="margin-top:16px">
-            <div class="field third"><label class="required" for="transactionDate">거래일</label><input class="input" id="transactionDate" name="transactionDate" type="date" min="2025-01-01" value="${Utils.today()}"><div class="field-error" data-error="transactionDate"></div></div>
-            <div class="field third"><label for="counterpartyName">거래처</label><input class="input" id="counterpartyName" name="counterpartyName" maxlength="80" autocomplete="organization" placeholder="예: 한빛문구"></div>
-            <div class="field third"><label class="required" for="accountId">${term('계정과목')}</label><button type="button" class="guide-link" data-open-guide-topic="account-guide">${icon('help-circle')}선택 가이드</button><select class="select" id="accountId" name="accountId"><option value="">선택하세요</option>${choices.map(row=>`<option value="${row.id}">${Utils.escape(row.account_name)}</option>`).join('')}</select><div class="field-error" data-error="accountId"></div></div>
-            <div class="field full"><label class="required" for="description">거래 내용</label><input class="input" id="description" name="description" maxlength="160" placeholder="무엇을 사고팔았는지 적어주세요"><div class="field-error" data-error="description"></div></div>
-            <div class="field third"><label class="required" for="totalAmount">총 금액</label><div class="money-wrap"><input class="input" id="totalAmount" name="totalAmount" inputmode="numeric" autocomplete="off" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-error="totalAmount"></div></div>
+            <div class="field third"><label class="required" for="transactionDate">거래일</label><input class="input" id="transactionDate" name="transactionDate" type="date" min="2025-01-01" value="${suggestedDate}"><div class="field-error" data-error="transactionDate"></div></div>
+            <div class="field third"><label for="counterpartyName">거래처</label><input class="input" id="counterpartyName" name="counterpartyName" maxlength="80" autocomplete="organization" value="${pending ? Utils.escape(pending.expense_name) : ''}" placeholder="예: 한빛문구"></div>
+            <div class="field third"><label class="required" for="accountId">${term('계정과목')}</label><button type="button" class="guide-link" data-open-guide-topic="account-guide">${icon('help-circle')}선택 가이드</button><select class="select" id="accountId" name="accountId"><option value="">선택하세요</option>${choices.map(row=>`<option value="${row.id}" ${pending?.account_id === row.id ? 'selected' : ''}>${Utils.escape(row.account_name)}</option>`).join('')}</select><div class="field-error" data-error="accountId"></div></div>
+            <div class="field full"><label class="required" for="description">거래 내용</label><input class="input" id="description" name="description" maxlength="160" value="${pending ? Utils.escape(pending.expense_name) : ''}" placeholder="무엇을 사고팔았는지 적어주세요"><div class="field-error" data-error="description"></div></div>
+            <div class="field third"><label class="required" for="totalAmount">총 금액</label><div class="money-wrap"><input class="input" id="totalAmount" name="totalAmount" inputmode="numeric" autocomplete="off" value="${pending ? Number(pending.amount || 0) : ''}" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-error="totalAmount"></div></div>
             <div class="field third" ${personal ? 'hidden' : ''}><label for="vatType">부가세 처리 후보</label><select class="select" id="vatType" name="vatType"><option value="taxable">과세(총액에서 분리)</option><option value="exempt">면세</option><option value="none" ${personal ? 'selected' : ''}>부가세 없음/검토</option></select><div class="field-help">증빙에 세액이 따로 적혀 있다면 그 금액이 우선합니다.</div></div>
             <div class="field third"><label for="paymentStatus">결제 상태</label><select class="select" id="paymentStatus" name="paymentStatus"><option value="paid">받음/지급 완료</option><option value="unpaid">외상·미지급</option></select></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="hasEvidence" name="hasEvidence"><span>증빙을 이미 보관하고 있습니다.<br><span class="field-help">파일 첨부 연결은 Cloudinary 설정 후 제공됩니다. 지금은 보관 여부만 기록합니다.</span></span></label></div>
@@ -3337,7 +3510,7 @@
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">간편장부 계정과목 분류표</h2><p class="section-help">${Utils.escape(SimpleBookAccounts.source)}. 가져오기와 장부 입력 시 이 분류를 기준으로 수입·비용·자산 열에 대응합니다.</p></div>${badge('국세청 기준','info')}</div><div class="coa-ref">${simpleBookAccountsHtml()}</div></section>`;
     }
 
-    function openModal(html) { const root = el('modalRoot'); root.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`; root.hidden = false; }
+    function openModal(html, className = '') { const root = el('modalRoot'); root.innerHTML = `<div class="modal ${className}" role="dialog" aria-modal="true">${html}</div>`; root.hidden = false; refreshIcons(); }
     function closeModal() { const root = el('modalRoot'); root.hidden = true; root.innerHTML = ''; }
 
     // 가져오기 검증·수정 모달 — 오류/경고를 탐지해 보여주고, 값 변경은 사용자가 승인(적용)해야 반영된다.
@@ -3410,6 +3583,114 @@
       openModal(body);
       el('monthlyUsageYear').addEventListener('change', event => { state.monthlyUsageYear = event.target.value; renderMonthlyUsageModal(); });
       el('modalRoot').querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', closeModal));
+    }
+
+    function fixedExpenseDueLabel(date) {
+      if (!date) return '납부일 미정';
+      const dayMs = 24 * 60 * 60 * 1000;
+      const diff = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${Utils.today()}T00:00:00Z`)) / dayMs);
+      if (diff < 0) return `${Math.abs(diff)}일 지남`;
+      if (diff === 0) return '오늘 납부';
+      return `${diff}일 후`;
+    }
+
+    function renderFixedExpenseModal() {
+      if (!state.business) return toast('먼저 가계부 정보를 설정해 주세요.', 'error');
+      const rows = [...state.fixedExpenses].sort((a, b) => {
+        const statusOrder = { active: 0, paused: 1, ended: 2 };
+        return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)
+          || String(a.next_due_date).localeCompare(String(b.next_due_date));
+      });
+      const summary = FixedExpenseDomain.summary(rows);
+      const editing = rows.find(row => row.id === state.fixedExpenseEditingId) || null;
+      const expenseAccounts = state.accounts.filter(row => !row.deleted_at && row.is_active !== false && row.account_type === 'expense');
+      const accountOptions = expenseAccounts.map(row => `<option value="${row.id}" ${editing?.account_id === row.id ? 'selected' : ''}>${Utils.escape(row.account_name)}</option>`).join('');
+      const list = rows.length ? rows.map(row => {
+        const active = row.status === 'active';
+        const overdue = active && row.next_due_date < Utils.today();
+        const statusKind = active ? 'success' : row.status === 'paused' ? 'warning' : '';
+        const payment = [row.payment_method, row.payment_provider, row.payment_reference_last4 ? `•••• ${row.payment_reference_last4}` : ''].filter(Boolean).join(' · ');
+        const statusActions = active
+          ? `<button class="button small" type="button" data-fixed-status="paused" data-fixed-id="${row.id}">${icon('pause')}일시중지</button><button class="button small" type="button" data-fixed-status="ended" data-fixed-id="${row.id}">${icon('circle-stop')}해지</button>`
+          : `<button class="button small" type="button" data-fixed-status="active" data-fixed-id="${row.id}">${icon('play')}다시 사용</button>`;
+        return `<article class="fixed-expense-row ${overdue ? 'overdue' : ''}">
+          <div class="fixed-expense-row-head"><div><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.cycleLabel(row.billing_cycle)}</span><span>${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${Utils.won(row.amount)}</div></div>
+          ${row.note ? `<div class="task-note">${Utils.escape(row.note)}</div>` : ''}
+          <div class="fixed-expense-actions">${active ? `<button class="button small primary" type="button" data-fixed-book="${row.id}">${icon('receipt-text')}거래 입력</button>` : ''}<button class="button small" type="button" data-fixed-edit="${row.id}">${icon('pencil')}수정</button>${statusActions}</div>
+        </article>`;
+      }).join('') : emptyState('calendar-clock', '등록한 고정지출이 없습니다', '구독료·통신비·임차료처럼 반복되는 지출을 오른쪽에서 추가하세요.');
+      const body = `<div class="modal-head"><div><h3 class="modal-title">고정지출현황</h3><p class="section-help">월 환산액과 다음 납부일을 보고, 실제 결제 시 비용 거래로 바로 연결합니다.</p></div><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
+        <div class="modal-body">
+          <div class="fixed-summary-grid"><div class="fixed-summary-card"><div class="fixed-summary-label">월 환산 예상액</div><div class="fixed-summary-value">${Utils.won(summary.monthlyEquivalent)}</div></div><div class="fixed-summary-card"><div class="fixed-summary-label">30일 내·미납 예정</div><div class="fixed-summary-value">${Utils.won(summary.due30Amount)}</div><div class="task-note">${summary.due30Count}건</div></div><div class="fixed-summary-card"><div class="fixed-summary-label">활성 항목</div><div class="fixed-summary-value">${summary.activeCount}건</div><div class="task-note">납부일 지남 ${summary.overdueCount}건</div></div></div>
+          <div class="fixed-expense-layout"><section><div class="panel-head"><div><h4 class="section-title">등록 항목</h4><p class="section-help">연간 결제는 12개월로 나눠 월 환산액에 포함합니다.</p></div></div><div class="fixed-expense-list">${list}</div></section>
+          <form id="fixedExpenseForm" class="fixed-expense-form" novalidate>
+            <h4 class="fixed-expense-form-title">${editing ? '고정지출 수정' : '새 고정지출 추가'}</h4>
+            <input type="hidden" id="fixedExpenseId" value="${editing?.id || ''}">
+            <div class="form-grid">
+              <div class="field full"><label class="required" for="fixedExpenseName">지출처·서비스명</label><input class="input" id="fixedExpenseName" maxlength="100" value="${Utils.escape(editing?.expense_name || '')}" placeholder="예: ChatGPT 구독료"><div class="field-error" data-fixed-error="expenseName"></div></div>
+              <div class="field"><label for="fixedExpenseCategory">구분</label><input class="input" id="fixedExpenseCategory" maxlength="50" list="fixedExpenseCategories" value="${Utils.escape(editing?.category || '')}" placeholder="예: 서비스 이용료"><datalist id="fixedExpenseCategories"><option value="서비스 이용료"><option value="통신비"><option value="임차료"><option value="보험료"><option value="공과금"><option value="교육비"></datalist></div>
+              <div class="field"><label class="required" for="fixedExpenseAccount">계정과목</label><select class="select" id="fixedExpenseAccount"><option value="">선택하세요</option>${accountOptions}</select><div class="field-error" data-fixed-error="accountId"></div></div>
+              <div class="field"><label class="required" for="fixedExpenseAmount">예상 금액</label><div class="money-wrap"><input class="input" id="fixedExpenseAmount" inputmode="numeric" value="${editing ? Number(editing.amount || 0) : ''}" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-fixed-error="amount"></div></div>
+              <div class="field"><label for="fixedExpenseAmountMode">금액 유형</label><select class="select" id="fixedExpenseAmountMode"><option value="fixed" ${editing?.amount_mode !== 'variable' ? 'selected' : ''}>고정</option><option value="variable" ${editing?.amount_mode === 'variable' ? 'selected' : ''}>변동(예상액)</option></select></div>
+              <div class="field"><label for="fixedExpenseCycle">납부 주기</label><select class="select" id="fixedExpenseCycle"><option value="monthly" ${editing?.billing_cycle !== 'yearly' ? 'selected' : ''}>매월</option><option value="yearly" ${editing?.billing_cycle === 'yearly' ? 'selected' : ''}>연간</option></select></div>
+              <div class="field"><label class="required" for="fixedExpenseDueDate">다음 납부일</label><input class="input" id="fixedExpenseDueDate" type="date" value="${editing?.next_due_date || Utils.today()}"><div class="field-error" data-fixed-error="nextDueDate"></div></div>
+              <div class="field"><label for="fixedExpensePaymentMethod">지출방법</label><select class="select" id="fixedExpensePaymentMethod"><option value="">선택 안 함</option>${['카드','계좌이체','자동이체','간편결제','현금','기타'].map(value => `<option value="${value}" ${editing?.payment_method === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+              <div class="field"><label for="fixedExpenseProvider">은행·카드사</label><input class="input" id="fixedExpenseProvider" maxlength="40" value="${Utils.escape(editing?.payment_provider || '')}" placeholder="예: 신한카드"></div>
+              <div class="field"><label for="fixedExpenseLast4">카드·계좌 끝 4자리</label><input class="input" id="fixedExpenseLast4" inputmode="numeric" maxlength="4" value="${Utils.escape(editing?.payment_reference_last4 || '')}" placeholder="예: 5251"><div class="field-help">전체 번호는 저장하지 않습니다.</div><div class="field-error" data-fixed-error="paymentReferenceLast4"></div></div>
+              <div class="field"><label for="fixedExpenseStatus">상태</label><select class="select" id="fixedExpenseStatus"><option value="active" ${!editing || editing.status === 'active' ? 'selected' : ''}>정상</option><option value="paused" ${editing?.status === 'paused' ? 'selected' : ''}>일시중지</option><option value="ended" ${editing?.status === 'ended' ? 'selected' : ''}>해지</option></select></div>
+              <div class="field full"><label class="checkbox-row"><input type="checkbox" id="fixedExpenseRequired" ${editing?.is_required === false ? '' : 'checked'}><span>생활·업무에 꼭 필요한 지출입니다.</span></label></div>
+              <div class="field full"><label for="fixedExpenseNote">비고</label><textarea class="textarea" id="fixedExpenseNote" maxlength="300" placeholder="예: 해외 출국 전 로밍 신청">${Utils.escape(editing?.note || '')}</textarea></div>
+            </div>
+            <div class="form-actions">${editing ? `<button class="button danger" type="button" data-fixed-delete="${editing.id}">${icon('trash-2')}삭제</button><button class="button" type="button" data-fixed-cancel>취소</button>` : ''}<button class="button primary" type="submit">${icon('save')}${editing ? '수정 저장' : '추가'}</button></div>
+          </form></div>
+        </div><div class="modal-actions"><button class="button" type="button" data-modal-close>닫기</button></div>`;
+      openModal(body, 'modal-wide');
+      bindFixedExpenseEvents();
+    }
+
+    function bindFixedExpenseEvents() {
+      const root = el('modalRoot');
+      root.querySelectorAll('[data-modal-close]').forEach(button => button.addEventListener('click', () => { state.fixedExpenseEditingId = null; closeModal(); }));
+      root.querySelectorAll('[data-fixed-edit]').forEach(button => button.addEventListener('click', () => { state.fixedExpenseEditingId = button.dataset.fixedEdit; renderFixedExpenseModal(); }));
+      root.querySelector('[data-fixed-cancel]')?.addEventListener('click', () => { state.fixedExpenseEditingId = null; renderFixedExpenseModal(); });
+      root.querySelectorAll('[data-fixed-book]').forEach(button => button.addEventListener('click', () => {
+        const row = state.fixedExpenses.find(item => item.id === button.dataset.fixedBook);
+        if (!row) return toast('고정지출 항목을 찾지 못했습니다.', 'error');
+        state.pendingFixedExpense = row; state.formType = 'expense'; state.fixedExpenseEditingId = null; closeModal(); routeTo('transactions');
+      }));
+      root.querySelectorAll('[data-fixed-status]').forEach(button => button.addEventListener('click', async () => {
+        if (button.dataset.fixedStatus === 'ended' && !confirm('이 고정지출을 해지 상태로 바꿀까요? 과거 기록은 유지됩니다.')) return;
+        try { await AppService.setFixedExpenseStatus(button.dataset.fixedId, button.dataset.fixedStatus); renderShellStatus(); renderFixedExpenseModal(); toast('고정지출 상태를 변경했습니다.', 'success'); }
+        catch (error) { diagnostic(error); }
+      }));
+      root.querySelector('[data-fixed-delete]')?.addEventListener('click', async event => {
+        if (!confirm('이 고정지출 항목을 삭제할까요? 이미 만든 거래와 전표는 유지됩니다.')) return;
+        try { await AppService.deleteFixedExpense(event.currentTarget.dataset.fixedDelete); state.fixedExpenseEditingId = null; renderShellStatus(); renderFixedExpenseModal(); toast('고정지출 항목을 삭제했습니다.', 'success'); }
+        catch (error) { diagnostic(error); }
+      });
+      root.querySelector('#fixedExpenseLast4')?.addEventListener('input', event => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4); });
+      root.querySelector('#fixedExpenseForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        root.querySelectorAll('[data-fixed-error]').forEach(node => { node.textContent = ''; });
+        try {
+          const result = await AppService.saveFixedExpense({
+            id: el('fixedExpenseId').value || null, expenseName: el('fixedExpenseName').value,
+            category: el('fixedExpenseCategory').value, accountId: el('fixedExpenseAccount').value,
+            amount: el('fixedExpenseAmount').value, amountMode: el('fixedExpenseAmountMode').value,
+            billingCycle: el('fixedExpenseCycle').value, nextDueDate: el('fixedExpenseDueDate').value,
+            paymentMethod: el('fixedExpensePaymentMethod').value, paymentProvider: el('fixedExpenseProvider').value,
+            paymentReferenceLast4: el('fixedExpenseLast4').value, status: el('fixedExpenseStatus').value,
+            isRequired: el('fixedExpenseRequired').checked, note: el('fixedExpenseNote').value
+          });
+          if (!result.ok) {
+            for (const [name, message] of Object.entries(result.errors)) root.querySelector(`[data-fixed-error="${name}"]`)?.replaceChildren(message);
+            return toast('입력값을 확인해 주세요.', 'error');
+          }
+          state.fixedExpenseEditingId = null; renderShellStatus(); renderFixedExpenseModal(); toast('고정지출을 저장했습니다.', 'success');
+        } catch (error) {
+          diagnostic(error);
+        }
+      });
     }
 
     function importSummaryHtml(res) {
@@ -4247,7 +4528,11 @@
         showTooltip(account?.local_explanation || '국세청 용어와 신고 항목을 기준으로 사용하는 계정과목입니다.', event.currentTarget);
       }));
 
-      document.querySelectorAll('[data-transaction-type]').forEach(button => button.addEventListener('click', () => { state.formType = button.dataset.transactionType; render(); }));
+      document.querySelectorAll('[data-transaction-type]').forEach(button => button.addEventListener('click', () => {
+        state.formType = button.dataset.transactionType;
+        if (state.formType !== 'expense') state.pendingFixedExpense = null;
+        render();
+      }));
       const transactionForm = el('transactionForm');
       if (transactionForm) {
         const preview = () => {
@@ -4266,6 +4551,7 @@
         el('fxAmount')?.addEventListener('input', fxConvert);
         el('fxRate')?.addEventListener('input', fxConvert);
         transactionForm.addEventListener('reset', () => setTimeout(() => { if (el('overseasBox')) el('overseasBox').hidden = true; preview(); }));
+        preview();
         transactionForm.addEventListener('submit', async event => {
           event.preventDefault();
           transactionForm.querySelectorAll('[data-error]').forEach(node => node.textContent = '');
@@ -4276,7 +4562,8 @@
               description: el('description').value, counterpartyName: el('counterpartyName').value,
               accountId: el('accountId').value, totalAmount: el('totalAmount').value,
               vatType: el('vatType').value, paymentStatus: el('paymentStatus').value, hasEvidence: el('hasEvidence').checked,
-              isOverseas: overseas, foreignCurrency: overseas ? el('fxCurrency').value : '', foreignAmount: overseas ? el('fxAmount').value : '', exchangeRate: overseas ? el('fxRate').value : ''
+              isOverseas: overseas, foreignCurrency: overseas ? el('fxCurrency').value : '', foreignAmount: overseas ? el('fxAmount').value : '', exchangeRate: overseas ? el('fxRate').value : '',
+              fixedExpenseId: state.pendingFixedExpense?.id || null
             });
             if (!result.ok) {
               for (const [name, message] of Object.entries(result.errors)) transactionForm.querySelector(`[data-error="${name}"]`)?.replaceChildren(message);
@@ -4580,6 +4867,7 @@
     el('mobileMenuButton').addEventListener('click', () => setSidebarOpen(!el('sidebar').classList.contains('open')));
     el('sidebarScrim').addEventListener('click', () => setSidebarOpen(false));
     el('quickAddButton').addEventListener('click', () => routeTo('transactions'));
+    el('fixedExpensesButton').addEventListener('click', () => { if (!state.business) return toast('먼저 가계부 정보를 설정해 주세요.', 'error'); renderFixedExpenseModal(); });
     el('monthlyUsageButton').addEventListener('click', () => { if (!state.business) return toast('먼저 사업자 정보를 설정해 주세요.', 'error'); renderMonthlyUsageModal(); });
     el('ledgerSwitchButton').addEventListener('click', () => { if (!state.businesses.length) return; renderLedgerSwitchModal(); });
     el('syncChip').addEventListener('click', async () => {
@@ -4627,7 +4915,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, SyncAlgorithms, SupabaseAdapter, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, FixedExpenseDomain, SyncAlgorithms, SupabaseAdapter, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>

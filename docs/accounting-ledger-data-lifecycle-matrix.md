@@ -1,6 +1,6 @@
 # Accounting Ledger 데이터 도메인 × 생명주기 매트릭스
 
-> 개정 2026-07-11 · 대상 앱 버전 `0.12`
+> 개정 2026-08-02 · 대상 앱 버전 `0.59`
 > 목적: 각 데이터 종류(도메인)가 생명주기 노드(로컬저장·로드·백업·복원·동기화 push·merge·최종본·삭제→tombstone·개수/버전)에 빠짐없이 배선됐는지 한눈에 보고, "다른 도메인엔 있는 노드가 특정 도메인만 조용히 빠진" 버그 클래스를 원천 차단한다. 새 동기화 도메인을 추가하면 이 표에도 반드시 추가한다(하네스 `data-lifecycle-matrix` 게이트가 강제).
 
 범례: ✓ 배선됨 · ✗ 미배선(gap) · ⊘ 데이터 클래스상 의도적 제외
@@ -11,7 +11,7 @@
 
 | 클래스 | 도메인 | 제외 규칙 |
 |---|---|---|
-| ledger-synced | businesses, business_sites, ledger_period_settings, accounts, counterparties, source_transactions, journal_entries, journal_entry_lines, evidence_files, period_closings | 전 노드 배선 대상 |
+| ledger-synced | businesses, business_sites, ledger_period_settings, accounts, counterparties, fixed_expenses, source_transactions, journal_entries, journal_entry_lines, evidence_files, period_closings | 전 노드 배선 대상 |
 | append-only-audit | audit_logs (+ 클라우드 auth_access_logs) | 수정·삭제·tombstone 없음(감사 무결성). 병합은 append |
 | sync-infra | sync_queue, tombstones | 사용자 도메인 아님. tombstone은 삭제 "신호" 자체 |
 | local-only | app_research_notes | 동기화·최종본·삭제 제외(기기 로컬 개발 메모) |
@@ -27,6 +27,7 @@
 | ledger_period_settings | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | state 미보관, setupBusiness에서 ad-hoc 읽기 |
 | accounts | ✓ | ✓ | ✓ | ✓ | ✓(remoteSafe) | ✓ | ✓ | ✓ | local_key/설명은 remote 제외. 0.33에서 사용자 추가 계정과목 비활성화(소프트삭제) 배선 |
 | counterparties | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 0.34에서 거래처 비활성화(소프트삭제) 배선. `deactivateAccount`와 동일 패턴 |
+| fixed_expenses | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 0.59에서 고정지출 등록·수정·상태(정상/일시중지/해지)·완전삭제와 거래 입력 연계를 배선. 모든 변경은 `updated_at` 갱신, 삭제는 tombstone. `source_transactions.fixed_expense_id`로 실제 비용 거래와 연결하며 입력 성공 후 다음 납부일을 주기에 맞춰 이동 |
 | source_transactions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 기준 도메인(전 노드) |
 | journal_entries | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
 | journal_entry_lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
@@ -49,6 +50,7 @@
 - 빈 클라우드 가드: canonical replace는 클라우드 businesses가 0이고 로컬에 있으면 중단(`EMPTY_CLOUD_GUARD`)해 wipe를 막는다. 일반 merge 경로는 로컬을 Map 기반으로 유지해 빈 응답에도 소실되지 않는다.
 - 삭제는 hard delete 금지: `deleted_at` + tombstone. 병합은 updated_at 최신 승리라 삭제(갱신된 updated_at)가 오래된 활성 행을 이긴다.
 - 백업은 `LOCAL_STORES` 기반이라 새 도메인이 자동 포함되고, tombstones·schemaVersion·canonicalVersion을 함께 담는다.
+- 0.59 백업 스키마는 0.02다. 새 백업은 `fixed_expenses`를 포함하고, 기존 0.01 백업도 읽되 파일에 없던 저장소는 보존하는 하위호환 규칙을 유지한다.
 - 0.39부터 정본은 클라우드(Supabase), 로컬 IndexedDB는 보조 캐시라는 원칙을 백업/복원에도 반영한다: `exportCloudBackup`이 로컬 캐시를 거치지 않고 클라우드에서 직접 스냅샷을 뜨고, `resetLocalFromCloud`가 canonical_version 비교 없이도 로컬을 클라우드 값으로 강제 재동기화한다. `restoreBackup`은 백업 파일에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes)를 비우지 않고 그대로 둔다 — 없다고 비우면 아직 안 올라간 로컬 변경이 사라진다.
 - 0.58부터 tombstone은 무조건 승리하지 않고 `deleted_at`과 행의 `updated_at`을 비교한다. tombstone보다 나중에 canonical 복원된 활성 행은 유지하고, canonical 변경을 소비하는 기기는 로컬 tombstone을 재업로드하지 않는다.
 - 가계부 자체를 삭제할 때는 그 business가 숨겨진 뒤에도 다른 기기가 삭제 신호를 읽어야 하므로 cascade tombstone을 의도적으로 `business_id = null`(허용 사용자 전용 RLS scope)로 기록한다. 개별 행 삭제는 기존처럼 활성 business scope를 유지한다.

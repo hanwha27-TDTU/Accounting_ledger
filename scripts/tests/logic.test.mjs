@@ -50,7 +50,7 @@ try { api = loadApp(); ok(true, 'app loaded'); }
 catch (e) { ok(false, 'app load: ' + e.message); }
 
 if (api) {
-  const { AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, APP_INFO } = api;
+  const { AccountingDomain, FixedExpenseDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, APP_INFO } = api;
 
   // 간편장부 import 파서 순수 헬퍼 (A=월/B=일 날짜, 금액열 분류)
   ok(SimpleBookImport.buildDate('2025', '1', '1') === '2025-01-01', 'SimpleBookImport buildDate 월/일 -> ISO');
@@ -226,6 +226,21 @@ if (api) {
 
   // Version markers (defensive)
   ok(/^\d+\.\d{2}$/.test(APP_INFO.version), 'APP_INFO.version is two-decimal');
+
+  // 고정지출 순수 규칙: 말일·윤년을 보존하고 월 환산/예정액을 중복 없이 계산한다.
+  ok(FixedExpenseDomain.nextDueDate('2026-01-31', 'monthly', 31, 1) === '2026-02-28', 'FixedExpense: 1월 31일 월납 -> 2월 말일로 clamp');
+  ok(FixedExpenseDomain.nextDueDate('2026-02-28', 'monthly', 31, 1) === '2026-03-31', 'FixedExpense: anchor 31 보존 -> 3월 31일 복귀');
+  ok(FixedExpenseDomain.nextDueDate('2028-02-29', 'yearly', 29, 2) === '2029-02-28', 'FixedExpense: 윤년 2월 29일 연납 -> 다음 해 2월 말일');
+  ok(FixedExpenseDomain.advanceAfterBooking({ next_due_date: '2026-01-31', billing_cycle: 'monthly', billing_anchor_day: 31, billing_anchor_month: 1 }, '2026-03-10') === '2026-03-31', 'FixedExpense: 밀린 월납 거래 입력 시 미래 납부일까지 전진');
+  const fixedSummary = FixedExpenseDomain.summary([
+    { amount: 120000, billing_cycle: 'yearly', next_due_date: '2026-08-20', status: 'active', deleted_at: null },
+    { amount: 30000, billing_cycle: 'monthly', next_due_date: '2026-08-05', status: 'active', deleted_at: null },
+    { amount: 90000, billing_cycle: 'monthly', next_due_date: '2026-08-03', status: 'paused', deleted_at: null }
+  ], '2026-08-02');
+  ok(fixedSummary.monthlyEquivalent === 40000 && fixedSummary.activeCount === 2, 'FixedExpense: 연납/12 + 월납으로 월 환산, 중지 항목 제외');
+  ok(fixedSummary.due30Amount === 150000 && fixedSummary.due30Count === 2 && fixedSummary.overdueCount === 0, 'FixedExpense: 30일 예정액과 건수 계산');
+  const fixedErrors = FixedExpenseDomain.validate({ expenseName: '', accountId: 'asset', amount: 0, amountMode: 'x', billingCycle: 'x', nextDueDate: '', paymentReferenceLast4: '123456', status: 'x' }, [{ id: 'asset', account_type: 'asset' }]);
+  ok(['expenseName','accountId','amount','amountMode','billingCycle','nextDueDate','paymentReferenceLast4','status'].every(key => fixedErrors[key]), 'FixedExpense: 필수값·비용계정·끝 4자리 검증');
 }
 
 // ---- Part B: real sync/delete algorithms used by SyncService/AppService ----

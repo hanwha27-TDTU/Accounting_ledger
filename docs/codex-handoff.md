@@ -1,12 +1,12 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 개정 2026-08-02 · 기준 앱 버전 `0.58` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
+> 개정 2026-08-02 · 기준 앱 버전 `0.59` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **기준 앱은 0.58**(정본 동기화·대용량·공급망 보강)이며 자동 테스트 기준은 로직 205 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 현재 배포 여부는 Git 최신 커밋과 GitHub Actions를 확인한다.
+- **기준 앱은 0.59**(상단 고정지출현황·반복일정·비용거래 연결)이며 자동 테스트 기준은 로직 212 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration 0.05는 적용 완료됐으며 현재 웹 배포 여부는 Git 최신 커밋과 GitHub Pages를 확인한다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
@@ -54,12 +54,12 @@
 | workflow-action-pins | GitHub Actions 참조를 40자리 commit SHA로 고정 |
 | instruction-contract | AGENTS.md/CLAUDE.md에 동기화·보안·하네스 핵심 문구 존재 |
 | adapter-parity | CLAUDE.md·AGENTS.md가 `docs/CONSTITUTION.md` 생성 결과와 바이트 일치 |
-| migration-contract | 마이그레이션 5파일 + RLS/canonical 마커 |
+| migration-contract | 마이그레이션 7파일 + RLS/canonical·고정지출 마커 |
 | tracked-scope-and-secrets | 참고자료 원본·비밀값류 커밋 금지 |
 | git-diff-integrity | 공백 오류 0 |
 | runtime-version-contract | `APP_INFO.version` +0.01 규칙, `최신 ·` 마커 1개, 버전 문자열 2회 |
-| data-lifecycle-matrix | 동기화 11개 도메인 문서화 |
-| logic-tests | 실제 앱 IIFE·`SyncAlgorithms`·`SupabaseAdapter`를 VM 로드해 205 assertion |
+| data-lifecycle-matrix | 동기화 12개 도메인 문서화 |
+| logic-tests | 실제 앱 IIFE·`SyncAlgorithms`·`SupabaseAdapter`를 VM 로드해 212 assertion |
 | term-ledger-contract | 세법 용어 39개 = `TAX_TERMS` ↔ 용어 원장 문서 일치 |
 | legal-ssot-contract | 법정 기준값·추계 배율이 코드 ↔ 법령 SSOT 문서 일치 |
 | concept-ledger-contract | 개념 원장 14개의 코드 anchor 실존 |

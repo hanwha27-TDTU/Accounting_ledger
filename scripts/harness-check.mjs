@@ -12,7 +12,9 @@ const expectedMigrations = [
   '20260709000200_accounting_v1_indexes_and_rls_tuning.sql',
   '20260709000300_accounting_v1_drop_duplicate_indexes.sql',
   '20260709000400_accounting_v1_schema_meta_003.sql',
-  '20260712000500_accounting_v1_overseas_fields.sql'
+  '20260712000500_accounting_v1_overseas_fields.sql',
+  '20260802000600_accounting_v1_fixed_expenses.sql',
+  '20260802000700_accounting_v1_fixed_expenses_account_index.sql'
 ];
 
 const referenceAssets = new Set([
@@ -216,6 +218,12 @@ addGate('migration-contract', 'REQUIRED', () => {
   const initialSchema = readText(`supabase/migrations/${expectedMigrations[0]}`);
   hasRequiredText(initialSchema, 'enable row level security', expectedMigrations[0]);
   hasRequiredText(initialSchema, 'canonical_version', expectedMigrations[0]);
+  const fixedExpenseMigration = expectedMigrations.find(file => file.endsWith('accounting_v1_fixed_expenses.sql'));
+  const fixedExpenseSchema = readText(`supabase/migrations/${fixedExpenseMigration}`);
+  hasRequiredText(fixedExpenseSchema, 'create table if not exists public.fixed_expenses', fixedExpenseMigration);
+  hasRequiredText(fixedExpenseSchema, 'alter table public.fixed_expenses enable row level security', fixedExpenseMigration);
+  hasRequiredText(fixedExpenseSchema, 'payment_reference_last4', fixedExpenseMigration);
+  hasRequiredText(readText(`supabase/migrations/${expectedMigrations.at(-1)}`), 'idx_fixed_expenses_account_id', expectedMigrations.at(-1));
   return { detail: `${expectedMigrations.length} migration files and sync/RLS markers verified` };
 });
 
@@ -271,6 +279,8 @@ addGate('runtime-version-contract', 'REQUIRED', () => {
   hasRequiredText(currentHtml, 'canonical_version', 'index.html');
   hasRequiredText(currentHtml, 'supabasePublishableKey', 'index.html');
   hasRequiredText(currentHtml, 'connectionDiagnostics', 'index.html');
+  hasRequiredText(currentHtml, 'const FixedExpenseDomain', 'index.html');
+  hasRequiredText(currentHtml, 'id="fixedExpensesButton"', 'index.html');
   hasRequiredText(currentHtml, 'ANONYMOUS_DATA_EXPOSED', 'index.html');
   hasRequiredText(currentHtml, 'GOOGLE_PROVIDER_DISABLED', 'index.html');
   hasRequiredText(currentHtml, "id: 'guide'", 'index.html');

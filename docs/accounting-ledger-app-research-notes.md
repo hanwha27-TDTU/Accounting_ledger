@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.75** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.77** · 개정 2026-08-02
 
 # Accounting Ledger App Research Notes
 
@@ -1528,3 +1528,22 @@ advisor 잔여 항목:
 | 검증 결과 | `npm run harness:check`: 16 REQUIRED PASS, 1 MANUAL, 실패 0. 워크플로 YAML 2개 파싱 성공. 로컬 HTTP 서버에서 index·vendor 2개 모두 200(각 파일 크기 확인). 데스크톱 앱의 Chrome 연결과 앱 내 브라우저가 모두 탭 연결 단계에서 응답하지 않아 시각/상호작용 왕복은 실행하지 못했고 `browser-roundtrip`은 정직하게 MANUAL로 유지. |
 | 범위 밖/정직한 제한 | 운영 Supabase migration·데이터 변경은 수행하지 않는다. GitHub Pages 배포는 사용자의 후속 명시 요청에 따라 `main` push로 수행하며 결과는 Git/Actions를 SSOT로 확인한다. 클라이언트 여러 REST 요청을 하나의 DB transaction으로 묶을 수는 없으므로 canonical은 결정적 재시도+tombstone 선기록+버전 마지막 커밋으로 안전하게 설계했지만, 완전한 단일 transaction이 필요하면 향후 owner 전용 RPC migration이 필요하다. |
 | 스킬 버전 | `Sub_app-research-notes_0.75` |
+
+## 2026-08-02 앱 0.59: 상단 고정지출현황 — 일정 관리·비용 거래 연결·기기 동기화
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.58 → 0.59 |
+| schema_version | 0.04 → 0.05(`fixed_expenses`, `source_transactions.fixed_expense_id`) |
+| backup_schema_version | 0.01 → 0.02(기존 0.01 읽기 호환 유지) |
+| note_type | `feature`(고정지출 관리) + `security`(결제정보 최소저장) + `sync`(새 도메인 전 생명주기 배선) |
+| 배경 | 사용자가 대시보드 상단의 빈 위치를 표시하고, 기존 Excel 고정지출현황 표와 유사한 관리를 깔끔하게 넣어달라고 요청. 단순 표 복제보다 반복 일정과 실제 장부 입력이 연결돼야 사용자 편의가 생긴다고 판단했다. |
+| UX 설계 | 빨간 표시 위치인 상단바 동작 영역 첫 칸에 `고정지출현황` 버튼을 배치하고 월 환산액·활성 건수를 항상 표시. 클릭하면 넓은 관리 모달에서 월 환산액, 30일 내·미납 예정액, 활성/연체 건수와 항목 목록·등록/수정 폼을 함께 보여준다. 모바일에서는 아이콘 버튼으로 축약하고 모달은 1열로 전환한다. |
+| 관리 기능 | 지출처·구분·비용 계정과목·고정/변동 예상액·월간/연간 주기·다음 납부일·지출방법·은행/카드사·필수 여부·정상/일시중지/해지·비고를 등록/수정. 일시중지·해지·재개·완전삭제를 지원한다. |
+| 거래 연결 | 활성 항목의 `거래 입력`을 누르면 비용 거래 폼에 서비스명·비용 계정·금액·예정일을 미리 채운다. 저장하면 `source_transactions.fixed_expense_id`를 남기고 기존 PostingEngine으로 균형 전표를 만든 뒤 `last_booked_on`과 다음 납부일을 같은 로컬 저장 작업에 반영한다. 밀린 일정은 실제 거래일 이후의 첫 예정일까지 전진한다. |
+| 말일 규칙 | 단순 `Date + 1개월`은 1월 31일→3월로 넘기거나, 2월 28일 뒤 영구히 28일로 드리프트할 수 있다. `billing_anchor_day/month`를 저장해 해당 월의 말일로 clamp하되 다음 긴 달에는 원래 일자로 복귀한다. |
+| 보안 | Excel 예시는 전체 계좌/카드 번호를 담을 수 있었지만 앱은 민감정보 최소화 원칙으로 끝 4자리만 허용·저장하고 전체 번호는 UI 단계에서 입력하지 못하게 했다. 새 public 테이블은 anon 권한을 명시적으로 회수하고 authenticated 최소 CRUD grant + business ownership RLS를 함께 둔다. |
+| 동기화 | `fixed_expenses`를 `SYNC_TABLE_ORDER`에서 accounts/counterparties 뒤, source_transactions 앞에 배치해 FK 부모→자식 upsert와 child-first delete를 보장. IndexedDB v3, state/reload, queue, merge, canonical, tombstone, 로컬·클라우드 백업, 가계부 cascade 삭제에 모두 연결했다. 모든 변경은 `updated_at`과 audit를 남긴다. |
+| 테스트 | 실제 `FixedExpenseDomain`을 호출해 필수값/비용계정/끝4자리 검증, 월 환산, 30일 예정액, 31일 말일 보정, 윤년 연납, 밀린 일정 전진을 고정. 로직 assertion 205→212. 앱 내 브라우저에서 데스크톱 1264×710·모바일 390×844 배치, 29,000원 항목 등록, 31,000원 수정, 거래 폼 자동 채움, 균형 전표 저장, 다음 납부일 2026-08-10→09-10 이동, 일시중지·재개를 확인했고 콘솔 오류는 0건이었다. 해지·완전삭제와 실제 두 기기 Supabase 왕복은 수동 항목으로 남겼다. |
+| 운영 적용 | 사용자의 후속 배포 요청에 따라 운영 프로젝트 `Travel&Accounting`에 migration 0.05를 적용했다. `fixed_expenses` RLS=true, 정책 4개, anon SELECT grant 없음, authenticated/service_role grant, `source_transactions.fixed_expense_id`, updated_at trigger, schema meta 0.05를 SQL로 재확인했다. Supabase Advisor가 지적한 `account_id` FK 인덱스는 별도 보정 migration으로 추가했다. 실제 로그인 두 기기 왕복은 배포 후 수동 확인 항목으로 유지한다. |
+| 스킬·프롬프트 버전 | `Sub_app-research-notes_0.77`, `Sub_development-governance_0.08`, `Sub_v1-scope_0.04`; `docs/CONSTITUTION.md`에 반복지출·일정 데이터 계약을 추가하고 `AGENTS.md`·`CLAUDE.md`를 재생성했다. 오래된 앱 0.02·APK 미구현 기준선도 실제 0.59 상태로 교정했다. |

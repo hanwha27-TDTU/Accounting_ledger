@@ -1,7 +1,7 @@
 # Accounting Ledger V1 Detailed Design
 
-> 작성일: 2026-07-09  
-> 상태: V1 구현 진행 중 · 앱 0.01 로컬 회계 코어 기준선
+> 작성일: 2026-07-09 · 개정 2026-08-02
+> 상태: V1 구현 진행 중 · 앱 0.59 고정지출 관리 기준
 > 기준 문서: `accounting-ledger-design-directive-v2.md`, `accounting-v1-scope-skill.md`
 
 ## 1. V1 설계 목표
@@ -66,6 +66,7 @@ flowchart LR
 | `TaxClassificationService` | 사업자 유형, VAT, 장부의무 후보 판정 |
 | `LegalFormService` | 법정서식 스냅샷 확인과 리포트 출력 가능 여부 판단 |
 | `ReportService` | 간편장부, 신고 준비자료, 증빙대장, 검토목록 생성 |
+| `FixedExpenseDomain` / `AppService` | 반복지출 검증·월 환산·말일 보정·상태 관리·비용 거래 연결 |
 | `SyncService` | 일반 병합, 최종본 지정, 업로드 대기열, 진단 |
 | `BackupService` | JSON 백업/복원, 민감자료 보관 경고 |
 | `ClosingService` | 월마감/연마감 상태, 잠금, 마감 후 수정 사유 |
@@ -128,7 +129,27 @@ flowchart TD
 
 V1에서는 국세청 간편장부 Excel import/export를 구현한다. 은행, 카드, PG, 홈택스 import는 메뉴와 구조만 둔다.
 
-### 4.4 리포트 흐름
+### 4.4 고정지출 관리 흐름
+
+```mermaid
+flowchart TD
+  A["상단 고정지출현황"] --> B["등록·수정·일시중지·해지"]
+  B --> C["fixed_expenses 로컬 저장 + sync queue"]
+  C --> D["월 환산액·30일 예정액 집계"]
+  D --> E{"실제 결제됨?"}
+  E -->|거래 입력| F["비용 source_transaction + 균형 전표"]
+  F --> G["fixed_expense_id 연결"]
+  G --> H["다음 납부일 자동 이동"]
+```
+
+보안·정합성 규칙:
+
+1. 카드·계좌 전체 번호는 저장하지 않고 끝 4자리만 허용한다.
+2. 1월 31일 같은 말일 일정은 `billing_anchor_day`를 보존해 2월 말일 보정 후 3월 31일로 복귀한다.
+3. 거래 생성과 다음 납부일 이동은 같은 로컬 IndexedDB 트랜잭션으로 저장하고 둘 다 sync queue에 넣는다.
+4. 모든 등록·수정·상태·거래연결·삭제는 `updated_at`과 audit를 남긴다. 완전삭제는 tombstone으로 기기 간 수렴한다.
+
+### 4.5 리포트 흐름
 
 ```mermaid
 flowchart TD

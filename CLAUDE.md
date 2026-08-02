@@ -54,6 +54,13 @@
 
 동기화 불변조건 12개 항목은 `AGENTS.md`의 `동기화 불변조건` 절이 SSOT다. 여기에 복제하지 않는다 — 동기화 코드를 건드리기 전에 그 절을 읽는다.
 
+## 반복지출·일정 데이터 계약
+
+- 고정지출 일정(`fixed_expenses`)과 실제 원천거래(`source_transactions`)는 분리하고, 실제 결제 저장 시 `fixed_expense_id`로 연결한다. 일정을 실제 거래처럼 선기장하지 않는다.
+- 실제 거래 저장과 `last_booked_on`·`next_due_date` 이동은 같은 로컬 원자 작업으로 처리한다. 월말 일정은 `billing_anchor_day/month`를 보존해 짧은 달 이후 원래 기준일로 복귀시킨다.
+- 반복 일정의 등록·수정·상태 변경·삭제도 `updated_at`, 감사로그, tombstone, canonical 규칙을 적용한다. 새 동기화 테이블은 Supabase migration뿐 아니라 IndexedDB, state/reload, queue, merge, canonical, 백업·복원, 가계부 cascade까지 전 생명주기에 연결한다.
+- 결제수단 식별정보는 카드·계좌 전체 번호를 저장하지 않고 끝 4자리만 허용한다.
+
 ## 버전 규칙 (하네스가 강제한다)
 
 - 현재 앱 버전의 SSOT는 `index.html`의 `APP_INFO.version`과 `docs/claude-handoff.md`다. 이 파일에 버전 번호를 하드코딩하지 않는다.

@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-note_0.01** · 개정 2026-07-09
+> **📌 Sub_app-research-notes_0.77** · 개정 2026-08-02
 
 # Accounting Ledger App Research Note Skill
 
@@ -44,6 +44,11 @@ app_research_notes (
 | `bug_lesson` | 오류 원인과 재발 방지 |
 | `legal_form_update` | 법정서식 업데이트 반영 |
 | `future_ai_plan` | 향후 AI/API 연동 계획 |
+| `schema_review` | 스키마·마이그레이션·RLS 검토 |
+| `feature_release` | 사용자 기능 릴리스와 배포 결과 |
+| `security_review` | 권한·민감정보·공급망 검토 |
+| `migration_review` | 운영 DB 적용·검증·복구 판단 |
+| `bug_fix` | 오류 원인·수정·회귀 검증 |
 
 ## 불변조건
 
@@ -52,9 +57,13 @@ app_research_notes (
 3. 앱 버전이 올라갈 때는 관련 연구노트 또는 업데이트 이력을 남긴다.
 4. 스킬 문서가 바뀌면 해당 스킬 버전을 올리고 연구노트에 변경 이유를 남긴다.
 5. AI 기능은 현재 API 키가 없으므로 활성 기능으로 쓰지 않고 향후 확장 계획만 기록한다.
+6. 스킬 헤더의 버전과 최신 연구노트가 가리키는 스킬 버전을 일치시킨다. 기록만 증가시키고 실제 스킬 문서를 오래된 버전으로 방치하지 않는다.
+7. 배포 노트에는 관련 커밋, 자동 검증, 브라우저/실기기 검증, Supabase migration 적용 여부를 분리해 기록한다.
+8. 운영 DB 적용과 GitHub Pages 배포는 실제 성공 상태를 확인한 뒤에만 완료로 기록한다.
 
 ## 금지사항
 
 - 거래 판단 기록을 연구노트라고 부르지 않는다.
 - 앱 업데이트 이력 없이 버전만 올리지 않는다.
 - AI API 키가 없는 상태에서 AI 자동기능을 완료된 기능처럼 기록하지 않는다.
+- migration·push·호스팅 상태를 확인하지 않고 배포 완료라고 기록하지 않는다.

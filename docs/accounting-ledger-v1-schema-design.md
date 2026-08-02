@@ -1,6 +1,6 @@
 # Accounting Ledger V1 Schema Design
 
-> 작성일: 2026-07-09  
+> 작성일: 2026-07-09 · 개정 2026-08-02(앱 0.59)
 > 상태: V1 데이터/스키마 상세 설계  
 > 목적: Supabase, IndexedDB, JSON 백업이 같은 도메인 구조를 공유하도록 기준을 고정한다.
 
@@ -159,6 +159,38 @@ account_explanations (
 );
 ```
 
+### 4.1 고정지출 일정
+
+```sql
+fixed_expenses (
+  id uuid primary key,
+  business_id uuid not null,
+  account_id uuid not null,
+  category text,
+  expense_name text not null,
+  amount_mode text not null,          -- fixed | variable
+  amount numeric(18,2) not null,
+  billing_cycle text not null,        -- monthly | yearly
+  next_due_date date not null,
+  billing_anchor_month smallint not null,
+  billing_anchor_day smallint not null,
+  payment_method text,
+  payment_provider text,
+  payment_reference_last4 text,       -- 전체 번호 저장 금지
+  is_required boolean default true,
+  status text not null,               -- active | paused | ended
+  started_on date,
+  ended_on date,
+  last_booked_on date,
+  note text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+```
+
+말일 결제(예: 1월 31일)는 2월 말일로 보정한 뒤 3월 31일로 복귀할 수 있도록 `billing_anchor_day`를 별도로 보존한다. 카드·계좌 전체 번호는 민감정보이므로 저장하지 않고 끝 4자리만 허용한다.
+
 ## 5. 원천거래와 전표
 
 ### 5.1 source_transactions
@@ -174,6 +206,7 @@ source_transactions (
   description text,
   counterparty_id uuid,
   account_id uuid,
+  fixed_expense_id uuid,
   supply_amount numeric(18,2) default 0,
   vat_amount numeric(18,2) default 0,
   total_amount numeric(18,2) not null,
@@ -623,6 +656,7 @@ IndexedDB store 이름은 Supabase 테이블명과 최대한 맞춘다.
 |---|---|
 | `businesses` | 사업자 캐시 |
 | `business_sites` | 사업장 캐시 |
+| `fixed_expenses` | 고정지출 일정·상태 |
 | `source_transactions` | 원천거래 |
 | `journal_entries` | 전표 |
 | `journal_entry_lines` | 전표라인 |
@@ -658,12 +692,13 @@ JSON 백업 최상위 구조:
 
 ```json
 {
-  "backupSchemaVersion": "0.01",
-  "appVersion": "0.00",
+  "backupSchemaVersion": "0.02",
+  "appVersion": "0.59",
   "createdAt": "2026-07-09T00:00:00.000Z",
   "deviceId": "device-id",
   "tables": {
     "businesses": [],
+    "fixed_expenses": [],
     "source_transactions": [],
     "journal_entries": [],
     "evidence_files": []
@@ -687,6 +722,7 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 | `supabase/migrations/20260709000300_accounting_v1_drop_duplicate_indexes.sql` | `accounting_v1_drop_duplicate_indexes` | `20260709123504` |
 | `supabase/migrations/20260709000400_accounting_v1_schema_meta_003.sql` | `accounting_v1_schema_meta_003` | `20260709123556` |
 | `supabase/migrations/20260712000500_accounting_v1_overseas_fields.sql` | `accounting_v1_overseas_fields` | `20260712000500` |
+| `supabase/migrations/20260802000600_accounting_v1_fixed_expenses.sql` | 적용 대기(`fixed_expenses`, schema 0.05) | 로컬 준비 |
 
 검증 기준:
 
@@ -696,7 +732,7 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 | RLS 적용 | 38/38 |
 | FK 보조 인덱스 누락 | 0개 |
 | owner allowlist | `hanwha27@gmail.com` |
-| `accounting_sync_meta.last_schema_version` | `0.04` |
+| `accounting_sync_meta.last_schema_version` | 운영 `0.04` · 0.59 배포 전 migration 적용 후 `0.05` |
 | `accounting_sync_meta.canonical_version` | `0` |
 
 Supabase advisor 잔여 항목 중 security ERROR/WARN은 기존 비회계 테이블(`news_items`, `language_sync_meta`, `vocab_items`, `usmle_cards`) 관련이다. 회계 신규 테이블에는 별도 security advisor 이슈가 확인되지 않았다. Performance 잔여 항목은 앱 사용 전 신규 인덱스의 `unused_index` INFO다.
