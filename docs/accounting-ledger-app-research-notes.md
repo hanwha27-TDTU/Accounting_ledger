@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.70** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.71** · 개정 2026-08-02
 
 # Accounting Ledger App Research Notes
 
@@ -1455,3 +1455,15 @@ advisor 잔여 항목:
 | 검증 | 로직 테스트 182→188(+6): releaseApiUrl 자기 일관성, 파서 경계값 5종(정상 마커/마커 없음/JSON 파손/versionCode 비숫자/null·undefined). `npm run harness:check` 13/13. CORS 실측 증거: github.com 302 응답 헤더에 ACAO 부재, api.github.com 200 응답에 `Access-Control-Allow-Origin: *` — 둘 다 Origin 헤더를 붙인 curl로 확인. |
 | 실전 검증 계획(이 배포 자체가 테스트) | 이 커밋은 워크플로 파일이 트리거 경로에 포함돼 main 반영 시 APK가 versionCode 6으로 재빌드되고 마커가 처음 기록된다. 사용자 폰에는 build 5가 설치돼 있으므로: 앱을 껐다 켜면 → 새 웹(0.55)이 로드되고 → API에서 versionCode 6 발견 → **자동 업데이트 안내가 이번에는 실제로 떠야 한다.** 안 뜨면 다음 라운드 조사. |
 | 스킬 버전 | `Sub_app-research-notes_0.70` |
+
+## 2026-08-02 앱 0.56: 셸 업데이트 UX 개선 — 자동 다운로드 강제 → 하단 배너+버튼(사용자 제안)
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.55 → 0.56 |
+| note_type | `ux`(0.55에서 감지 자체는 성공했으나 실기기 사용성 문제를 사용자가 제보·개선안 제안) |
+| 배경 | 0.55 배포 후 사용자 실기기 확인: "접속하니 바로 자동으로 다운로드 넘어가긴 합니다"(= CORS 수정으로 감지 자체는 성공). 그러나 "설치하지 않고 다시 접속하면 반응이 사라져요. 차라리 업데이트 버튼을 눌러야 넘어가게 하는 게 낫지 않아요? 하단 중앙에 작은 모달 로딩해서"라고 개선 제안. 실제로 기존 설계는 ① 열자마자 브라우저가 강제로 뜨고 ② `shellUpdatePromptedBuild`를 저장해 같은 빌드를 두 번 안내하지 않아, 설치를 미룬 사용자가 앱을 다시 열면 업데이트 경로가 영영 조용해지는 결함이 있었다(첫 실전 트리거에서 드러남). |
+| 구현 | ① 하단 중앙 고정 배너 `#shellUpdateBar`("새 버전 앱이 나왔어요" + [업데이트] + [X 나중에]) 신설 — `z-index:75`(모달 80보다 아래: 모달 사용을 방해하지 않음, 토스트 120보다 아래), `safe-area-inset-bottom` 반영(0.54에서 마감한 클래스 그대로). ② `checkForShellUpdate()`는 감지 시 다운로드를 시작하지 않고 배너만 띄움. ③ [업데이트] 클릭 → `CapacitorShell.openShellDownload()`(네이티브면 시스템 브라우저, 아니면 window.open 폴백). ④ [나중에] → **저장하지 않는** 모듈 변수 `shellUpdateDismissedBuild`에만 기록(이번 세션만 조용, 다음 실행 때 다시 안내 — 설치가 끝나면 버전이 같아져 배너가 자연 소멸). `state.config.shellUpdatePromptedBuild` 영구 억제 로직은 제거(이 결함의 원인이었음, 저장 키는 무해하게 방치). **구현 중 함정 회피**: CapacitorShell은 `Object.freeze`라 dismissed 상태를 객체 프로퍼티로 두면 조용히 무시된다 — 모듈 `let`으로 분리(첫 시도에서 실수했다가 커밋 전 자가 발견·수정). |
+| 검증 | `npm run harness:check` 13/13(0.55→0.56). 헤드리스(390×844): `showShellUpdateBar(99)` 호출→배너가 하단 중앙에 표시(가로 중앙 오차<20px·하단 40px 이내·뷰포트 안 수납), [업데이트] 클릭이 정확히 `APK_INFO.downloadUrl`을 엶(window.open 스텁으로 확인), [나중에] 클릭→숨김, JS 에러 0. 로직 테스트 188 유지(배너는 DOM/UI라 대상 아님, 파서·URL 검사는 0.55 것 그대로). |
+| 정직하게 남기는 미검증 영역 | 실기기에서 배너가 실제로 뜨고(현재 build 5 또는 6 설치 상태 vs 릴리스 build 6 — 사용자가 6을 이미 설치했다면 배너가 안 뜨는 게 정상), [업데이트]→다운로드→설치 후 배너가 사라지는 전체 순환은 다음 셸 빌드(7) 때 자연 확인. |
+| 스킬 버전 | `Sub_app-research-notes_0.71` |
