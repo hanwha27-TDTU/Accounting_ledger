@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.72** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.73** · 개정 2026-08-02
 
 # Accounting Ledger App Research Notes
 
@@ -1480,3 +1480,16 @@ advisor 잔여 항목:
 | 검증 | `npm run harness:check` 14/14(신설 게이트 포함 13 PASS + 1 수동, 0.56→0.57 버전 증가 확인). 게이트 파손·복구 양방향 확인. 생성 파일을 직접 읽어 마크다운 구조(제목·목록·링크·인용문)와 SSOT 값(다운로드 URL·태그·버전) 일치를 육안 검수. |
 | 남은 위험/미완(0.57) | HTML→MD 변환기는 가이드가 현재 쓰는 마크업 형태만 안다 — 가이드에 새로운 마크업 구조를 추가하면 변환기도 함께 봐야 한다(스크립트 주석에 명시). 가이드 화면 자체의 시각 확인은 실기기/브라우저 몫(문구 변경이라 위험 낮음). |
 | 스킬 버전 | `Sub_app-research-notes_0.72` |
+
+## 2026-08-02 거버넌스(앱 버전 무변경): Codex 복귀 인계서 신설 + AGENTS.md↔CLAUDE.md 상충 3건 해소
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.57 유지(`index.html` 무변경) |
+| note_type | `governance`(문서 정합성 + 온보딩) |
+| 배경 | 사용자: "코덱스가 작업 안 한 지 너무 오래됐다. 인계서를 아주 자세히 쓰고, CLAUDE.md와 AGENTS.md가 상충되는지 확인해 상충되면 유기적 결합하라." |
+| 상충 검사 결과 | 전수 대조 결과 3건: ① AGENTS.md가 "V1은 단일 HTML, **향후** PWA/APK 확장 가능하게"라고 서술 — `android-shell/`이 0.50부터 실존·실기기 검증까지 끝난 현실과 어긋남(낡음). ② AGENTS.md 비밀값 금지 목록에 Android release keystore 누락(CLAUDE.md 하드룰에는 있음 — 0.50 때 CLAUDE.md만 갱신하고 AGENTS.md를 빠뜨린 드리프트). ③ 스킬 라우팅 목록이 AGENTS.md엔 2개(domain·architecture), CLAUDE.md엔 5개(+legal-basis·mobile·governance) — 같은 목록을 두 파일이 각자 들고 있다 따로 자란 전형적 SSOT 중복 부패. 그 외(동기화 12조=AGENTS SSOT·CLAUDE 위임, 배포 명령 해석=AGENTS SSOT, 버전 규칙=CLAUDE 상세 SSOT)는 위임 관계가 정상 작동 중 — 상충 아님. |
+| 해소(유기적 결합) | ①: AGENTS.md 문장을 "안드로이드 앱은 이미 존재한다(`android-shell/` 얇은 셸)" + mobile 스킬 라우팅 포인터로 갱신. ②: keystore(파일·비밀번호)·"GitHub Secrets에만" 문구를 AGENTS.md 보안 목록에 추가(CLAUDE.md와 동일 문구). ③: 목록을 또 복제하지 않고 **CLAUDE.md의 "먼저 적용할 도메인·코드 스킬" 절을 라우팅 SSOT로 지정**하는 위임 문장을 AGENTS.md에 추가 — 단 `instruction-contract` 게이트가 AGENTS.md에 domain·architecture 스킬 파일명 존재를 요구하므로 기존 2줄은 대표 라우팅으로 유지(게이트 확인 후 결정). 하네스 14/14 통과로 게이트 비파손 확인. |
+| Codex 인계서 | `docs/codex-handoff.md` 신설(AGENTS.md 첫 문단에서 복귀자 필독으로 참조). 구성: 60초 요약 → 읽기 순서 → 버전 아크별 따라잡기(0.42~0.48 재산세, 0.50~0.57 안드로이드) → 셸 구조·SSOT 사슬·실기기 함정 5선 → **게이트 14개 표** → 실행 루프 요약 → 복귀자 지뢰(Object.freeze 상태 금지, VM 로드 스크립트의 process.exit 필수, el() id 런타임 오타, SSOT 하드코딩 금지) → 남은 백로그 포인터 → 인계 보고 형식. 원칙: 값·상태는 복제하지 않고 SSOT 문서 포인터로, 서사(왜 그렇게 됐는지)만 이 문서가 담당 — 문서 어긋나면 claude-handoff가 이긴다고 명시. |
+| 검증 | `npm run harness:check` 14/14(instruction-contract 포함 — AGENTS.md 수정이 게이트 요구 문구를 보존함을 확인). project-contract 필수 파일 수(17) 실측 후 인계서 기재. |
+| 스킬 버전 | `Sub_app-research-notes_0.73` |

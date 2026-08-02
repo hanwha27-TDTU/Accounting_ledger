@@ -1,17 +1,18 @@
 # Accounting Ledger Agent Instructions
 
-이 저장소의 Codex, Claude, 기타 AI 협업자는 작업 전 `CLAUDE.md`와 `docs/claude-handoff.md`를 읽고, 관련 스킬 문서를 적용한다. 사용자 최신 지시와 Git 작업 트리가 실제 작업 범위의 최종 기준이다.
+이 저장소의 Codex, Claude, 기타 AI 협업자는 작업 전 `CLAUDE.md`와 `docs/claude-handoff.md`를 읽고, 관련 스킬 문서를 적용한다. 사용자 최신 지시와 Git 작업 트리가 실제 작업 범위의 최종 기준이다. **처음 오거나 오랜만에 복귀한 협업자는 `docs/codex-handoff.md`(복귀 온보딩 인계서)부터 읽는다** — 저장소 지도, 그동안의 변화, 하네스 게이트 전체, 실무 함정이 정리되어 있다.
 
 ## 제품 불변조건
 
 - 앱 목적(미션): 초등학생도 이해할 만큼 쉬운 화면으로 수입·지출을 관리하면서, 그 기록이 복식부기 SSOT와 최신 법정서식·세법 근거로 뒷받침되어, 사용자가 세무사 없이도 스스로 국세청에 세무사 수준의 최신 법적 신고자료를 만들 수 있게 AI 역량을 총동원해 돕는다. 쉬움과 정확성 어느 하나도 포기하지 않으며, 법정 확정 출력은 최신 서식 스냅샷 검증 전에는 확정으로 표시하지 않는다. SSOT는 `docs/accounting-ledger-design-directive-v2.md`의 `0. 최상위 결론`이다.
-- V1은 단일 HTML + GitHub Pages다. 향후 PWA/APK로 확장 가능하게 어댑터 경계를 유지한다.
+- V1은 단일 HTML + GitHub Pages다. 어댑터 경계를 유지한다. 안드로이드 앱은 이미 존재한다 — `android-shell/`(웹앱을 그대로 불러오는 얇은 Capacitor 셸, 별개 하위 프로젝트)이며, 셸·CI·자동 업데이트 관련 작업은 `docs/skills/accounting-mobile-apk-readiness-skill.md`를 먼저 적용한다.
 - 내부 원장은 복식부기 SSOT이며 간편장부는 입력 UX와 출력 view다.
 - 앱 버전은 `0.00`에서 시작하고, 확정 사용자 변경마다 `0.01` 증가한다.
 - 스킬 문서는 개별 `Sub_<name>_<version>` 체계를 유지한다.
 - 중요 설계·스키마·보안·마이그레이션 변경은 연구노트와 Claude handoff를 함께 갱신한다.
 - 거래, 분개, 계정과목, 대사, 마감, 감사, 세무 매핑, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 적용한다.
 - `index.html`, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 적용한다.
+- 위 두 줄은 대표 라우팅이고, **스킬 라우팅의 전체 최신 목록(세무 법령 SSOT, 안드로이드 셸, 개발 거버넌스 실행 루프 포함)은 `CLAUDE.md`의 "먼저 적용할 도메인·코드 스킬" 절이 SSOT다** — 여기에 목록을 복제하지 않는다(과거 이 파일과 CLAUDE.md의 라우팅 목록이 따로 놀다 어긋난 전력이 있어 위임으로 바꿈).
 
 ## 동기화 불변조건
 
@@ -32,7 +33,7 @@
 
 - Supabase public 테이블의 RLS를 제거하지 않는다. RLS와 explicit GRANT, 정책을 함께 검토한다.
 - `hanwha27@gmail.com`은 bootstrap owner다. Google OAuth allowlist와 owner 권한을 약화하지 않는다.
-- service role key, Cloudinary API secret, OAuth client secret, 원본 세무자료를 코드·문서·Git에 넣지 않는다.
+- service role key, Cloudinary API secret, OAuth client secret, Android release keystore(파일·비밀번호), 원본 세무자료를 코드·문서·Git에 넣지 않는다. keystore는 GitHub Secrets에만 둔다.
 - 기존 비회계 Supabase 테이블을 회계 앱 작업 범위로 임의 변경하지 않는다.
 - Supabase, IndexedDB, localStorage, JSON 백업, import/export의 데이터 계약은 마이그레이션 계획 없이 변경하지 않는다.
 - 최신 법정서식 스냅샷 확인 없이는 확정 세무 리포트로 표시하지 않는다.
