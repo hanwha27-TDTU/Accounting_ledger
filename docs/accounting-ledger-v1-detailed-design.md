@@ -151,13 +151,13 @@ flowchart TD
   C -->|아니오| D["대기"]
   C -->|예| E["Supabase pull updated_at desc"]
   E --> F{"canonical_version 변경?"}
-  F -->|예| G["클라우드 기준 로컬 반영"]
+  F -->|예| G["클라우드 표+tombstone 기준 로컬 replace(재업로드 금지)"]
   F -->|아니오| H["updated_at 기준 병합"]
   H --> I["변경분 upsert"]
   I --> J["res.ok 확인"]
 ```
 
-최종본 지정과 일반 병합은 서로 다른 모드다.
+최종본 지정과 일반 병합은 서로 다른 모드다. 최종본 지정은 원격 전체를 비교해 로컬에 없는 행을 tombstone으로 먼저 기록하고 자식부터 소프트삭제한 뒤, 모든 쓰기가 성공했을 때만 `canonical_version`을 올린다. 원격 pull은 500행 단위로 끝까지 페이지네이션하며 일반 모드만 최근 변경분을 LWW 병합한다.
 
 ## 5. 화면 구조
 

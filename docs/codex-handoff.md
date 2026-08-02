@@ -1,12 +1,12 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 작성 2026-08-02 · 기준 앱 버전 `0.57` · main = 기능 브랜치(`claude/businesses-crud-rls-validation-v5dzbu`) 동일 커밋
+> 개정 2026-08-02 · 기준 앱 버전 `0.58` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
-- **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(외부 CDN은 lucide·supabase-js 버전 고정 2개뿐).
-- **버전 0.57**까지 main에 전부 배포됨. 자동 테스트: 로직 188 assertion + 하네스 게이트 15개(14 REQUIRED + 1 MANUAL) — 전부 통과 상태.
+- **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
+- **기준 앱은 0.58**(정본 동기화·대용량·공급망 보강)이며 자동 테스트 기준은 로직 205 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 현재 배포 여부는 Git 최신 커밋과 GitHub Actions를 확인한다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
@@ -45,11 +45,13 @@
 4. **z-index**: 검증된 순서 scrim(35) < topbar(36) < sidebar(40) < 업데이트 배너(75) < modal(80) < tooltip(100) < toast(120).
 5. 업데이트 UX: 감지 시 **하단 배너 + [업데이트] 버튼**(자동 다운로드 강제 금지), 닫기는 세션 한정(영구 저장 금지 — 저장하면 설치 미룬 사용자가 영영 안내를 못 받는다).
 
-## 5. 하네스 게이트 14개 — `npm run harness:check` (전부 통과 전엔 완료 선언 금지)
+## 5. 하네스 게이트 17개 — `npm run harness:check` (전부 통과 전엔 완료 선언 금지)
 
 | 게이트 | 강제하는 것 |
 |---|---|
-| project-contract | 필수 파일 19개 존재(헌법·생성기·플레이북 포함) |
+| project-contract | 필수 파일 25개 존재(헌법·생성기·플레이북·vendor 포함) |
+| browser-dependency-integrity | 로컬 vendor 2개 SHA-256·CSP 고정, CDN 실행 금지 |
+| workflow-action-pins | GitHub Actions 참조를 40자리 commit SHA로 고정 |
 | instruction-contract | AGENTS.md/CLAUDE.md에 동기화·보안·하네스 핵심 문구 존재 |
 | adapter-parity | CLAUDE.md·AGENTS.md가 `docs/CONSTITUTION.md` 생성 결과와 바이트 일치 |
 | migration-contract | 마이그레이션 5파일 + RLS/canonical 마커 |
@@ -57,7 +59,7 @@
 | git-diff-integrity | 공백 오류 0 |
 | runtime-version-contract | `APP_INFO.version` +0.01 규칙, `최신 ·` 마커 1개, 버전 문자열 2회 |
 | data-lifecycle-matrix | 동기화 11개 도메인 문서화 |
-| logic-tests | 실제 앱 IIFE를 VM 로드해 188 assertion |
+| logic-tests | 실제 앱 IIFE·`SyncAlgorithms`·`SupabaseAdapter`를 VM 로드해 205 assertion |
 | term-ledger-contract | 세법 용어 39개 = `TAX_TERMS` ↔ 용어 원장 문서 일치 |
 | legal-ssot-contract | 법정 기준값·추계 배율이 코드 ↔ 법령 SSOT 문서 일치 |
 | concept-ledger-contract | 개념 원장 14개의 코드 anchor 실존 |

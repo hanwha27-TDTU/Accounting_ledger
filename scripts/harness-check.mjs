@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -129,13 +130,50 @@ addGate('project-contract', 'REQUIRED', () => {
     'scripts/build-install-playbook.mjs',
     'docs/bareunjangbu-apk-install-playbook.md',
     'docs/CONSTITUTION.md',
-    'scripts/build-agent-adapters.mjs'
+    'scripts/build-agent-adapters.mjs',
+    '.gitattributes',
+    'vendor/README.md',
+    'vendor/lucide-0.468.0.min.js',
+    'vendor/lucide-LICENSE',
+    'vendor/supabase-js-2.110.2.js',
+    'vendor/supabase-js-LICENSE'
   ];
   const missing = requiredFiles.filter((file) => !existsSync(absolute(file)));
   if (missing.length > 0) {
     throw new Error(`missing required project files: ${missing.join(', ')}`);
   }
   return { detail: `${requiredFiles.length} required harness files found` };
+});
+
+addGate('browser-dependency-integrity', 'REQUIRED', () => {
+  const html = readText('index.html');
+  hasRequiredText(html, 'vendor/lucide-0.468.0.min.js', 'index.html');
+  hasRequiredText(html, 'vendor/supabase-js-2.110.2.js', 'index.html');
+  hasRequiredText(html, 'Content-Security-Policy', 'index.html');
+  if (/https:\/\/(?:unpkg\.com|cdn\.jsdelivr\.net)\//i.test(html)) throw new Error('index.html must not execute browser dependencies from a public CDN');
+  const expected = {
+    'vendor/lucide-0.468.0.min.js': '3411692820CB8D47543F69496AA25FD603A358F4498046F41C508A5A3342210E',
+    'vendor/supabase-js-2.110.2.js': '21035CE4FFB6F1D6C5BA5344BBAC8309BF394CDBBA0B1371267A05A1D811FED8'
+  };
+  for (const [file, hash] of Object.entries(expected)) {
+    const actual = createHash('sha256').update(readFileSync(absolute(file))).digest('hex').toUpperCase();
+    if (actual !== hash) throw new Error(`${file} SHA-256 mismatch`);
+  }
+  return { detail: `${Object.keys(expected).length} vendored browser dependencies pinned by SHA-256 with CSP` };
+});
+
+addGate('workflow-action-pins', 'REQUIRED', () => {
+  const workflows = ['.github/workflows/harness.yml', '.github/workflows/android-apk.yml'];
+  let count = 0;
+  for (const file of workflows) {
+    const source = readText(file);
+    for (const match of source.matchAll(/^\s*-\s+uses:\s+([^\s#]+)@([^\s#]+)/gm)) {
+      count += 1;
+      if (!/^[a-f0-9]{40}$/i.test(match[2])) throw new Error(`${file} has a mutable action reference: ${match[1]}@${match[2]}`);
+    }
+  }
+  if (count !== 7) throw new Error(`expected 7 external Action references across release workflows, found ${count}`);
+  return { detail: `${count} GitHub Actions references pinned to immutable commit SHAs` };
 });
 
 addGate('instruction-contract', 'REQUIRED', () => {
@@ -241,8 +279,8 @@ addGate('runtime-version-contract', 'REQUIRED', () => {
   hasRequiredText(currentHtml, 'data-copy-value', 'index.html');
   hasRequiredText(currentHtml, 'googleCloudProjectId', 'index.html');
   hasRequiredText(currentHtml, 'githubPagesUrl', 'index.html');
-  hasRequiredText(currentHtml, '@supabase/supabase-js@2.110.2', 'index.html');
-  hasRequiredText(currentHtml, 'lucide@0.468.0', 'index.html');
+  hasRequiredText(currentHtml, 'vendor/supabase-js-2.110.2.js', 'index.html');
+  hasRequiredText(currentHtml, 'vendor/lucide-0.468.0.min.js', 'index.html');
   const currentVersionOccurrences = currentHtml.split(currentVersion).length - 1;
   if (currentVersionOccurrences < 2) {
     throw new Error('UPDATE_HISTORY must contain the current APP_INFO.version.');

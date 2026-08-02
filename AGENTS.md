@@ -12,7 +12,7 @@
 
 ## 스택과 구조 (요약; SSOT는 설계지침·아키텍처 스킬)
 
-- V1은 단일 HTML(`index.html`) + GitHub Pages다. 빌드 도구가 없고, 외부 CDN은 lucide와 supabase-js만 버전을 고정해 쓴다.
+- V1은 단일 HTML(`index.html`) + GitHub Pages다. 빌드 도구가 없고, 브라우저 의존성 lucide와 supabase-js는 `vendor/`에 버전·SHA-256을 고정해 저장소에서 제공한다. 외부 CDN 스크립트는 실행하지 않는다.
 - `android-shell/`은 이 규칙의 예외가 아니라 별개 하위 프로젝트다(웹앱을 그대로 불러오는 얇은 Capacitor WebView 셸, npm 기반 빌드 도구를 그 폴더 안에서만 쓴다 — index.html 자체는 여전히 빌드 도구가 없다). 웹 자산을 셸에 번들링하지 않으며(`capacitor.config.json`의 `server.url`이 배포 주소를 가리킴), APK 다운로드 링크·릴리스 태그의 SSOT는 `index.html`의 `APK_INFO` 상수 하나이고 `.github/workflows/android-apk.yml`·설치 안내 화면이 그 값을 그대로 읽는다(하네스 게이트 `apk-link-contract`가 일치를 강제). 상세는 `android-shell/README.md`.
 - 저장은 로컬(IndexedDB/localStorage), 클라우드(Supabase Postgres + RLS), 증빙 원본(Cloudinary, 일부 계획)으로 나눈다.
 - 내부 원장은 복식부기 SSOT, 간편장부는 입력 UX와 출력 view다.

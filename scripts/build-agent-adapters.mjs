@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = path.join(root, 'docs', 'CONSTITUTION.md');
+const normalizeEol = text => text.replace(/\r\n?/g, '\n');
 
 // audience 키 → 생성 파일. 새 어댑터(예: 다른 도구용)를 추가하려면 여기만 늘리면 된다.
 const ADAPTERS = Object.freeze({
@@ -66,7 +67,7 @@ export function renderAdapter(blocks, audience) {
 }
 
 export function buildAdapters() {
-  const blocks = parseBlocks(readFileSync(SOURCE, 'utf8'));
+  const blocks = parseBlocks(normalizeEol(readFileSync(SOURCE, 'utf8')));
   const out = {};
   for (const [audience, file] of Object.entries(ADAPTERS)) {
     out[file] = renderAdapter(blocks, audience);
@@ -88,7 +89,7 @@ if (isMain) {
   if (process.argv.includes('--check')) {
     const stale = Object.entries(generated).filter(([file, expected]) => {
       const target = path.join(root, file);
-      return !existsSync(target) || readFileSync(target, 'utf8') !== expected;
+      return !existsSync(target) || normalizeEol(readFileSync(target, 'utf8')) !== expected;
     }).map(([file]) => file);
     if (stale.length > 0) {
       console.error(`어댑터가 헌법과 어긋난다: ${stale.join(', ')} — 고치는 법: docs/CONSTITUTION.md를 수정하고 npm run gen:adapters 실행 (어댑터 파일을 직접 고치지 말 것)`);

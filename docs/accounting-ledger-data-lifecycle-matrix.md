@@ -22,7 +22,7 @@
 
 | 도메인 | 로컬저장 | 로드(state) | 백업 | 복원 | push | merge | 최종본 | 삭제→tombstone | 비고 |
 |---|---|---|---|---|---|---|---|---|---|
-| businesses | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓(가드) | ✓ | 0.36부터 사용자당 여러 개(가계부 추가) 가능. `state.config.activeBusinessId`(로컬)로 "지금 보는" 가계부만 고르고, 나머지 도메인은 `reload()`가 그 가계부 id로 필터링. 0.38에서 `AppService.deleteLedger`가 배선(businesses+그 가계부의 business_sites/ledger_period_settings/accounts/counterparties/source_transactions/journal_entries/journal_entry_lines/evidence_files/period_closings까지 함께 소프트삭제·tombstone — audit_logs는 append-only라 제외) |
+| businesses | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓(정확 비교) | ✓ | 0.36부터 사용자당 여러 개(가계부 추가) 가능. `state.config.activeBusinessId`(로컬)로 "지금 보는" 가계부만 고르고, 나머지 도메인은 `reload()`가 그 가계부 id로 필터링. 0.38에서 `AppService.deleteLedger`가 배선. 0.58부터 최종본 지정은 원격 전체와 비교해 로컬에 없는 business와 자식까지 tombstone+child-first 소프트삭제하고 version을 마지막에 갱신(audit_logs는 append-only라 제외) |
 | business_sites | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 사업장 삭제 후속 |
 | ledger_period_settings | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | state 미보관, setupBusiness에서 ad-hoc 읽기 |
 | accounts | ✓ | ✓ | ✓ | ✓ | ✓(remoteSafe) | ✓ | ✓ | ✓ | local_key/설명은 remote 제외. 0.33에서 사용자 추가 계정과목 비활성화(소프트삭제) 배선 |
@@ -50,3 +50,6 @@
 - 삭제는 hard delete 금지: `deleted_at` + tombstone. 병합은 updated_at 최신 승리라 삭제(갱신된 updated_at)가 오래된 활성 행을 이긴다.
 - 백업은 `LOCAL_STORES` 기반이라 새 도메인이 자동 포함되고, tombstones·schemaVersion·canonicalVersion을 함께 담는다.
 - 0.39부터 정본은 클라우드(Supabase), 로컬 IndexedDB는 보조 캐시라는 원칙을 백업/복원에도 반영한다: `exportCloudBackup`이 로컬 캐시를 거치지 않고 클라우드에서 직접 스냅샷을 뜨고, `resetLocalFromCloud`가 canonical_version 비교 없이도 로컬을 클라우드 값으로 강제 재동기화한다. `restoreBackup`은 백업 파일에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes)를 비우지 않고 그대로 둔다 — 없다고 비우면 아직 안 올라간 로컬 변경이 사라진다.
+- 0.58부터 tombstone은 무조건 승리하지 않고 `deleted_at`과 행의 `updated_at`을 비교한다. tombstone보다 나중에 canonical 복원된 활성 행은 유지하고, canonical 변경을 소비하는 기기는 로컬 tombstone을 재업로드하지 않는다.
+- 가계부 자체를 삭제할 때는 그 business가 숨겨진 뒤에도 다른 기기가 삭제 신호를 읽어야 하므로 cascade tombstone을 의도적으로 `business_id = null`(허용 사용자 전용 RLS scope)로 기록한다. 개별 행 삭제는 기존처럼 활성 business scope를 유지한다.
+- 원격 pull은 500행씩 `updated_at desc, id asc`(감사로그는 `created_at`)로 끝까지 페이지네이션한다. 일반 동기화는 마지막 성공 시각에서 5분 겹쳐 변경분을 받고, canonical·백업·강제 새로고침은 전체를 받는다.

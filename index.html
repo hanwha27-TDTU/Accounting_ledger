@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#163b33">
   <meta name="description" content="대한민국 개인사업자를 위한 간편장부·복식부기 통합 회계장부">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://api.github.com; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' data:; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>바른장부</title>
   <style>
     :root {
@@ -299,6 +300,8 @@
 
     .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
     .filter-bar .input, .filter-bar .select { width: auto; min-width: 150px; min-height: 36px; padding: 7px 9px; }
+    .pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 14px 0 2px; }
+    .pager-status { min-width: 150px; color: var(--muted); text-align: center; font-size: 12px; font-weight: 750; }
     .amount-positive { color: var(--brand); font-weight: 800; }
     .amount-negative { color: var(--accent); font-weight: 800; }
 
@@ -626,7 +629,8 @@
   <div class="tooltip" id="termTooltip" role="tooltip" hidden></div>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.js"></script>
+  <script src="vendor/lucide-0.468.0.min.js"></script>
+  <script src="vendor/supabase-js-2.110.2.js"></script>
   <script>
   (() => {
     'use strict';
@@ -634,8 +638,8 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.57',
-      schemaVersion: '0.03',
+      version: '0.58',
+      schemaVersion: '0.04',
       backupSchemaVersion: '0.01',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
@@ -649,7 +653,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.57', date: '2026-08-02', label: '최신 · 설치 안내를 플레이북 파일로 자동 발행(앱 버전과 동기화)', detail: '가이드의 "안드로이드 앱 설치" 안내가 저장소의 설치 플레이북 파일(docs/bareunjangbu-apk-install-playbook.md)로도 자동 발행됩니다. 파일은 앱 화면과 같은 내용을 담고 앱 버전(v0.57)과 항상 같은 버전으로 관리됩니다 — 손으로 옮겨 적는 게 아니라 앱 코드에서 스크립트가 자동 생성하고, 화면과 파일이 어긋나면 자동 검사(CI)가 실패해서 어긋난 채로는 배포 자체가 안 됩니다. 설치 안내 화면 맨 아래에 이 사실을 알리는 안내도 추가했습니다.' },
+      { version: '0.58', date: '2026-08-02', label: '최신 · 동기화 정본 정확성·대용량·공급망 보강', detail: '이 기기를 최종본으로 지정하면 이제 그 기기에 없는 클라우드 항목도 tombstone과 소프트삭제로 정리한 뒤 canonical_version을 올려, 다른 기기에서 다시 살아나지 않습니다. 실제 앱 동기화 알고리즘을 테스트가 직접 호출하도록 바꾸고, 500행 단위 전체 페이지네이션과 최근 변경분 동기화, 장부·전표·증빙 화면 100건 페이지 구분을 추가했습니다. 연결 진단이 성공한 로그인 상태에서는 즉시 동기화합니다. Lucide와 Supabase JS는 외부 CDN 실행 대신 저장소에 버전·해시를 고정했고 CSP를 추가했으며, Windows 줄바꿈에서도 품질 검사가 동일하게 통과하도록 보완했습니다. DB schema 표기도 실제 0.04로 바로잡았습니다.' },
+      { version: '0.57', date: '2026-08-02', label: '설치 안내를 플레이북 파일로 자동 발행(앱 버전과 동기화)', detail: '가이드의 "안드로이드 앱 설치" 안내가 저장소의 설치 플레이북 파일(docs/bareunjangbu-apk-install-playbook.md)로도 자동 발행됩니다. 파일은 앱 화면과 같은 내용을 담고 앱 버전(v0.57)과 항상 같은 버전으로 관리됩니다 — 손으로 옮겨 적는 게 아니라 앱 코드에서 스크립트가 자동 생성하고, 화면과 파일이 어긋나면 자동 검사(CI)가 실패해서 어긋난 채로는 배포 자체가 안 됩니다. 설치 안내 화면 맨 아래에 이 사실을 알리는 안내도 추가했습니다.' },
       { version: '0.56', date: '2026-08-02', label: 'APK 업데이트를 배너+버튼 방식으로 변경(자동 다운로드 강제 제거)', detail: '앱 새 버전이 있을 때 열자마자 다운로드가 강제로 시작되던 것을, 화면 하단 중앙에 작은 배너("새 버전 앱이 나왔어요" + 업데이트 버튼)를 띄우는 방식으로 바꿨습니다(사용자 제안 반영). 업데이트 버튼을 눌러야 다운로드가 시작되고, X(나중에)를 누르면 이번 실행 동안만 조용해집니다 — 설치를 미루고 앱을 다시 열면 배너가 다시 떠서, 이전처럼 안내가 한 번 나오고 영영 사라지는 문제가 없습니다. 설치를 마치면 버전이 같아져 배너가 자연히 사라집니다.' },
       { version: '0.55', date: '2026-08-02', label: 'APK 자동 업데이트 감지가 실제로 동작하도록 수정', detail: '새 아이콘 APK를 배포했을 때 "새 버전이 있어요" 안내가 자동으로 떠야 하는데 뜨지 않았습니다(사용자 실기기 제보). 원인을 실측해보니, 앱이 새 버전 정보를 확인하러 가는 주소(GitHub 릴리스 파일)가 보안 규칙(CORS) 때문에 앱 안에서는 읽는 것 자체가 차단되고 있었고, 실패도 조용히 삼켜져 아무 안내가 없었습니다. 이제 버전 정보를 보안 규칙상 읽기가 허용된 GitHub API 경로로 읽도록 바꾸고, 배포 자동화가 릴리스 설명에 버전 번호를 함께 기록하도록 했습니다. 같은 문제가 재발하면 CI가 잡아내는 검사도 추가했습니다. 다운로드 링크 자체(직접 받기)는 원래대로 그대로 동작합니다.' },
       { version: '0.54', date: '2026-08-02', label: '전수감사(0.40~0.53) — 팝업·용어 풍선 안전영역 보완', detail: '최근 업데이트 구간(0.40~0.53) 전체를 감사했습니다. 13개 화면 전부 열어 오류 없이 그려지는지, 거래 저장이 균형 전표를 만들고 앱을 껐다 켜도 남는지, 버전 기록·연구노트·인수인계 문서가 서로 어긋나지 않는지, 비밀값이 저장소에 섞여 있지 않은지 자동으로 확인했고 모두 정상이었습니다. 발견된 잔여 문제 하나를 함께 고쳤습니다 — 안드로이드 15 화면 전체 그리기(edge-to-edge) 환경에서 팝업(모달) 상단과 위로 뒤집힌 용어 설명 풍선이 상태표시줄에 살짝 겹칠 수 있던 것을, 0.51에서 상단바에 적용한 것과 같은 안전영역 여백으로 보완했습니다.' },
@@ -1397,6 +1402,7 @@
       'businesses', 'business_sites', 'ledger_period_settings', 'accounts', 'counterparties',
       'source_transactions', 'journal_entries', 'journal_entry_lines', 'evidence_files', 'audit_logs', 'period_closings'
     ]);
+    const SYNC_DELETE_ORDER = Object.freeze(SYNC_TABLE_ORDER.filter(table => table !== 'audit_logs').slice().reverse());
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
 
     // 2. Small pure utilities
@@ -1452,6 +1458,96 @@
       debounce(fn, wait = 180) {
         let timer;
         return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
+      }
+    });
+
+    // 동기화 서비스와 회귀 테스트가 함께 호출하는 실제 순수 알고리즘. IndexedDB/네트워크는 바깥
+    // 어댑터가 담당하고, 여기서는 LWW·canonical 정리·tombstone 적용 범위만 결정한다.
+    const SyncAlgorithms = Object.freeze({
+      restoreScope(localStores, backupTables) {
+        const recordsByStore = {};
+        for (const store of localStores) {
+          const rows = backupTables[store];
+          if (rows === undefined) continue;
+          if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
+          recordsByStore[store] = rows;
+        }
+        return recordsByStore;
+      },
+      resolveTombstoneBusinessId(explicitBusinessId, activeBusinessId) {
+        return explicitBusinessId !== undefined ? explicitBusinessId : (activeBusinessId || null);
+      },
+      assertCanonicalCloudSafe(localBusinesses, cloudBusinesses) {
+        if (localBusinesses.some(row => !row.deleted_at) && cloudBusinesses.length === 0) throw new Error('EMPTY_CLOUD_GUARD');
+        return true;
+      },
+      mergeRows(localRows, cloudRows) {
+        const merged = new Map(localRows.map(row => [row.id, row]));
+        for (const cloudRow of cloudRows) merged.set(cloudRow.id, Utils.latestByUpdatedAt(merged.get(cloudRow.id), cloudRow));
+        return [...merged.values()];
+      },
+      page(rows, requestedPage, pageSize = 100) {
+        const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+        const page = Math.min(totalPages, Math.max(1, Number(requestedPage) || 1));
+        return { page, totalPages, totalRows: rows.length, rows: rows.slice((page - 1) * pageSize, page * pageSize) };
+      },
+      planTombstoneConvergence(localTombstones, cloudTombstones, rowsByStore) {
+        const cloudIds = new Set(cloudTombstones.map(row => row.id));
+        const localIds = new Set(localTombstones.map(row => row.id));
+        const latestByEntity = new Map();
+        for (const stone of [...localTombstones, ...cloudTombstones]) {
+          if (!SYNC_TABLE_ORDER.includes(stone.entity_type)) continue;
+          const key = `${stone.entity_type}:${stone.entity_id}`;
+          const current = latestByEntity.get(key);
+          if (!current || Date.parse(stone.deleted_at || 0) > Date.parse(current.deleted_at || 0)) latestByEntity.set(key, stone);
+        }
+        const updatesByStore = {};
+        for (const stone of latestByEntity.values()) {
+          const row = (rowsByStore[stone.entity_type] || []).find(item => item.id === stone.entity_id);
+          if (!row || row.deleted_at) continue;
+          const rowChangedAt = Date.parse(row.updated_at || row.created_at || 0);
+          const deletedAt = Date.parse(stone.deleted_at || 0);
+          // 복원·canonical 지정으로 tombstone보다 나중에 갱신된 활성 행은 되살린 최종본이다.
+          if (Number.isFinite(rowChangedAt) && Number.isFinite(deletedAt) && rowChangedAt > deletedAt) continue;
+          (updatesByStore[stone.entity_type] ||= []).push({ ...row, deleted_at: stone.deleted_at, updated_at: stone.deleted_at });
+        }
+        return {
+          toPush: localTombstones.filter(row => !cloudIds.has(row.id)),
+          newFromCloud: cloudTombstones.filter(row => !localIds.has(row.id)),
+          updatesByStore
+        };
+      },
+      planCanonicalReconciliation({ localByTable, cloudByTable, now, deviceId, nextCanonical }) {
+        const upsertsByTable = {};
+        const deletesByTable = {};
+        const generatedTombstones = [];
+        const desiredBusinessIds = new Set((localByTable.businesses || []).filter(row => !row.deleted_at).map(row => row.id));
+        for (const table of SYNC_TABLE_ORDER) {
+          const activeLocal = (localByTable[table] || []).filter(row => !row.deleted_at);
+          // canonical 지정 자체가 하나의 변경이다. 활성 행을 같은 시각으로 다시 찍으면 과거
+          // tombstone보다 새 최종본이라는 사실도 LWW 규칙으로 표현된다. 감사로그는 append-only다.
+          const desired = table === 'audit_logs' ? activeLocal : activeLocal.map(row => ({ ...row, deleted_at: null, updated_at: now }));
+          upsertsByTable[table] = desired;
+          if (table === 'audit_logs') continue;
+          const desiredIds = new Set(desired.map(row => row.id));
+          const remoteOnly = (cloudByTable[table] || []).filter(row => !row.deleted_at && !desiredIds.has(row.id));
+          deletesByTable[table] = remoteOnly.map(row => ({ ...row, deleted_at: now, updated_at: now }));
+          for (const row of remoteOnly) {
+            generatedTombstones.push({
+              id: Utils.deterministicId(`canonical:${nextCanonical}:${table}:${row.id}`),
+              entity_type: table,
+              entity_id: row.id,
+              // 제거될 business를 가리키면 RLS상 그 business 삭제 직후 tombstone도 안 보인다.
+              // 가계부 전체 제거 신호는 null scope(허용 사용자 전용 정책)로 남겨 이후에도 읽게 한다.
+              business_id: table === 'businesses' || (row.business_id && !desiredBusinessIds.has(row.business_id)) ? null : (row.business_id || null),
+              deleted_at: now,
+              deleted_by_device_id: deviceId,
+              reason: 'canonical_prune',
+              created_at: now
+            });
+          }
+        }
+        return { upsertsByTable, deletesByTable, generatedTombstones };
       }
     });
 
@@ -1728,14 +1824,14 @@
 
     // 5. Remote adapter: Supabase Auth plus REST requests that always check response.ok
     class SupabaseAdapter {
-      constructor() { this.client = null; this.module = null; }
+      constructor() { this.client = null; }
       isConfigured() { return Boolean(state.config.supabaseUrl && state.config.supabaseKey); }
       async ensureClient() {
         if (this.client) return this.client;
         if (!this.isConfigured()) throw new Error('SUPABASE_NOT_CONFIGURED');
         if (Utils.isSecretKey(state.config.supabaseKey)) throw new Error('SECRET_KEY_NOT_ALLOWED');
-        this.module = this.module || await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.2/+esm');
-        this.client = this.module.createClient(state.config.supabaseUrl, state.config.supabaseKey, {
+        if (!window.supabase?.createClient) throw new Error('SUPABASE_LIBRARY_UNAVAILABLE');
+        this.client = window.supabase.createClient(state.config.supabaseUrl, state.config.supabaseKey, {
           auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' }
         });
         return this.client;
@@ -1825,9 +1921,20 @@
         const text = await response.text();
         return text ? JSON.parse(text) : null;
       }
-      async pullTable(table) {
+      async pullPaged(resource, orderColumn, since = null) {
+        const pageSize = 500;
+        const rows = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const changed = since ? `&${orderColumn}=gt.${encodeURIComponent(since)}` : '';
+          const page = await this.raw(`${resource}?select=*&order=${orderColumn}.desc,id.asc&limit=${pageSize}&offset=${offset}${changed}`) || [];
+          rows.push(...page);
+          if (page.length < pageSize) break;
+        }
+        return rows;
+      }
+      async pullTable(table, { since = null } = {}) {
         const orderColumn = table === 'audit_logs' ? 'created_at' : 'updated_at';
-        return this.raw(`${table}?select=*&order=${orderColumn}.desc`);
+        return this.pullPaged(table, orderColumn, since);
       }
       async upsert(table, payload) {
         const body = table === 'businesses' && state.session?.user?.id ? { ...payload, owner_user_id: state.session.user.id } : payload;
@@ -1836,8 +1943,11 @@
       // Batch upsert used by canonical designation (this device becomes the cloud source of truth).
       async upsertMany(table, rows) {
         if (!rows.length) return null;
-        const body = table === 'businesses' && state.session?.user?.id ? rows.map(row => ({ ...row, owner_user_id: state.session.user.id })) : rows;
-        return this.raw(`${table}?on_conflict=id`, { method: 'POST', body, prefer: 'resolution=merge-duplicates,return=minimal' });
+        const prepared = table === 'businesses' && state.session?.user?.id ? rows.map(row => ({ ...row, owner_user_id: state.session.user.id })) : rows;
+        for (let start = 0; start < prepared.length; start += 500) {
+          await this.raw(`${table}?on_conflict=id`, { method: 'POST', body: prepared.slice(start, start + 500), prefer: 'resolution=merge-duplicates,return=minimal' });
+        }
+        return null;
       }
       async syncMeta() {
         const rows = await this.raw('accounting_sync_meta?select=key,value,updated_at');
@@ -1848,12 +1958,15 @@
         return this.raw('accounting_sync_meta?on_conflict=key', { method: 'POST', body: [{ key, value: String(value), updated_at: Utils.now() }], prefer: 'resolution=merge-duplicates,return=minimal' });
       }
       async pullTombstones() {
-        return this.raw('tombstones?select=*&order=created_at.desc');
+        return this.pullPaged('tombstones', 'deleted_at');
       }
       // Append-only insert. ignore-duplicates avoids an UPDATE path (tombstones have no update policy).
       async pushTombstones(rows) {
         if (!rows.length) return null;
-        return this.raw('tombstones?on_conflict=id', { method: 'POST', body: rows, prefer: 'resolution=ignore-duplicates,return=minimal' });
+        for (let start = 0; start < rows.length; start += 500) {
+          await this.raw('tombstones?on_conflict=id', { method: 'POST', body: rows.slice(start, start + 500), prefer: 'resolution=ignore-duplicates,return=minimal' });
+        }
+        return null;
       }
       // Owner allowlist. RLS: bootstrap owner reads all and is the only writer; others read only their own row.
       async listAllowedUsers() {
@@ -2032,6 +2145,7 @@
       guideTopic: null,
       formType: 'expense',
       filters: { query: '', type: 'all', year: 'all' },
+      pages: { ledger: 1, journals: 1, evidence: 1 },
       ready: false
     };
     // 백그라운드 자동 동기화 디바운스 타이머 — SyncService.scheduleAutoSync/runAutoSync 전용.
@@ -2257,7 +2371,9 @@
           ['evidence_files', scoped(evidenceFiles).map(soft)],
           ['period_closings', scoped(closings).map(soft)]
         ];
-        const tombstones = groups.flatMap(([table, rows]) => rows.map(row => this.tombstone(table, row.id, businessId)));
+        // 이 가계부를 소프트삭제하면 business-scoped tombstone도 RLS에서 즉시 숨는다. 전체 삭제
+        // 신호는 의도적으로 null scope(허용 사용자만 읽기 가능)로 저장해 다른 기기가 계속 받게 한다.
+        const tombstones = groups.flatMap(([table, rows]) => rows.map(row => this.tombstone(table, row.id, null)));
         const audit = this.audit('business', businessId, 'delete', business, null, '가계부 삭제');
         const queueRows = [
           ...groups.flatMap(([table, rows]) => rows.map(row => this.queue(table, table === 'accounts' ? this.remoteSafeAccount(row) : row))),
@@ -2467,7 +2583,7 @@
 
       tombstone(entityType, entityId, businessId) {
         const now = Utils.now();
-        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: businessId !== undefined ? businessId : (state.business?.id || null), deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
+        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: SyncAlgorithms.resolveTombstoneBusinessId(businessId, state.business?.id), deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
       },
 
       // Soft delete a source transaction with its journal entry and lines, keeping an audit trail,
@@ -2627,13 +2743,7 @@
       // 전용 인프라 테이블)는 건드리지 않는다 — 없다고 그냥 비우면 아직 못 올린 로컬 변경이 사라질 수 있다.
       async restoreBackup(backup) {
         if (!backup || backup.backupSchemaVersion !== APP_INFO.backupSchemaVersion || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
-        const recordsByStore = {};
-        for (const store of LOCAL_STORES) {
-          const rows = backup.tables[store];
-          if (rows === undefined) continue;
-          if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
-          recordsByStore[store] = rows;
-        }
+        const recordsByStore = SyncAlgorithms.restoreScope(LOCAL_STORES, backup.tables);
         for (const store of Object.keys(recordsByStore)) await storage.replaceStore(store, recordsByStore[store]);
         state.config.canonicalVersion = Number(backup.canonicalVersion || 0);
         ConfigAdapter.save(state.config);
@@ -2663,6 +2773,9 @@
         }
         renderShellStatus();
         if (state.route === 'settings' || state.route === 'developer' || state.route === 'guide') render();
+        if (state.connectionDiagnostics.api === 'ready' && state.connectionDiagnostics.anonymousIsolation === 'pass' && state.session) {
+          await this.connectAndSync();
+        }
         return state.connectionDiagnostics;
       },
       async initializeAuth() {
@@ -2693,6 +2806,7 @@
       async syncNow() {
         if (!state.session) throw new Error('AUTH_REQUIRED');
         state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
+        const syncStartedAt = Utils.now();
         try {
           const meta = await remote.syncMeta();
           const cloudCanonical = Number(meta.canonical_version?.value || 0);
@@ -2704,17 +2818,25 @@
             // returns no business while we hold one locally, treat it as an RLS/auth failure and refuse to
             // wipe local data (protects against a broken empty response silently deleting everything).
             const localBusinesses = await storage.getAll('businesses');
-            if (localBusinesses.some(row => !row.deleted_at) && cloudByTable.businesses.length === 0) {
-              throw new Error('EMPTY_CLOUD_GUARD');
-            }
+            SyncAlgorithms.assertCanonicalCloudSafe(localBusinesses, cloudByTable.businesses);
             for (const table of SYNC_TABLE_ORDER) await storage.replaceStore(table, cloudByTable[table]);
+            // canonical 변경은 클라우드 정본을 내려받기만 한다. 이 기기의 오래된 tombstone을 다시
+            // 올리면 방금 받은 최종본을 오염시키므로 클라우드 tombstone으로 통째 교체한다.
+            await storage.replaceStore('tombstones', (await remote.pullTombstones()) || []);
             const pending = await storage.getAll('sync_queue');
             const completedAt = Utils.now();
             await storage.replaceStore('sync_queue', pending.map(row => ({ ...row, status: 'superseded_by_canonical', updated_at: completedAt })));
             state.config.canonicalVersion = cloudCanonical;
           } else {
+            // 삭제 대상 business가 아직 활성일 때 tombstone을 먼저 올려 RLS를 통과시킨다.
+            await this.convergeTombstones();
             const queue = (await storage.getAll('sync_queue')).filter(row => row.status === 'pending' && !row.deleted_at);
-            queue.sort((a,b) => SYNC_TABLE_ORDER.indexOf(a.entity_type) - SYNC_TABLE_ORDER.indexOf(b.entity_type));
+            queue.sort((a, b) => {
+              const aDelete = Boolean(a.payload?.deleted_at), bDelete = Boolean(b.payload?.deleted_at);
+              if (aDelete !== bDelete) return aDelete ? 1 : -1;
+              const order = aDelete ? SYNC_DELETE_ORDER : SYNC_TABLE_ORDER;
+              return order.indexOf(a.entity_type) - order.indexOf(b.entity_type);
+            });
             for (const item of queue) {
               try {
                 const payload = item.entity_type === 'accounts' ? AppService.remoteSafeAccount(item.payload) : item.payload;
@@ -2725,15 +2847,16 @@
                 throw error;
               }
             }
+            const previousSync = Date.parse(state.config.lastSyncAt || 0);
+            const changedSince = Number.isFinite(previousSync) && previousSync > 0
+              ? new Date(previousSync - 5 * 60 * 1000).toISOString()
+              : null;
             for (const table of SYNC_TABLE_ORDER) {
-              const [localRows, cloudRows] = await Promise.all([storage.getAll(table), remote.pullTable(table)]);
-              const merged = new Map(localRows.map(row => [row.id, row]));
-              for (const remoteRow of cloudRows) merged.set(remoteRow.id, Utils.latestByUpdatedAt(merged.get(remoteRow.id), remoteRow));
-              await storage.replaceStore(table, [...merged.values()]);
+              const [localRows, cloudRows] = await Promise.all([storage.getAll(table), remote.pullTable(table, { since: changedSince })]);
+              await storage.replaceStore(table, SyncAlgorithms.mergeRows(localRows, cloudRows));
             }
           }
-          await this.convergeTombstones();
-          state.config.lastSyncAt = Utils.now();
+          state.config.lastSyncAt = syncStartedAt;
           state.config.canonicalVersion = cloudCanonical;
           ConfigAdapter.save(state.config);
           state.syncStatus = 'complete';
@@ -2770,20 +2893,14 @@
       // RLS hides soft-deleted rows from pullTable, so tombstones are the only cross-device delete signal.
       async convergeTombstones() {
         const cloud = (await remote.pullTombstones()) || [];
-        const cloudIds = new Set(cloud.map(row => row.id));
         const local = await storage.getAll('tombstones');
-        const localIds = new Set(local.map(row => row.id));
-        const toPush = local.filter(row => !cloudIds.has(row.id));
-        if (toPush.length) await remote.pushTombstones(toPush);
-        const newFromCloud = cloud.filter(row => !localIds.has(row.id));
-        const updatesByStore = {};
-        for (const stone of [...local, ...newFromCloud]) {
-          if (!SYNC_TABLE_ORDER.includes(stone.entity_type)) continue;
-          const row = await storage.get(stone.entity_type, stone.entity_id);
-          if (row && !row.deleted_at) (updatesByStore[stone.entity_type] ||= []).push({ ...row, deleted_at: stone.deleted_at, updated_at: stone.deleted_at });
-        }
-        const payload = { ...updatesByStore };
-        if (newFromCloud.length) payload.tombstones = newFromCloud;
+        const entityTypes = [...new Set([...local, ...cloud].map(row => row.entity_type).filter(table => SYNC_TABLE_ORDER.includes(table)))];
+        const rowsByStore = {};
+        for (const table of entityTypes) rowsByStore[table] = await storage.getAll(table);
+        const plan = SyncAlgorithms.planTombstoneConvergence(local, cloud, rowsByStore);
+        if (plan.toPush.length) await remote.pushTombstones(plan.toPush);
+        const payload = { ...plan.updatesByStore };
+        if (plan.newFromCloud.length) payload.tombstones = plan.newFromCloud;
         if (Object.keys(payload).length) await storage.putMany(payload);
       },
 
@@ -2827,24 +2944,57 @@
         await this.loadAllowedUsers();
       },
 
-      // Designate THIS device as the cloud source of truth: upload all local rows + tombstones,
-      // then bump accounting_sync_meta.canonical_version. Other devices detect the higher canonical
-      // on their next sync and replace local with cloud, discarding local-only changes (AGENTS 동기화 6-9).
+      // 이 기기를 최종본으로 지정한다. 로컬 활성 행을 올리는 것만으로는 클라우드 전용 행이 남아
+      // 다른 기기에서 부활하므로, 원격 전체를 먼저 비교하고 없는 행은 child-first로 소프트삭제한다.
+      // 모든 쓰기가 끝난 뒤에만 canonical_version을 올려 다른 기기가 완성된 스냅샷만 받게 한다.
       async designateCanonical() {
         if (!state.session) throw new Error('AUTH_REQUIRED');
         if (!isBootstrapOwner()) throw new Error('CANONICAL_OWNER_ONLY');
         state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
         try {
+          const meta = await remote.syncMeta();
+          const nextCanonical = Math.max(Number(meta.canonical_version?.value || 0), Number(state.config.canonicalVersion || 0)) + 1;
+          const now = Utils.now();
+          const localByTable = {}, cloudByTable = {};
           for (const table of SYNC_TABLE_ORDER) {
-            const rows = await storage.getAll(table);
+            [localByTable[table], cloudByTable[table]] = await Promise.all([storage.getAll(table), remote.pullTable(table)]);
+          }
+          const plan = SyncAlgorithms.planCanonicalReconciliation({
+            localByTable, cloudByTable, now, deviceId: AppService.deviceId(), nextCanonical
+          });
+          const visibleBusinessIds = new Set([
+            ...(cloudByTable.businesses || []).map(row => row.id),
+            ...(plan.upsertsByTable.businesses || []).map(row => row.id)
+          ]);
+
+          // 부모부터 활성 최종본을 올린다. 감사로그는 append-only라 클라우드 전용 로그를 지우지 않는다.
+          for (const table of SYNC_TABLE_ORDER) {
+            const rows = table === 'audit_logs'
+              ? plan.upsertsByTable[table].filter(row => row.business_id == null || visibleBusinessIds.has(row.business_id))
+              : plan.upsertsByTable[table];
             const safe = table === 'accounts' ? rows.map(row => AppService.remoteSafeAccount(row)) : rows;
             await remote.upsertMany(table, safe);
           }
-          await remote.pushTombstones(await storage.getAll('tombstones'));
-          const meta = await remote.syncMeta();
-          const nextCanonical = Math.max(Number(meta.canonical_version?.value || 0), Number(state.config.canonicalVersion || 0)) + 1;
+
+          // business를 지우기 전에 tombstone을 먼저 저장해야 business-scoped RLS를 통과한다.
+          const localTombstones = (await storage.getAll('tombstones')).filter(row => row.business_id == null || visibleBusinessIds.has(row.business_id));
+          const tombstones = [...new Map([...localTombstones, ...plan.generatedTombstones].map(row => [row.id, row])).values()];
+          await remote.pushTombstones(tombstones);
+
+          // 자식부터 삭제하고 businesses를 마지막에 처리하면 RLS 검사에 필요한 부모가 끝까지 살아 있다.
+          for (const table of SYNC_DELETE_ORDER) {
+            const rows = plan.deletesByTable[table] || [];
+            const safe = table === 'accounts' ? rows.map(row => AppService.remoteSafeAccount(row)) : rows;
+            await remote.upsertMany(table, safe);
+          }
+
+          const localUpdates = {};
+          for (const table of SYNC_TABLE_ORDER) if (plan.upsertsByTable[table].length) localUpdates[table] = plan.upsertsByTable[table];
+          if (plan.generatedTombstones.length) localUpdates.tombstones = plan.generatedTombstones;
+          if (Object.keys(localUpdates).length) await storage.putMany(localUpdates);
+
+          // 마지막 커밋 표식. 이 전 단계가 실패하면 다른 기기는 불완전한 상태를 canonical로 소비하지 않는다.
           await remote.setSyncMeta('canonical_version', nextCanonical);
-          const now = Utils.now();
           const pending = await storage.getAll('sync_queue');
           await storage.replaceStore('sync_queue', pending.map(row => ({ ...row, status: 'superseded_by_canonical', updated_at: now })));
           state.config.canonicalVersion = nextCanonical;
@@ -2891,7 +3041,7 @@
           const cloudByTable = {};
           for (const table of SYNC_TABLE_ORDER) cloudByTable[table] = (await remote.pullTable(table)) || [];
           const localBusinesses = await storage.getAll('businesses');
-          if (localBusinesses.some(row => !row.deleted_at) && cloudByTable.businesses.length === 0) throw new Error('EMPTY_CLOUD_GUARD');
+          SyncAlgorithms.assertCanonicalCloudSafe(localBusinesses, cloudByTable.businesses);
           for (const table of SYNC_TABLE_ORDER) await storage.replaceStore(table, cloudByTable[table]);
           await storage.replaceStore('tombstones', (await remote.pullTombstones()) || []);
           await storage.replaceStore('sync_queue', []);
@@ -2916,6 +3066,11 @@
     const term = name => `<button type="button" class="term-button" data-term="${Utils.escape(name)}">${Utils.escape(name)}</button>`;
     const badge = (text, kind = '') => `<span class="badge ${kind}">${Utils.escape(text)}</span>`;
     const currentYear = new Date().getFullYear();
+
+    function pager(view, result) {
+      if (result.totalPages <= 1) return '';
+      return `<nav class="pager" aria-label="목록 페이지"><button class="button small" type="button" data-page-view="${view}" data-page-number="${result.page - 1}" ${result.page <= 1 ? 'disabled' : ''}>${icon('chevron-left')}이전</button><span class="pager-status">${result.page} / ${result.totalPages}쪽 · 전체 ${result.totalRows.toLocaleString('ko-KR')}건</span><button class="button small" type="button" data-page-view="${view}" data-page-number="${result.page + 1}" ${result.page >= result.totalPages ? 'disabled' : ''}>다음${icon('chevron-right')}</button></nav>`;
+    }
 
     function refreshIcons() { try { window.lucide?.createIcons({ attrs: { 'stroke-width': 1.8 } }); } catch { /* labels remain visible */ } }
     function routeTo(route) { location.hash = route; }
@@ -3109,27 +3264,34 @@
     }
 
     function renderLedger() {
-      const rows = filteredTransactions();
+      const result = SyncAlgorithms.page(filteredTransactions(), state.pages.ledger);
+      state.pages.ledger = result.page;
+      const rows = result.rows;
       const years = [...new Set(activeTransactions().map(row => row.transaction_date.slice(0,4)))].sort().reverse();
       return `
         ${pageHeader('장부', `국세청 간편장부 열 구조로 보는 원천거래입니다. 내부 기준은 ${term('복식부기')} 원장입니다.`, `<button class="button primary" type="button" data-route="transactions">${icon('plus')}거래 입력</button>`)}
         <div class="filter-bar"><input class="input" id="ledgerQuery" type="search" placeholder="내용·거래처 검색" value="${Utils.escape(state.filters.query)}"><select class="select" id="ledgerType"><option value="all">전체 유형</option><option value="income" ${state.filters.type==='income'?'selected':''}>수입</option><option value="expense" ${state.filters.type==='expense'?'selected':''}>비용</option><option value="asset_purchase" ${state.filters.type==='asset_purchase'?'selected':''}>자산</option></select><select class="select" id="ledgerYear"><option value="all">전체 연도</option>${years.map(year=>`<option value="${year}" ${state.filters.year===year?'selected':''}>${year}년</option>`).join('')}</select></div>
-        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}${row.is_overseas ? ` <span class="fx-tag" title="${Utils.escape([row.foreign_currency, row.foreign_amount, row.exchange_rate ? '@' + row.exchange_rate : ''].filter(Boolean).join(' '))}">🌐 해외</span>` : ''}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${rows.length?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>`;
+        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}${row.is_overseas ? ` <span class="fx-tag" title="${Utils.escape([row.foreign_currency, row.foreign_amount, row.exchange_rate ? '@' + row.exchange_rate : ''].filter(Boolean).join(' '))}">🌐 해외</span>` : ''}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${result.totalRows?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>${pager('ledger', result)}`;
     }
 
     function renderJournals() {
-      const rows = state.journals.filter(row => !row.deleted_at).sort((a,b)=>String(b.entry_date).localeCompare(String(a.entry_date)));
+      const allRows = state.journals.filter(row => !row.deleted_at).sort((a,b)=>String(b.entry_date).localeCompare(String(a.entry_date)));
+      const result = SyncAlgorithms.page(allRows, state.pages.journals);
+      state.pages.journals = result.page;
+      const linesByJournal = new Map();
+      for (const line of state.journalLines) {
+        if (line.deleted_at) continue;
+        const group = linesByJournal.get(line.journal_entry_id) || [];
+        group.push(line);
+        linesByJournal.set(line.journal_entry_id, group);
+      }
       return `
         ${pageHeader('전표 검토', `${term('차변')}과 ${term('대변')}이 같은지 확인합니다.`)}
-        ${rows.length ? rows.map(journal => {
-          const lines = state.journalLines.filter(line => line.journal_entry_id === journal.id && !line.deleted_at).sort((a,b)=>a.sort_order-b.sort_order);
+        ${result.totalRows ? result.rows.map(journal => {
+          const lines = (linesByJournal.get(journal.id) || []).sort((a,b)=>a.sort_order-b.sort_order);
           const result = AccountingDomain.validateJournal(lines);
           return `<section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">${journal.entry_date} · ${Utils.escape(journal.memo || '전표')}</h2><p class="section-help">규칙 ${Utils.escape(journal.posting_rule_version)} · 원천거래 ${journal.source_transaction_id.slice(0,8)}</p></div>${result.status==='pass'?badge('차대변 일치','success'):badge(`차액 ${Utils.won(result.difference)}`,'danger')}</div><div class="table-wrap"><table style="min-width:620px"><thead><tr><th>계정과목</th><th>설명</th><th class="number">차변</th><th class="number">대변</th></tr></thead><tbody>${lines.map(line=>`<tr><td>${Utils.escape(accountName(line.account_id))}</td><td>${Utils.escape(line.line_memo || '')}</td><td class="number">${line.debit_amount?Utils.won(line.debit_amount):''}</td><td class="number">${line.credit_amount?Utils.won(line.credit_amount):''}</td></tr>`).join('')}</tbody><tfoot><tr><th colspan="2">합계</th><th class="number">${Utils.won(result.debit)}</th><th class="number">${Utils.won(result.credit)}</th></tr></tfoot></table></div></section>`;
-        }).join('') : emptyState('scale','검토할 전표가 없습니다','거래를 저장하면 자동으로 복식 전표가 만들어집니다.')}`;
-    }
-
-    function evidenceFor(transactionId) {
-      return state.evidenceFiles.filter(row => row.source_transaction_id === transactionId && !row.deleted_at);
+        }).join('') : emptyState('scale','검토할 전표가 없습니다','거래를 저장하면 자동으로 복식 전표가 만들어집니다.')}${pager('journals', result)}`;
     }
 
     function evidenceThumb(file) {
@@ -3142,15 +3304,24 @@
 
     function renderEvidence() {
       const configured = CloudinaryAdapter.isConfigured();
-      const rows = activeTransactions();
-      const missing = rows.filter(row => row.evidence_status !== 'attached');
+      const allRows = activeTransactions();
+      const missing = allRows.filter(row => row.evidence_status !== 'attached');
+      const result = SyncAlgorithms.page(allRows, state.pages.evidence);
+      state.pages.evidence = result.page;
+      const filesByTransaction = new Map();
+      for (const file of state.evidenceFiles) {
+        if (file.deleted_at) continue;
+        const group = filesByTransaction.get(file.source_transaction_id) || [];
+        group.push(file);
+        filesByTransaction.set(file.source_transaction_id, group);
+      }
       return `${pageHeader('증빙','이미지·PDF 원본은 Cloudinary(unsigned)에, 파일 메타는 장부·Supabase에 연결합니다.')}
         ${configured ? '' : `<div class="notice">${icon('cloud-off')}<div><strong>Cloudinary 증빙 저장소가 아직 설정되지 않았습니다.</strong><br>설정에서 cloud name과 제한된 unsigned upload preset을 입력하면 파일 첨부가 활성화됩니다. API secret은 입력하지 않습니다.</div><button class="button" type="button" data-route="settings">${icon('settings-2')}설정 열기</button></div>`}
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">거래별 증빙</h2><p class="section-help">파일이 없어도 거래는 유지하고 검토 항목으로 남깁니다. 첨부는 오프라인에서도 되고 로그인 시 클라우드에 동기화됩니다.</p></div>${badge(`미첨부 ${missing.length}건`, missing.length?'warning':'success')}</div>
-        ${rows.length ? `<div>${rows.map(row => {
-          const files = evidenceFor(row.id);
+        ${result.totalRows ? `<div>${result.rows.map(row => {
+          const files = filesByTransaction.get(row.id) || [];
           return `<div class="evidence-row"><div class="activity-main"><div class="activity-title">${Utils.escape(row.description)}</div><div class="activity-note">${row.transaction_date} · ${Utils.escape(counterpartyName(row.counterparty_id))} · ${Utils.won(row.total_amount)}</div>${files.length?`<div class="evidence-files">${files.map(file => `<div class="evidence-file-wrap">${evidenceThumb(file)}<button class="evidence-remove" type="button" data-remove-evidence="${file.id}" title="증빙 제거" aria-label="증빙 제거">${icon('x')}</button></div>`).join('')}</div>`:''}</div><div class="evidence-actions">${files.length?badge(`${files.length}개 첨부`,'success'):badge('미첨부','warning')}<button class="button small" type="button" data-attach-tx="${row.id}" ${configured?'':'disabled'}>${icon('upload')}파일 첨부</button></div></div>`;
-        }).join('')}</div>` : emptyState('paperclip','거래가 없습니다','거래를 입력하면 여기에서 증빙을 첨부할 수 있습니다.')}
+        }).join('')}</div>` : emptyState('paperclip','거래가 없습니다','거래를 입력하면 여기에서 증빙을 첨부할 수 있습니다.')}${pager('evidence', result)}
         </section>
         <input id="evidenceFileInput" type="file" accept="image/*,application/pdf" hidden>`;
     }
@@ -4172,9 +4343,16 @@
       }
 
       const ledgerQuery = el('ledgerQuery');
-      if (ledgerQuery) ledgerQuery.addEventListener('input', Utils.debounce(() => { state.filters.query = ledgerQuery.value; render(); }));
-      el('ledgerType')?.addEventListener('change', event => { state.filters.type = event.target.value; render(); });
-      el('ledgerYear')?.addEventListener('change', event => { state.filters.year = event.target.value; render(); });
+      if (ledgerQuery) ledgerQuery.addEventListener('input', Utils.debounce(() => { state.filters.query = ledgerQuery.value; state.pages.ledger = 1; render(); }));
+      el('ledgerType')?.addEventListener('change', event => { state.filters.type = event.target.value; state.pages.ledger = 1; render(); });
+      el('ledgerYear')?.addEventListener('change', event => { state.filters.year = event.target.value; state.pages.ledger = 1; render(); });
+      document.querySelectorAll('[data-page-view]').forEach(button => button.addEventListener('click', () => {
+        const view = button.dataset.pageView;
+        if (!Object.hasOwn(state.pages, view)) return;
+        state.pages[view] = Math.max(1, Number(button.dataset.pageNumber) || 1);
+        render();
+        window.scrollTo?.({ top: 0, behavior: 'smooth' });
+      }));
 
       const industrySearch = el('industrySearch');
       if (industrySearch) {
@@ -4260,9 +4438,11 @@
         } catch (error) { diagnostic(error); }
       });
       el('connectionDiagnosticButton')?.addEventListener('click', async () => {
-        const result = await SyncService.runConnectionDiagnostics();
-        if (result.api === 'ready' && result.anonymousIsolation === 'pass') toast('Data API 연결과 익명 RLS 격리를 확인했습니다.', 'success');
-        else toast('Supabase 연결 진단에서 확인이 필요한 항목이 있습니다.', 'error');
+        try {
+          const result = await SyncService.runConnectionDiagnostics();
+          if (result.api === 'ready' && result.anonymousIsolation === 'pass') toast(state.session ? '연결 확인 후 즉시 동기화했습니다.' : 'Data API 연결과 익명 RLS 격리를 확인했습니다.', 'success');
+          else toast('Supabase 연결 진단에서 확인이 필요한 항목이 있습니다.', 'error');
+        } catch (error) { diagnostic(error); }
       });
       el('googleLoginButton')?.addEventListener('click', async () => { try { await remote.signIn(); } catch (error) { diagnostic(error); } });
       el('logoutButton')?.addEventListener('click', async () => { try { await remote.signOut(); state.session=null; state.allowedUser=null; state.allowedUsers=[]; toast('로그아웃했습니다. 로컬 데이터는 유지됩니다.','success'); render(); } catch(error){ diagnostic(error); } });
@@ -4447,7 +4627,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, SyncAlgorithms, SupabaseAdapter, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>

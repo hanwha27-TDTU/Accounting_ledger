@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_PATH = path.join(root, 'docs', 'bareunjangbu-apk-install-playbook.md');
+const normalizeEol = text => text.replace(/\r\n?/g, '\n');
 
 // logic.test.mjs와 같은 방식으로 실제 앱 IIFE를 VM에 로드한다(스텁 DOM).
 function loadApp() {
@@ -108,7 +109,7 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   const expected = buildPlaybook();
   if (process.argv.includes('--check')) {
-    const actual = existsSync(OUT_PATH) ? readFileSync(OUT_PATH, 'utf8') : null;
+    const actual = existsSync(OUT_PATH) ? normalizeEol(readFileSync(OUT_PATH, 'utf8')) : null;
     if (actual !== expected) {
       console.error(`install playbook is stale or missing — run: npm run playbook:build`);
       process.exit(1);

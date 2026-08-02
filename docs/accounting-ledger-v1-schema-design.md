@@ -678,7 +678,7 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 
 ## 16. 실제 SQL 적용본
 
-2026-07-09 기준 Supabase `News&Accounting` 프로젝트(`ihxiywffzmvrwmqvatzt`)에 아래 migration을 적용했다.
+2026-07-12 기준 Supabase `News&Accounting` 프로젝트(`ihxiywffzmvrwmqvatzt`)에 아래 migration을 적용했다.
 
 | 로컬 파일 | 원격 migration name | 원격 version |
 |---|---|---|
@@ -686,6 +686,7 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 | `supabase/migrations/20260709000200_accounting_v1_indexes_and_rls_tuning.sql` | `accounting_v1_indexes_and_rls_tuning` | `20260709123349` |
 | `supabase/migrations/20260709000300_accounting_v1_drop_duplicate_indexes.sql` | `accounting_v1_drop_duplicate_indexes` | `20260709123504` |
 | `supabase/migrations/20260709000400_accounting_v1_schema_meta_003.sql` | `accounting_v1_schema_meta_003` | `20260709123556` |
+| `supabase/migrations/20260712000500_accounting_v1_overseas_fields.sql` | `accounting_v1_overseas_fields` | `20260712000500` |
 
 검증 기준:
 
@@ -695,7 +696,7 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 | RLS 적용 | 38/38 |
 | FK 보조 인덱스 누락 | 0개 |
 | owner allowlist | `hanwha27@gmail.com` |
-| `accounting_sync_meta.last_schema_version` | `0.03` |
+| `accounting_sync_meta.last_schema_version` | `0.04` |
 | `accounting_sync_meta.canonical_version` | `0` |
 
 Supabase advisor 잔여 항목 중 security ERROR/WARN은 기존 비회계 테이블(`news_items`, `language_sync_meta`, `vocab_items`, `usmle_cards`) 관련이다. 회계 신규 테이블에는 별도 security advisor 이슈가 확인되지 않았다. Performance 잔여 항목은 앱 사용 전 신규 인덱스의 `unused_index` INFO다.

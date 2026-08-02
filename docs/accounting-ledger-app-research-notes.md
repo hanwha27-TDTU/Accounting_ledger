@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.74** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.75** · 개정 2026-08-02
 
 # Accounting Ledger App Research Notes
 
@@ -1508,3 +1508,23 @@ advisor 잔여 항목:
 | 이 작업으로 확정된 패턴 | 이 저장소는 이제 "문서끼리 어긋남"을 세 곳에서 같은 방식(생성 + 바이트 비교 게이트)으로 막는다: 지침 파일(`adapter-parity`), 설치 안내(`install-playbook-sync`), APK 링크 3자 일치(`apk-link-contract`). 새로 같은 내용을 두 곳에 적고 싶어지면 먼저 "한쪽을 생성물로 만들 수 있나"를 검토한다 — 이 원칙을 CLAUDE.md의 AI 개발 규율 절에도 명문화했다(헌법 경유). |
 | 남은 위험/미완 | 헌법 블록 문법은 단순 정규식 파서라 마커를 중첩할 수 없다(현재 필요 없음, 필요해지면 파서 확장). 어댑터를 새로 추가하려면 생성기의 `ADAPTERS` 맵만 늘리면 된다(예: 다른 도구용 지침 파일). |
 | 스킬 버전 | `Sub_app-research-notes_0.74` |
+
+## 2026-08-02 앱 0.58: 코드 건강진단 전면 보강 — canonical 정확성·실코드 테스트·대용량·공급망
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.57 → 0.58 |
+| schema_version | 코드 표기 0.03 → 운영 migration과 같은 0.04(새 migration 없음) |
+| note_type | `fix`(정본·삭제·Windows 게이트·연결 흐름) + `performance`(원격/UI 페이지네이션) + `security`(vendor/CSP/action pin) |
+| 배경 | 사용자 요청으로 저장소 전체 코드 건강진단을 수행한 뒤 발견 항목 전부를 수정. 핵심 결함은 `이 기기를 최종본으로`가 로컬 행을 upsert하고 버전만 올려, 로컬에 없는 클라우드 전용 행은 그대로 남아 다른 기기에서 다시 나타나는 것이었다. |
+| canonical 수정 | `SyncAlgorithms.planCanonicalReconciliation`을 실제 서비스와 테스트가 공유. 로컬 활성 행을 canonical 시각으로 갱신해 부모부터 upsert하고, 원격 전체와 비교해 로컬에 없는 행마다 결정적 tombstone을 먼저 올린 뒤 `SYNC_DELETE_ORDER`(자식→businesses)로 소프트삭제한다. 감사로그는 append-only 보존. 모든 쓰기 성공 후에만 `canonical_version`을 +1한다. 소비 기기는 클라우드 표·tombstone을 replace만 하고 로컬 tombstone/병합 결과를 재업로드하지 않는다. |
+| 삭제·복원 정합성 | 일반 삭제는 business가 활성일 때 tombstone을 먼저 올리고, 큐의 삭제 행은 child-first로 처리한다. tombstone 적용은 행의 `updated_at`과 비교해 더 최신 삭제만 승리한다. 따라서 과거 tombstone이 canonical 복원 행을 다시 죽이지 않는다. |
+| 원격 성능·무손실 | 모든 REST pull과 tombstone pull을 500행 단위 `limit/offset` 루프로 끝까지 읽고 정렬에 `id`를 보조키로 추가. 일반 동기화는 마지막 성공 시작시각에서 5분 overlap을 둔 변경분만 pull하고 LWW merge, canonical·클라우드 백업·강제 새로고침은 전체 pull. batch upsert/tombstone도 500행씩 나누며 모든 요청은 공통 `raw()`의 `response.ok` 검사를 통과해야 한다. |
+| UI 성능 | 장부·전표·증빙을 100건 단위로 페이지 구분. 전표 라인과 증빙 파일을 매 부모마다 전체 `filter()`하지 않고 parent id Map으로 한 번 그룹화해 O(parent×child) 반복 스캔을 제거. |
+| 연결 흐름 | 로그인 상태에서 연결 진단이 Data API·익명 RLS 격리를 통과하면 즉시 `connectAndSync()` 실행. 앱 초기화 중 비로그인 진단은 기존처럼 진단만 수행해 재귀나 로그인 요구 오류가 없다. |
+| 공급망·브라우저 보안 | 런타임 CDN 실행을 제거하고 `lucide@0.468.0`, `@supabase/supabase-js@2.110.2` UMD를 `vendor/`에 고정, 라이선스·SHA-256 원장 추가. CSP로 script를 self(+단일 HTML의 inline), connect/img/media 대상을 앱이 실제 쓰는 Supabase·Cloudinary·GitHub API로 제한. 하네스 `browser-dependency-integrity`가 파일 해시·CSP·CDN 부재를 강제. |
+| CI·Windows | 두 워크플로의 외부 Action 7개를 현재 tag가 가리키는 40자리 commit SHA로 고정하고 `workflow-action-pins` 게이트 추가. 생성기 2개는 CRLF/LF를 정규화해 Windows `core.autocrlf=true`에서도 adapter/playbook 동기화가 거짓 실패하지 않게 했고 `.gitattributes`를 추가. |
+| 테스트 | 미러였던 canonical guard·tombstone convergence·restore scope·business id 규칙을 실제 `SyncAlgorithms` 호출로 전환. 클라우드 A+B/로컬 A → B와 자식 삭제, audit 보존, 결정적 재시도, 삭제 가계부 null-scope tombstone, 복원 최신성, LWW, 마지막 페이지 경계에 더해 실제 `SupabaseAdapter`의 1,002행 3페이지 pull·증분 필터·1,001행 batch 분할을 추가해 로직 188→205 assertion. 하네스는 17개(16 REQUIRED + 1 MANUAL) 구조로 확장. |
+| 검증 결과 | `npm run harness:check`: 16 REQUIRED PASS, 1 MANUAL, 실패 0. 워크플로 YAML 2개 파싱 성공. 로컬 HTTP 서버에서 index·vendor 2개 모두 200(각 파일 크기 확인). 데스크톱 앱의 Chrome 연결과 앱 내 브라우저가 모두 탭 연결 단계에서 응답하지 않아 시각/상호작용 왕복은 실행하지 못했고 `browser-roundtrip`은 정직하게 MANUAL로 유지. |
+| 범위 밖/정직한 제한 | 운영 Supabase migration·데이터 변경은 수행하지 않는다. GitHub Pages 배포는 사용자의 후속 명시 요청에 따라 `main` push로 수행하며 결과는 Git/Actions를 SSOT로 확인한다. 클라이언트 여러 REST 요청을 하나의 DB transaction으로 묶을 수는 없으므로 canonical은 결정적 재시도+tombstone 선기록+버전 마지막 커밋으로 안전하게 설계했지만, 완전한 단일 transaction이 필요하면 향후 owner 전용 RPC migration이 필요하다. |
+| 스킬 버전 | `Sub_app-research-notes_0.75` |

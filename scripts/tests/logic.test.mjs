@@ -1,8 +1,8 @@
 // Characterization / regression tests locked into CI (harness gate: logic-tests).
 // Part A loads the REAL app IIFE in a stubbed VM and tests the pure functions it exposes on
 // window.__ACCOUNTING_APP_TEST__ (accounting domain, utils, industry-code search).
-// Part B pins the sync/delete ALGORITHMS with faithful replicas of the service methods
-// (they need DOM/IndexedDB, so they are mirrored here — update both together).
+// Part B calls the REAL pure sync algorithms exposed by the app. Network/IndexedDB adapters stay
+// stubbed, while canonical planning, LWW, tombstones and restore scoping have one implementation.
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
@@ -228,42 +228,78 @@ if (api) {
   ok(/^\d+\.\d{2}$/.test(APP_INFO.version), 'APP_INFO.version is two-decimal');
 }
 
-// ---- Part B: sync/delete algorithm characterization (replicas of service methods) ----
-const SYNC_TABLE_ORDER = ['businesses', 'source_transactions', 'evidence_files'];
-const latest = (a, b) => !a ? b : !b ? a : (Date.parse(a.updated_at || 0) > Date.parse(b.updated_at || 0) ? a : b);
-
-// tombstone convergence (SyncService.convergeTombstones)
-function converge(localTombs, cloudTombs, localRows) {
-  const cloudIds = new Set(cloudTombs.map(t => t.id));
-  const toPush = localTombs.filter(t => !cloudIds.has(t.id));
-  const localIds = new Set(localTombs.map(t => t.id));
-  const fresh = cloudTombs.filter(t => !localIds.has(t.id));
-  const applied = {};
-  for (const s of [...localTombs, ...fresh]) {
-    if (!SYNC_TABLE_ORDER.includes(s.entity_type)) continue;
-    const r = localRows[s.entity_type]?.find(x => x.id === s.entity_id);
-    if (r && !r.deleted_at) { r.deleted_at = s.deleted_at; (applied[s.entity_type] ||= []).push(r.id); }
-  }
-  return { toPush, applied };
-}
+// ---- Part B: real sync/delete algorithms used by SyncService/AppService ----
+const SyncAlgorithms = api.SyncAlgorithms;
 {
-  const rows = { source_transactions: [{ id: 't1', deleted_at: null }] };
-  const res = converge([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', deleted_at: 'T' }], rows);
-  ok(rows.source_transactions[0].deleted_at === 'T', 'converge: cloud tombstone soft-deletes local row');
-  const res2 = converge([{ id: 'ts9', entity_type: 'source_transactions', entity_id: 'x', deleted_at: 'T' }], [], { source_transactions: [] });
+  const rows = { source_transactions: [{ id: 't1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', deleted_at: null }] };
+  const res = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', deleted_at: '2026-01-02T00:00:00.000Z' }], rows);
+  ok(res.updatesByStore.source_transactions[0].deleted_at === '2026-01-02T00:00:00.000Z', 'converge: cloud tombstone soft-deletes an older local row');
+  const res2 = SyncAlgorithms.planTombstoneConvergence([{ id: 'ts9', entity_type: 'source_transactions', entity_id: 'x', deleted_at: '2026-01-02T00:00:00.000Z' }], [], { source_transactions: [] });
   ok(res2.toPush.length === 1, 'converge: local-only tombstone is pushed');
+  const restored = { source_transactions: [{ id: 't1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-03T00:00:00.000Z', deleted_at: null }] };
+  const res3 = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', deleted_at: '2026-01-02T00:00:00.000Z' }], restored);
+  ok(!res3.updatesByStore.source_transactions, 'converge: a row restored after the tombstone stays active');
 }
 
-// empty-cloud guard (syncNow canonical branch)
-function canonicalGuard(localBusinesses, cloudBusinesses) {
-  if (localBusinesses.some(r => !r.deleted_at) && cloudBusinesses.length === 0) throw new Error('EMPTY_CLOUD_GUARD');
-  return 'replace';
-}
 {
   let blocked = false;
-  try { canonicalGuard([{ id: 'b', deleted_at: null }], []); } catch (e) { blocked = e.message === 'EMPTY_CLOUD_GUARD'; }
+  try { SyncAlgorithms.assertCanonicalCloudSafe([{ id: 'b', deleted_at: null }], []); } catch (e) { blocked = e.message === 'EMPTY_CLOUD_GUARD'; }
   ok(blocked, 'empty-cloud guard: aborts wipe when cloud empty but local has a business');
-  ok(canonicalGuard([], [{ id: 'b' }]) === 'replace', 'empty-cloud guard: fresh device adopts cloud');
+  ok(SyncAlgorithms.assertCanonicalCloudSafe([], [{ id: 'b' }]) === true, 'empty-cloud guard: fresh device adopts cloud');
+}
+
+// Exact canonical reconciliation: cloud A+B plus local A must end as A, not A+B.
+{
+  const now = '2026-08-02T00:00:00.000Z';
+  const empty = Object.fromEntries(api.SYNC_TABLE_ORDER.map(table => [table, []]));
+  const localByTable = { ...empty, businesses: [{ id: 'A', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', deleted_at: null }] };
+  const cloudByTable = {
+    ...empty,
+    businesses: [{ id: 'A', updated_at: '2026-01-01T00:00:00.000Z' }, { id: 'B', updated_at: '2026-01-01T00:00:00.000Z' }],
+    source_transactions: [{ id: 'tx-B', business_id: 'B', updated_at: '2026-01-01T00:00:00.000Z' }],
+    audit_logs: [{ id: 'audit-B', business_id: 'B', created_at: '2026-01-01T00:00:00.000Z' }]
+  };
+  const plan = SyncAlgorithms.planCanonicalReconciliation({ localByTable, cloudByTable, now, deviceId: 'device-A', nextCanonical: 4 });
+  ok(plan.upsertsByTable.businesses.length === 1 && plan.upsertsByTable.businesses[0].id === 'A', 'canonical: local active rows are the exact desired set');
+  ok(plan.deletesByTable.businesses.some(row => row.id === 'B' && row.deleted_at === now), 'canonical: cloud-only business B is soft-deleted');
+  ok(plan.deletesByTable.source_transactions.some(row => row.id === 'tx-B'), 'canonical: cloud-only child rows are soft-deleted');
+  ok(plan.generatedTombstones.some(row => row.entity_type === 'businesses' && row.entity_id === 'B'), 'canonical: cloud-only business gets a tombstone');
+  ok(plan.generatedTombstones.some(row => row.entity_type === 'source_transactions' && row.entity_id === 'tx-B'), 'canonical: cloud-only child gets a tombstone');
+  ok(plan.generatedTombstones.filter(row => row.entity_id === 'B' || row.business_id === 'B').every(row => row.business_id === null), 'canonical: a removed ledger uses null-scope tombstones that remain readable after its business row is hidden');
+  ok(plan.deletesByTable.audit_logs === undefined, 'canonical: append-only audit logs are never deleted');
+  ok(plan.upsertsByTable.businesses[0].updated_at === now, 'canonical: active final rows receive the canonical change timestamp');
+  ok(api.SYNC_DELETE_ORDER.at(-1) === 'businesses', 'canonical: businesses are deleted last so child RLS remains usable');
+  const retry = SyncAlgorithms.planCanonicalReconciliation({ localByTable, cloudByTable, now: '2026-08-02T00:01:00.000Z', deviceId: 'device-A', nextCanonical: 4 });
+  ok(retry.generatedTombstones[0].id === plan.generatedTombstones[0].id, 'canonical: retry uses deterministic tombstone ids until the version commit succeeds');
+}
+
+{
+  const local = [{ id: 'same', updated_at: '2026-01-01T00:00:00.000Z', value: 'local' }, { id: 'local-only', updated_at: '2026-01-01T00:00:00.000Z' }];
+  const cloud = [{ id: 'same', updated_at: '2026-01-02T00:00:00.000Z', value: 'cloud' }];
+  const merged = SyncAlgorithms.mergeRows(local, cloud);
+  ok(merged.find(row => row.id === 'same').value === 'cloud' && merged.some(row => row.id === 'local-only'), 'LWW merge: newer cloud row wins while local-only data is preserved in normal mode');
+  const page = SyncAlgorithms.page(Array.from({ length: 205 }, (_, id) => ({ id })), 3, 100);
+  ok(page.page === 3 && page.totalPages === 3 && page.rows.length === 5, 'pagination: clamps and slices the final page without dropping rows');
+}
+
+{
+  const adapter = new api.SupabaseAdapter();
+  const pullCalls = [];
+  adapter.raw = async path => {
+    pullCalls.push(path);
+    const offset = Number(path.match(/offset=(\d+)/)?.[1] || 0);
+    const length = offset < 1000 ? 500 : 2;
+    return Array.from({ length }, (_, index) => ({ id: `row-${offset + index}` }));
+  };
+  const pulled = await adapter.pullTable('source_transactions', { since: '2026-08-01T00:00:00.000Z' });
+  ok(pulled.length === 1002 && pullCalls.length === 3, 'SupabaseAdapter.pullTable: reads every 500-row page past the server row cap');
+  ok(pullCalls[0].includes('order=updated_at.desc,id.asc') && pullCalls[2].includes('offset=1000'), 'SupabaseAdapter.pullTable: uses stable updated_at/id order and advancing offsets');
+  ok(pullCalls.every(path => path.includes('updated_at=gt.')), 'SupabaseAdapter.pullTable: applies the incremental updated_at filter to every page');
+
+  const batchSizes = [];
+  adapter.raw = async (_path, options) => { batchSizes.push(options.body.length); return null; };
+  await adapter.upsertMany('accounts', Array.from({ length: 1001 }, (_, id) => ({ id: `account-${id}` })));
+  ok(batchSizes.join(',') === '500,500,1', 'SupabaseAdapter.upsertMany: batches large writes into 500-row requests');
 }
 
 // remove-evidence detach (AppService.removeEvidence)
@@ -318,49 +354,37 @@ function removeEvidence(evidenceFiles, transactions, id) {
   ok(!errOpen.transactionDate, 'validateTransaction: allows a transaction dated in an open period');
 }
 
-// restore scope — mirrors AppService.restoreBackup's per-store inclusion rule (0.39 bugfix):
+// restore scope — the same helper called by AppService.restoreBackup:
 // a store absent from the backup file must be LEFT UNTOUCHED, not wiped to empty. This matters
 // because a cloud-sourced backup deliberately omits local-only infra (sync_queue/app_research_notes),
 // and wiping those on restore would silently discard unsynced local changes.
-function restoreScope(localStores, backupTables) {
-  const recordsByStore = {};
-  for (const store of localStores) {
-    const rows = backupTables[store];
-    if (rows === undefined) continue;
-    if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
-    recordsByStore[store] = rows;
-  }
-  return recordsByStore;
-}
 {
   const stores = ['businesses', 'sync_queue', 'app_research_notes'];
   const cloudShaped = { businesses: [{ id: 'b1' }] }; // omits sync_queue/app_research_notes entirely
-  const scoped = restoreScope(stores, cloudShaped);
+  const scoped = SyncAlgorithms.restoreScope(stores, cloudShaped);
   ok('businesses' in scoped, 'restoreScope: replaces a store present in the backup');
   ok(!('sync_queue' in scoped), 'restoreScope: does NOT touch a store absent from the backup (local-only infra survives a cloud backup restore)');
   ok(!('app_research_notes' in scoped), 'restoreScope: same for app_research_notes');
 
   const fullLocal = { businesses: [], sync_queue: [], app_research_notes: [] };
-  const scopedFull = restoreScope(stores, fullLocal);
+  const scopedFull = SyncAlgorithms.restoreScope(stores, fullLocal);
   ok(Object.keys(scopedFull).length === 3 && scopedFull.sync_queue.length === 0, 'restoreScope: an explicit empty array IS applied (genuinely empty store), unlike a missing key');
 
   let threw = false;
-  try { restoreScope(stores, { businesses: 'not-an-array' }); } catch (e) { threw = e.message.includes('BACKUP_TABLE_INVALID'); }
+  try { SyncAlgorithms.restoreScope(stores, { businesses: 'not-an-array' }); } catch (e) { threw = e.message.includes('BACKUP_TABLE_INVALID'); }
   ok(threw, 'restoreScope: rejects a malformed (non-array) table instead of silently accepting it');
 }
 
-// tombstone business_id — mirrors AppService.tombstone's stamping rule (0.40 bugfix):
+// tombstone business_id — the same helper called by AppService.tombstone:
 // deleteLedger must stamp each tombstone with the LEDGER BEING DELETED, not the active ledger,
 // since the ledger-management screen lets a user delete a non-active ledger while another stays
 // active. Passing undefined preserves the old default (stamp with whatever is currently active).
-function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
-  return explicitBusinessId !== undefined ? explicitBusinessId : (activeBusinessId || null);
-}
 {
-  ok(tombstoneBusinessId('deleted-ledger', 'active-ledger') === 'deleted-ledger', 'tombstoneBusinessId: an explicit businessId (deleteLedger cascade) wins over the active ledger');
-  ok(tombstoneBusinessId(undefined, 'active-ledger') === 'active-ledger', 'tombstoneBusinessId: omitting businessId falls back to the active ledger (deleteTransaction/deleteAccount/deleteCounterparty)');
-  ok(tombstoneBusinessId(undefined, null) === null, 'tombstoneBusinessId: no active ledger and no explicit id -> null, never throws');
-  ok(tombstoneBusinessId(null, 'active-ledger') === null, 'tombstoneBusinessId: an explicit null is respected, not treated as "unset"');
+  const pickBusiness = SyncAlgorithms.resolveTombstoneBusinessId;
+  ok(pickBusiness('deleted-ledger', 'active-ledger') === 'deleted-ledger', 'tombstoneBusinessId: an explicit businessId (deleteLedger cascade) wins over the active ledger');
+  ok(pickBusiness(undefined, 'active-ledger') === 'active-ledger', 'tombstoneBusinessId: omitting businessId falls back to the active ledger (deleteTransaction/deleteAccount/deleteCounterparty)');
+  ok(pickBusiness(undefined, null) === null, 'tombstoneBusinessId: no active ledger and no explicit id -> null, never throws');
+  ok(pickBusiness(null, 'active-ledger') === null, 'tombstoneBusinessId: an explicit null is respected, not treated as "unset"');
 }
 
 // PropertyTax (재산세 주택분, 0.42) — direct tests against the real app service, not a mirror,
