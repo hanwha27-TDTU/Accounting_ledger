@@ -80,6 +80,7 @@
 
 ## 관련 문서
 
-- `docs/accounting-ledger-app-research-notes.md`의 0.50~0.53 항목 — 각 함정을 발견한 실제 조사 과정과 재현 방법이 더 상세히 기록돼 있다.
+- `docs/android-shell-auto-update-playbook.md` — 이 시스템 전체(셸·서명·CI·고정 링크·이중 자동 업데이트·OAuth·edge-to-edge)를 **다른 앱에서 그대로 재현**하기 위한 일반화 설명서. 함정 A~I 색인 포함. 이 저장소 밖으로 복사해 써도 되도록 자기완결로 작성됨.
+- `docs/accounting-ledger-app-research-notes.md`의 0.50~0.56 항목 — 각 함정을 발견한 실제 조사 과정과 재현 방법이 더 상세히 기록돼 있다.
 - `android-shell/README.md` — 셸 프로젝트 구조, OAuth 딥링크 흐름, 사용자가 직접 해야 하는 설정(Supabase Redirect URLs 등).
 - `docs/accounting-ledger-browser-checklist.md` 10번 — 실기기 확인 체크리스트.
