@@ -1,7 +1,7 @@
 # Accounting Ledger V1 Detailed Design
 
 > 작성일: 2026-07-09 · 개정 2026-08-02
-> 상태: V1 구현 진행 중 · 앱 0.59 고정지출 관리 기준
+> 상태: V1 구현 진행 중 · 앱 0.60 다중통화·일일환율 기준
 > 기준 문서: `accounting-ledger-design-directive-v2.md`, `accounting-v1-scope-skill.md`
 
 ## 1. V1 설계 목표
@@ -19,6 +19,7 @@ V1은 대한민국 개인사업자 1인이 사용할 수 있는 단일 HTML 회�
 | 증빙 | Cloudinary에 이미지/PDF 원본 저장 |
 | 신고 준비 | 세무사 전달 패키지와 법정 최신 신고서식 초안 생성 |
 | 동기화 | `updated_at` 병합 + `canonical_version` 최종본 모드 |
+| 다중통화 | 원금액·환율 증거 보존 + KRW 원장 확정, CBU 일일환율 |
 
 V1에서 실제 전자신고 파일, 법인세 신고, 세무사 로그인 공유, 자동 은행/카드/PG 연동, AI 화면 기능은 만들지 않는다.
 

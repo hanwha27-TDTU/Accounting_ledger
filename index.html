@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#163b33">
   <meta name="description" content="대한민국 개인사업자를 위한 간편장부·복식부기 통합 회계장부">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://api.github.com; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' data:; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://api.github.com https://cbu.uz; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' data:; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>바른장부</title>
   <style>
     :root {
@@ -390,6 +390,19 @@
     .est-tag { font-size: 12px; padding: 2px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-strong); }
     .est-tag:empty { display: none; }
     .fx-tag { display: inline-block; padding: 0 6px; border-radius: 8px; background: var(--brand-soft); color: var(--brand-strong); font-size: 11px; white-space: nowrap; }
+    .money-control { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(120px, .55fr) minmax(170px, 1fr) minmax(190px, 1fr); gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
+    .money-control .field { min-width: 0; }
+    .money-rate-wrap { display: flex; align-items: stretch; gap: 6px; }
+    .money-rate-wrap .input { min-width: 0; }
+    .money-rate-wrap .button { flex: 0 0 auto; padding-inline: 9px; }
+    .money-conversion { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px 12px; min-height: 34px; padding: 8px 10px; border-radius: 6px; background: #fff; color: var(--muted); font-size: 12px; }
+    .money-conversion strong { color: var(--brand-strong); font-size: 14px; font-variant-numeric: tabular-nums; }
+    .money-conversion.warning { background: var(--warning-soft); color: var(--warning); }
+    .money-source-link { color: var(--brand); text-decoration: underline; }
+    .fixed-expense-amount small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 650; text-align: right; }
+    .calculator-currency { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
+    .calculator-currency .field { flex: 0 1 210px; }
+    .calculator-currency-status { flex: 1 1 260px; padding-bottom: 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
     .legal-basis { display: flex; gap: 10px; margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.6; }
     .legal-basis strong { color: var(--brand-strong); }
     .guide-why { display: flex; gap: 10px; margin-top: 12px; padding: 13px 15px; border-radius: 12px; background: var(--surface-warm); border: 1px solid var(--warning-soft); font-size: 13.5px; line-height: 1.75; }
@@ -480,6 +493,8 @@
     .fixed-expense-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e8ecea; }
     .fixed-expense-form { padding: 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
     .fixed-expense-form-title { margin: 0 0 13px; font-size: 15px; }
+    .fixed-expense-form .money-control { grid-template-columns: 1fr; }
+    .fixed-expense-form .money-conversion { grid-column: 1; }
 
     .toast-region { position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
 
@@ -597,6 +612,8 @@
       .metric-value { font-size: 19px; }
       .form-grid { grid-template-columns: 1fr; }
       .field, .field.third, .field.full { grid-column: 1; }
+      .money-control { grid-template-columns: 1fr; }
+      .money-conversion { grid-column: 1; }
       .status-board, .developer-grid, .guide-checks, .data-grid { grid-template-columns: 1fr; }
       .topbar-actions .button-label { display: none; }
       .fixed-expense-trigger { min-width: 38px; width: 38px; padding: 0; }
@@ -674,9 +691,9 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.59',
-      schemaVersion: '0.05',
-      backupSchemaVersion: '0.02',
+      version: '0.60',
+      schemaVersion: '0.06',
+      backupSchemaVersion: '0.03',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
       googleCloudProjectName: 'Accounting Ledger',
@@ -689,7 +706,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.59', date: '2026-08-02', label: '최신 · 고정지출현황 관리', detail: '상단바에 월 환산액과 활성 건수를 보여주는 고정지출현황 버튼을 추가했습니다. 항목별 지출처·계정과목·고정/변동 금액·월간/연간 주기·다음 납부일·결제수단·필수 여부·상태·메모를 관리할 수 있고, 결제정보는 안전하게 끝 4자리만 저장합니다. 예정 항목을 비용 거래로 바로 불러오면 거래와 균형 전표를 저장한 뒤 다음 납부일을 자동으로 이동합니다. fixed_expenses는 로컬 백업·복원·tombstone·정본 동기화 전 경로에 포함되며 RLS가 적용됩니다.' },
+      { version: '0.60', date: '2026-08-02', label: '최신 · 전 도메인 다중통화·일일 환율', detail: '거래와 고정지출은 원·숨·달러·엔 중 입력 통화를 선택하고, 우즈베키스탄 중앙은행의 날짜별 공식 환율로 원화 환산액을 자동 계산합니다. 원금액·통화·적용환율·환율일·출처·수동수정 여부를 함께 보존하며 장부와 전표는 확정된 원화 금액으로 유지합니다. 고정지출 목록은 저장한 외화 원금액을 보존하면서 최신 일일 환율 기준 예상 원화액을 보여주고, 추계소득·재산세 계산기 입력도 선택 통화를 원화로 바꿔 계산합니다. 오프라인이면 마지막 정상 환율을 경고와 함께 사용하고 직접 환율을 수정할 수 있습니다.' },
+      { version: '0.59', date: '2026-08-02', label: '고정지출현황 관리', detail: '상단바에 월 환산액과 활성 건수를 보여주는 고정지출현황 버튼을 추가했습니다. 항목별 지출처·계정과목·고정/변동 금액·월간/연간 주기·다음 납부일·결제수단·필수 여부·상태·메모를 관리할 수 있고, 결제정보는 안전하게 끝 4자리만 저장합니다. 예정 항목을 비용 거래로 바로 불러오면 거래와 균형 전표를 저장한 뒤 다음 납부일을 자동으로 이동합니다. fixed_expenses는 로컬 백업·복원·tombstone·정본 동기화 전 경로에 포함되며 RLS가 적용됩니다.' },
       { version: '0.58', date: '2026-08-02', label: '동기화 정본 정확성·대용량·공급망 보강', detail: '이 기기를 최종본으로 지정하면 이제 그 기기에 없는 클라우드 항목도 tombstone과 소프트삭제로 정리한 뒤 canonical_version을 올려, 다른 기기에서 다시 살아나지 않습니다. 실제 앱 동기화 알고리즘을 테스트가 직접 호출하도록 바꾸고, 500행 단위 전체 페이지네이션과 최근 변경분 동기화, 장부·전표·증빙 화면 100건 페이지 구분을 추가했습니다. 연결 진단이 성공한 로그인 상태에서는 즉시 동기화합니다. Lucide와 Supabase JS는 외부 CDN 실행 대신 저장소에 버전·해시를 고정했고 CSP를 추가했으며, Windows 줄바꿈에서도 품질 검사가 동일하게 통과하도록 보완했습니다. DB schema 표기도 실제 0.04로 바로잡았습니다.' },
       { version: '0.57', date: '2026-08-02', label: '설치 안내를 플레이북 파일로 자동 발행(앱 버전과 동기화)', detail: '가이드의 "안드로이드 앱 설치" 안내가 저장소의 설치 플레이북 파일(docs/bareunjangbu-apk-install-playbook.md)로도 자동 발행됩니다. 파일은 앱 화면과 같은 내용을 담고 앱 버전(v0.57)과 항상 같은 버전으로 관리됩니다 — 손으로 옮겨 적는 게 아니라 앱 코드에서 스크립트가 자동 생성하고, 화면과 파일이 어긋나면 자동 검사(CI)가 실패해서 어긋난 채로는 배포 자체가 안 됩니다. 설치 안내 화면 맨 아래에 이 사실을 알리는 안내도 추가했습니다.' },
       { version: '0.56', date: '2026-08-02', label: 'APK 업데이트를 배너+버튼 방식으로 변경(자동 다운로드 강제 제거)', detail: '앱 새 버전이 있을 때 열자마자 다운로드가 강제로 시작되던 것을, 화면 하단 중앙에 작은 배너("새 버전 앱이 나왔어요" + 업데이트 버튼)를 띄우는 방식으로 바꿨습니다(사용자 제안 반영). 업데이트 버튼을 눌러야 다운로드가 시작되고, X(나중에)를 누르면 이번 실행 동안만 조용해집니다 — 설치를 미루고 앱을 다시 열면 배너가 다시 떠서, 이전처럼 안내가 한 번 나오고 영영 사라지는 문제가 없습니다. 설치를 마치면 버전이 같아져 배너가 자연히 사라집니다.' },
@@ -792,7 +810,7 @@
 
     // 백그라운드 자동 동기화가 끝나도 전체 재렌더를 건너뛰는 화면 — 자유 텍스트 입력 폼이 있어
     // render()가 #app을 통째로 다시 그리면 사용자가 입력 중이던 값이 사라질 수 있다.
-    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports', 'closing', 'propertyTax']);
+    const AUTO_SYNC_UNSAFE_ROUTES = Object.freeze(['transactions', 'settings', 'imports', 'reports', 'closing', 'propertyTax']);
 
     const ACCOUNT_TEMPLATES = Object.freeze([
       { key: 'cash', account_code: '101', account_name: '현금', account_type: 'asset', explanation: '사업을 하면서 손에 보관하거나 바로 쓸 수 있는 현금입니다.' },
@@ -1441,6 +1459,15 @@
     ]);
     const SYNC_DELETE_ORDER = Object.freeze(SYNC_TABLE_ORDER.filter(table => table !== 'audit_logs').slice().reverse());
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
+    const CURRENCIES = Object.freeze([
+      { code: 'KRW', name: '원', locale: 'ko-KR', fractionDigits: 0 },
+      { code: 'UZS', name: '우즈베키스탄 숨', locale: 'uz-UZ', fractionDigits: 0 },
+      { code: 'USD', name: '미국 달러', locale: 'en-US', fractionDigits: 2 },
+      { code: 'JPY', name: '일본 엔', locale: 'ja-JP', fractionDigits: 0 }
+    ]);
+    const CURRENCY_CODES = Object.freeze(CURRENCIES.map(currency => currency.code));
+    const CBU_RATE_SOURCE = 'CBU_UZ';
+    const CBU_RATE_URL = 'https://cbu.uz/en/arkhiv-kursov-valyut/json/';
 
     // 2. Small pure utilities
     // Deterministic 128-bit hash (cyrb128) — used to derive stable UUIDs so re-importing the same
@@ -1588,13 +1615,122 @@
       }
     });
 
+    const MoneyDomain = Object.freeze({
+      normalizeCurrency(value) {
+        const code = String(value || 'KRW').trim().toUpperCase();
+        return CURRENCY_CODES.includes(code) ? code : null;
+      },
+      currencyInfo(value) {
+        const raw = String(value || 'KRW').trim().toUpperCase();
+        const code = /^[A-Z]{3}$/.test(raw) ? raw : 'KRW';
+        return CURRENCIES.find(currency => currency.code === code) || { code, name: code, locale: 'en-US', fractionDigits: 4 };
+      },
+      formatOriginal(amount, currencyCode) {
+        const currency = this.currencyInfo(currencyCode);
+        const value = Number(amount || 0);
+        return `${value.toLocaleString(currency.locale, { minimumFractionDigits: 0, maximumFractionDigits: currency.fractionDigits })} ${currency.code}`;
+      },
+      toKrw(amount, rate) {
+        return Math.round(Utils.number(amount) * Utils.number(rate));
+      },
+      requestedRateDate(date, today = Utils.today()) {
+        if (!/^20\d{2}-\d{2}-\d{2}$/.test(date || '')) return today;
+        return date > today ? today : date;
+      },
+      cbuDateToIso(value) {
+        const match = String(value || '').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
+      },
+      cbuSnapshot(rows, requestedDate, fetchedAt = Utils.now()) {
+        if (!Array.isArray(rows)) throw new Error('FX_RESPONSE_INVALID');
+        const byCode = new Map(rows.map(row => [String(row.Ccy || '').toUpperCase(), row]));
+        const uzsPerUnit = code => {
+          const row = byCode.get(code);
+          const nominal = Number(row?.Nominal);
+          const rate = Number(row?.Rate);
+          if (!Number.isFinite(nominal) || nominal <= 0 || !Number.isFinite(rate) || rate <= 0) throw new Error(`FX_RATE_MISSING:${code}`);
+          return rate / nominal;
+        };
+        const krwInUzs = uzsPerUnit('KRW');
+        const rateDate = this.cbuDateToIso(byCode.get('KRW')?.Date);
+        if (!rateDate) throw new Error('FX_DATE_INVALID');
+        const rounded = value => Number(value.toFixed(10));
+        return {
+          requestedDate,
+          rateDate,
+          source: CBU_RATE_SOURCE,
+          sourceUrl: CBU_RATE_URL,
+          fetchedAt,
+          stale: false,
+          rates: {
+            KRW: 1,
+            UZS: rounded(1 / krwInUzs),
+            USD: rounded(uzsPerUnit('USD') / krwInUzs),
+            JPY: rounded(uzsPerUnit('JPY') / krwInUzs)
+          }
+        };
+      },
+      inputContract(input) {
+        const currencyCode = this.normalizeCurrency(input.currencyCode);
+        const originalAmount = Utils.number(input.originalAmount);
+        const exchangeRate = currencyCode === 'KRW' ? 1 : Utils.number(input.exchangeRate);
+        return {
+          currencyCode,
+          originalAmount,
+          exchangeRate,
+          krwAmount: this.toKrw(originalAmount, exchangeRate),
+          exchangeRateDate: currencyCode === 'KRW' ? null : (input.exchangeRateDate || null),
+          exchangeRateSource: currencyCode === 'KRW' ? 'KRW' : (input.exchangeRateSource || 'MANUAL'),
+          exchangeRateFetchedAt: currencyCode === 'KRW' ? null : (input.exchangeRateFetchedAt || null),
+          exchangeRateManual: currencyCode === 'KRW' ? false : Boolean(input.exchangeRateManual),
+          exchangeRateStale: currencyCode === 'KRW' ? false : Boolean(input.exchangeRateStale)
+        };
+      },
+      validate(input) {
+        const errors = {};
+        if (!this.normalizeCurrency(input.currencyCode)) errors.currencyCode = '원·숨·달러·엔 중에서 선택해 주세요.';
+        if (Utils.number(input.originalAmount) <= 0) errors.originalAmount = '0보다 큰 금액을 입력해 주세요.';
+        if (this.normalizeCurrency(input.currencyCode) !== 'KRW' && Utils.number(input.exchangeRate) <= 0) errors.exchangeRate = '적용 환율을 확인해 주세요.';
+        return errors;
+      },
+      rowContract(row) {
+        const legacyCurrency = String(row?.foreign_currency || '').toUpperCase();
+        const genericCurrency = String(row?.currency_code || '').toUpperCase();
+        const legacyWins = legacyCurrency && legacyCurrency !== 'KRW' && (!genericCurrency || genericCurrency === 'KRW');
+        const candidate = legacyWins ? legacyCurrency : genericCurrency;
+        const currencyCode = /^[A-Z]{3}$/.test(candidate) ? candidate : 'KRW';
+        const originalAmount = legacyWins
+          ? Number(row?.foreign_amount || row?.total_amount || row?.amount || 0)
+          : Number(row?.original_amount ?? (currencyCode === 'KRW' ? (row?.total_amount ?? row?.amount) : row?.foreign_amount) ?? 0);
+        const exchangeRate = currencyCode === 'KRW' ? 1 : Number((legacyWins ? row?.exchange_rate : row?.exchange_rate_to_krw) || row?.exchange_rate || 0);
+        return {
+          currencyCode,
+          originalAmount,
+          exchangeRate,
+          exchangeRateDate: row?.exchange_rate_date || null,
+          exchangeRateSource: row?.exchange_rate_source || (currencyCode === 'KRW' ? 'KRW' : 'LEGACY_MANUAL'),
+          exchangeRateFetchedAt: row?.exchange_rate_fetched_at || null,
+          exchangeRateManual: legacyWins ? true : (row?.exchange_rate_manual ?? (currencyCode !== 'KRW'))
+        };
+      },
+      estimatedKrw(row, snapshot = null) {
+        const money = this.rowContract(row);
+        const liveRate = money.currencyCode === 'KRW' ? 1 : Number(snapshot?.rates?.[money.currencyCode] || money.exchangeRate || 0);
+        return this.toKrw(money.originalAmount, liveRate);
+      }
+    });
+
     const FixedExpenseDomain = Object.freeze({
       validate(input, accounts = []) {
         const errors = {};
         const account = accounts.find(row => row.id === input.accountId && !row.deleted_at);
         if (!String(input.expenseName || '').trim()) errors.expenseName = '지출처 또는 서비스 이름을 입력해 주세요.';
         if (!account || account.account_type !== 'expense') errors.accountId = '비용 계정과목을 선택해 주세요.';
-        if (Utils.number(input.amount) <= 0) errors.amount = '예상 금액은 0원보다 커야 합니다.';
+        const moneyErrors = MoneyDomain.validate(input);
+        if (moneyErrors.currencyCode) errors.currencyCode = moneyErrors.currencyCode;
+        if (moneyErrors.originalAmount) errors.originalAmount = moneyErrors.originalAmount;
+        if (moneyErrors.exchangeRate) errors.exchangeRate = moneyErrors.exchangeRate;
+        if (Utils.number(input.amount) <= 0) errors.originalAmount = '원화 환산액이 0원보다 커야 합니다.';
         if (!['fixed', 'variable'].includes(input.amountMode)) errors.amountMode = '금액 유형을 확인해 주세요.';
         if (!['monthly', 'yearly'].includes(input.billingCycle)) errors.billingCycle = '납부 주기를 확인해 주세요.';
         if (!/^20\d{2}-\d{2}-\d{2}$/.test(input.nextDueDate || '')) errors.nextDueDate = '다음 납부일을 선택해 주세요.';
@@ -1615,11 +1751,11 @@
         for (let i = 0; i < 120 && next && next <= bookedOn; i += 1) next = this.nextDueDate(next, row.billing_cycle, row.billing_anchor_day, row.billing_anchor_month);
         return next;
       },
-      monthlyEquivalent(row) {
-        const amount = Number(row.amount || 0);
+      monthlyEquivalent(row, snapshot = null) {
+        const amount = MoneyDomain.estimatedKrw(row, snapshot);
         return row.billing_cycle === 'yearly' ? amount / 12 : amount;
       },
-      summary(rows, today = Utils.today()) {
+      summary(rows, today = Utils.today(), snapshot = null) {
         const active = rows.filter(row => !row.deleted_at && row.status === 'active');
         const start = new Date(`${today}T00:00:00Z`);
         const cutoff = new Date(start); cutoff.setUTCDate(cutoff.getUTCDate() + 30);
@@ -1627,8 +1763,8 @@
         const scheduled = active.filter(row => row.next_due_date && row.next_due_date <= cutoffText);
         return {
           activeCount: active.length,
-          monthlyEquivalent: Math.round(active.reduce((sum, row) => sum + this.monthlyEquivalent(row), 0)),
-          due30Amount: Math.round(scheduled.reduce((sum, row) => sum + Number(row.amount || 0), 0)),
+          monthlyEquivalent: Math.round(active.reduce((sum, row) => sum + this.monthlyEquivalent(row, snapshot), 0)),
+          due30Amount: Math.round(scheduled.reduce((sum, row) => sum + MoneyDomain.estimatedKrw(row, snapshot), 0)),
           due30Count: scheduled.length,
           overdueCount: active.filter(row => row.next_due_date && row.next_due_date < today).length
         };
@@ -1640,7 +1776,7 @@
 
     // 3. Accounting domain layer: no DOM, storage, or remote calls
     const AccountingDomain = Object.freeze({
-      fxToKrw(amount, rate) { return Math.round(Utils.number(amount) * Utils.number(rate)); },
+      fxToKrw(amount, rate) { return MoneyDomain.toKrw(amount, rate); },
 
       // 계정과목(열) × 월(행) 사용금액 집계 — 간편장부·복식부기 어느 관점이든 같은 계정과목 이름을
       // 쓰므로 별도 분기 없이 하나의 표로 둘 다 지원한다. 순수 함수(전기 엔진과 무관).
@@ -1906,6 +2042,21 @@
       thumbnailUrl(secureUrl, resourceType) {
         if (resourceType !== 'image' || typeof secureUrl !== 'string' || !secureUrl.includes('/upload/')) return secureUrl || null;
         return secureUrl.replace('/upload/', '/upload/c_thumb,w_240,h_240,g_auto,q_auto,f_auto/');
+      }
+    });
+
+    // Official daily rates from the Central Bank of Uzbekistan. The API quotes foreign
+    // currencies in UZS; MoneyDomain derives KRW cross-rates from the same daily snapshot.
+    const CentralBankRateAdapter = Object.freeze({
+      async fetchSnapshot(requestedDate) {
+        const date = MoneyDomain.requestedRateDate(requestedDate);
+        const response = await fetch(`${CBU_RATE_URL}all/${encodeURIComponent(date)}/`, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw new Error(`FX_REMOTE_${response.status}`);
+        const rows = await response.json();
+        return MoneyDomain.cbuSnapshot(rows, date);
       }
     });
 
@@ -2227,6 +2378,7 @@
       allowedUsers: [],
       connectionDiagnostics: { status: 'idle', api: 'unknown', anonymousIsolation: 'unknown', googleProvider: 'unknown', checkedAt: null, detail: null },
       businessRoundtrip: { status: 'idle', steps: {}, checkedAt: null, detail: null },
+      latestExchangeRateSnapshot: null,
       online: navigator.onLine,
       syncStatus: 'idle',
       syncError: null,
@@ -2270,6 +2422,50 @@
           googleProvider: diagnostics.googleProvider === 'ready',
           ownerLogin: Boolean(state.session && state.allowedUser?.status === 'active')
         };
+      }
+    });
+
+    const ExchangeRateService = Object.freeze({
+      cache() {
+        const cache = state.config.exchangeRateCache;
+        return cache && typeof cache === 'object' ? cache : {};
+      },
+      save(snapshot) {
+        const next = { ...this.cache(), [snapshot.requestedDate]: snapshot };
+        const trimmed = Object.fromEntries(Object.entries(next)
+          .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+          .slice(0, 32));
+        state.config.exchangeRateCache = trimmed;
+        ConfigAdapter.save(state.config);
+        return snapshot;
+      },
+      latestCached() {
+        return Object.values(this.cache())
+          .filter(snapshot => snapshot?.rates && snapshot?.rateDate)
+          .sort((a, b) => String(b.rateDate).localeCompare(String(a.rateDate)) || String(b.fetchedAt).localeCompare(String(a.fetchedAt)))[0] || null;
+      },
+      async snapshot(date, { force = false } = {}) {
+        const requestedDate = MoneyDomain.requestedRateDate(date);
+        const cached = this.cache()[requestedDate];
+        if (cached && !force) return { ...cached, stale: false };
+        try {
+          return this.save(await CentralBankRateAdapter.fetchSnapshot(requestedDate));
+        } catch (error) {
+          const fallback = cached || this.latestCached();
+          if (!fallback) throw error;
+          return { ...fallback, requestedDate, stale: true, fallbackReason: error.message };
+        }
+      },
+      async refreshLatest({ renderAfter = false } = {}) {
+        try {
+          state.latestExchangeRateSnapshot = await this.snapshot(Utils.today());
+          if (renderAfter && state.ready && !AUTO_SYNC_UNSAFE_ROUTES.includes(state.route)) render();
+          else renderShellStatus();
+          return state.latestExchangeRateSnapshot;
+        } catch {
+          state.latestExchangeRateSnapshot = this.latestCached();
+          return state.latestExchangeRateSnapshot;
+        }
       }
     });
 
@@ -2539,6 +2735,8 @@
 
       async saveFixedExpense(input) {
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
+        const money = MoneyDomain.inputContract(input);
+        input = { ...input, ...money, amount: money.krwAmount };
         const errors = FixedExpenseDomain.validate(input, state.accounts);
         if (Object.keys(errors).length) return { ok: false, errors };
         const existing = input.id ? state.fixedExpenses.find(row => row.id === input.id) : null;
@@ -2550,7 +2748,12 @@
           id: existing?.id || Utils.uuid(), business_id: state.business.id, account_id: input.accountId,
           category: String(input.category || '').trim() || null,
           expense_name: String(input.expenseName || '').trim(), amount_mode: input.amountMode,
-          amount: Utils.number(input.amount), billing_cycle: input.billingCycle, next_due_date: input.nextDueDate,
+          amount: money.krwAmount,
+          currency_code: money.currencyCode, original_amount: money.originalAmount,
+          exchange_rate_to_krw: money.exchangeRate, exchange_rate_date: money.exchangeRateDate,
+          exchange_rate_source: money.exchangeRateSource, exchange_rate_fetched_at: money.exchangeRateFetchedAt,
+          exchange_rate_manual: money.exchangeRateManual,
+          billing_cycle: input.billingCycle, next_due_date: input.nextDueDate,
           billing_anchor_month: scheduleChanged ? Number(input.nextDueDate.slice(5, 7)) : existing.billing_anchor_month,
           billing_anchor_day: scheduleChanged ? Number(input.nextDueDate.slice(8, 10)) : existing.billing_anchor_day,
           payment_method: String(input.paymentMethod || '').trim() || null,
@@ -2607,7 +2810,9 @@
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
         const linkedFixedExpense = input.fixedExpenseId ? state.fixedExpenses.find(row => row.id === input.fixedExpenseId && !row.deleted_at) : null;
         if (input.fixedExpenseId && !linkedFixedExpense) throw new Error('FIXED_EXPENSE_NOT_FOUND');
-        const errors = AccountingDomain.validateTransaction(input, state.closings);
+        const money = MoneyDomain.inputContract(input);
+        input = { ...input, ...money, totalAmount: money.krwAmount };
+        const errors = { ...MoneyDomain.validate(input), ...AccountingDomain.validateTransaction(input, state.closings) };
         if (Object.keys(errors).length) return { ok: false, errors };
         const now = Utils.now();
         const amounts = AccountingDomain.calculateAmounts(input.totalAmount, input.vatType);
@@ -2621,6 +2826,7 @@
         if (vatProfile === 'unconfirmed' && input.vatType === 'taxable') reviewReasons.push('tax_profile_unconfirmed');
         if (input.vatType === 'taxable' && input.transactionType !== 'income') reviewReasons.push('vat_deduction_review');
         if (input.vatType === 'taxable' && ['simplified', 'exempt', 'mixed'].includes(vatProfile)) reviewReasons.push('tax_profile_conflict');
+        if (money.exchangeRateStale) reviewReasons.push('exchange_rate_stale');
         const transaction = {
           id: Utils.uuid(), business_id: state.business.id, business_site_id: state.site?.id || null,
           transaction_date: input.transactionDate, recognition_date: input.transactionDate,
@@ -2628,10 +2834,14 @@
           counterparty_id: counterparty?.id || null, account_id: input.accountId,
           fixed_expense_id: linkedFixedExpense?.id || null,
           supply_amount: amounts.supplyAmount, vat_amount: amounts.vatAmount, total_amount: amounts.totalAmount,
+          currency_code: money.currencyCode, original_amount: money.originalAmount,
+          exchange_rate_to_krw: money.exchangeRate, exchange_rate_date: money.exchangeRateDate,
+          exchange_rate_source: money.exchangeRateSource, exchange_rate_fetched_at: money.exchangeRateFetchedAt,
+          exchange_rate_manual: money.exchangeRateManual,
           is_overseas: !!input.isOverseas,
-          foreign_currency: input.isOverseas ? ((input.foreignCurrency || '').trim().toUpperCase() || null) : null,
-          foreign_amount: input.isOverseas ? (Utils.number(input.foreignAmount) || null) : null,
-          exchange_rate: input.isOverseas ? (Utils.number(input.exchangeRate) || null) : null,
+          foreign_currency: money.currencyCode !== 'KRW' ? money.currencyCode : null,
+          foreign_amount: money.currencyCode !== 'KRW' ? money.originalAmount : null,
+          exchange_rate: money.currencyCode !== 'KRW' ? money.exchangeRate : null,
           vat_type: input.vatType, evidence_status: input.hasEvidence ? 'attached' : 'not_attached',
           payment_status: input.paymentStatus, review_status: reviewReasons.length ? 'requires_review' : 'normal',
           source_channel: linkedFixedExpense ? 'fixed_expense' : 'manual', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion,
@@ -2706,7 +2916,7 @@
           const cp = ensureCp(r.counterparty);
           const txId = Utils.deterministicId(`${businessId}|sb|${r.sourceRow}|${r.date}|${r.account}|${r.description}|${r.counterparty}|${type}|${supply}|${vat}`);
           if (existingTxIds.has(txId)) replaced++; else created++;
-          const tx = { id: txId, business_id: businessId, business_site_id: state.site?.id || null, transaction_date: r.date, recognition_date: r.date, transaction_type: type, description: r.description || '(내용 없음)', counterparty_id: cp?.id || null, account_id: acct.id, supply_amount: supply, vat_amount: vat, total_amount: supply + vat, vat_type: vat > 0 ? 'taxable' : 'exempt', evidence_status: /카드|현금영수증|세금계산서|계산서/.test(r.note || '') ? 'attached' : 'not_attached', payment_status: 'paid', review_status: SimpleBookAccounts.find(r.account) ? 'normal' : 'requires_review', source_channel: 'simple_book_import', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion, created_at: now, updated_at: now, deleted_at: null };
+          const tx = { id: txId, business_id: businessId, business_site_id: state.site?.id || null, transaction_date: r.date, recognition_date: r.date, transaction_type: type, description: r.description || '(내용 없음)', counterparty_id: cp?.id || null, account_id: acct.id, supply_amount: supply, vat_amount: vat, total_amount: supply + vat, currency_code: 'KRW', original_amount: supply + vat, exchange_rate_to_krw: 1, exchange_rate_date: null, exchange_rate_source: 'KRW', exchange_rate_fetched_at: null, exchange_rate_manual: false, vat_type: vat > 0 ? 'taxable' : 'exempt', evidence_status: /카드|현금영수증|세금계산서|계산서/.test(r.note || '') ? 'attached' : 'not_attached', payment_status: 'paid', review_status: SimpleBookAccounts.find(r.account) ? 'normal' : 'requires_review', source_channel: 'simple_book_import', source_revision: 1, posting_rule_version: APP_INFO.postingRuleVersion, created_at: now, updated_at: now, deleted_at: null };
           const journal = { id: Utils.deterministicId(`${txId}|journal`), business_id: businessId, source_transaction_id: txId, entry_date: r.date, status: 'generated', generated_from: 'source_transaction', posting_rule_version: APP_INFO.postingRuleVersion, memo: tx.description, created_at: now, updated_at: now, deleted_at: null };
           let lines;
           try { lines = AccountingDomain.buildPosting(tx, map).map(l => ({ ...l, id: Utils.deterministicId(`${txId}|line|${l.sort_order}`), journal_entry_id: journal.id })); }
@@ -2904,7 +3114,7 @@
       // 백업 파일 안에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes 같은 이 기기
       // 전용 인프라 테이블)는 건드리지 않는다 — 없다고 그냥 비우면 아직 못 올린 로컬 변경이 사라질 수 있다.
       async restoreBackup(backup) {
-        if (!backup || !['0.01', APP_INFO.backupSchemaVersion].includes(backup.backupSchemaVersion) || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
+        if (!backup || !['0.01', '0.02', APP_INFO.backupSchemaVersion].includes(backup.backupSchemaVersion) || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
         const recordsByStore = SyncAlgorithms.restoreScope(LOCAL_STORES, backup.tables);
         for (const store of Object.keys(recordsByStore)) await storage.replaceStore(store, recordsByStore[store]);
         state.config.canonicalVersion = Number(backup.canonicalVersion || 0);
@@ -3300,7 +3510,7 @@
       const hasLedgers = state.businesses && state.businesses.length > 0;
       el('ledgerSwitchButton').hidden = !hasLedgers;
       el('ledgerSwitchLabel').textContent = state.business ? state.business.name : '가계부 선택';
-      const fixedSummary = FixedExpenseDomain.summary(state.fixedExpenses || []);
+      const fixedSummary = FixedExpenseDomain.summary(state.fixedExpenses || [], Utils.today(), state.latestExchangeRateSnapshot);
       el('fixedExpensesButton').hidden = !state.business;
       el('fixedExpenseTriggerValue').textContent = `${Utils.won(fixedSummary.monthlyEquivalent)} · ${fixedSummary.activeCount}건`;
       el('fixedExpensesButton').title = fixedSummary.overdueCount
@@ -3370,17 +3580,6 @@
         </div>`;
     }
 
-    // 통화 자동완성 목록(ISO 4217). datalist라 목록에 없는 통화도 직접 입력할 수 있다.
-    // 기축·주요 통화 + 요청 통화(UZS 우즈베키스탄 숨) + 교역이 잦은 지역 통화를 담는다.
-    const CURRENCIES = Object.freeze([
-      ['USD', '미국 달러'], ['EUR', '유로'], ['JPY', '일본 엔'], ['GBP', '영국 파운드'], ['CNY', '중국 위안'],
-      ['CHF', '스위스 프랑'], ['HKD', '홍콩 달러'], ['AUD', '호주 달러'], ['CAD', '캐나다 달러'], ['SGD', '싱가포르 달러'],
-      ['NZD', '뉴질랜드 달러'], ['SEK', '스웨덴 크로나'], ['KRW', '대한민국 원'], ['UZS', '우즈베키스탄 숨'], ['KZT', '카자흐스탄 텡게'],
-      ['RUB', '러시아 루블'], ['VND', '베트남 동'], ['THB', '태국 바트'], ['INR', '인도 루피'], ['IDR', '인도네시아 루피아'],
-      ['MYR', '말레이시아 링깃'], ['PHP', '필리핀 페소'], ['TWD', '대만 달러'], ['AED', '아랍에미리트 디르함'], ['TRY', '튀르키예 리라'],
-      ['BRL', '브라질 헤알'], ['MXN', '멕시코 페소'], ['SAR', '사우디 리얄']
-    ].map(([code, name]) => ({ code, name })));
-
     // 해외 거래 안내 — 거래유형·과세유형에 따라 대리납부/수입부가세 처리를 알린다(부가세법 §4·§52).
     function overseasNoteHtml() {
       if (isPersonalMode()) return `<div class="notice info">${icon('info')}<div>해외 직구·구독 등입니다. 관세·통관 시 부가세가 붙을 수 있고, 환율에 따라 실제 결제액이 달라질 수 있어요.</div></div>`;
@@ -3388,6 +3587,183 @@
       const base = '해외 <strong>물품 수입</strong>이면 세관 수입부가세(과세사업자는 매입세액 공제), 해외 <strong>용역·구독</strong>이면 처리 방식이 다릅니다.';
       if (state.config.vatPayerType === 'exempt') return `<div class="notice danger">${icon('shield-alert')}<div><strong>면세사업자 대리납부 주의.</strong> 해외 용역(SaaS·클라우드 등)을 공급받으면 10% 부가세를 스스로 신고·납부해야 할 수 있습니다(부가가치세법 §52). ${base}</div></div>`;
       return `<div class="notice">${icon('info')}<div>${base} 자세한 내용은 가이드 “해외 구매·수입 처리”를 참고하세요.</div></div>`;
+    }
+
+    function currencyOptions(selected = 'KRW') {
+      return CURRENCIES.map(currency => `<option value="${currency.code}" ${currency.code === selected ? 'selected' : ''}>${Utils.escape(currency.name)} (${currency.code})</option>`).join('');
+    }
+
+    function moneyControlHtml(prefix, initialRow = null, { amountLabel = '금액', errorAttribute = 'data-error' } = {}) {
+      const money = initialRow ? MoneyDomain.rowContract(initialRow) : MoneyDomain.inputContract({ currencyCode: 'KRW', originalAmount: 0, exchangeRate: 1 });
+      const rate = money.exchangeRate || 1;
+      const fieldError = name => `<div class="field-error" ${errorAttribute}="${name}"></div>`;
+      return `<div class="money-control" data-money-control="${prefix}">
+        <div class="field"><label class="required" for="${prefix}Currency">화폐 단위</label><select class="select" id="${prefix}Currency">${currencyOptions(money.currencyCode)}</select>${fieldError('currencyCode')}</div>
+        <div class="field"><label class="required" for="${prefix}Amount">${Utils.escape(amountLabel)}</label><input class="input" id="${prefix}Amount" inputmode="decimal" autocomplete="off" value="${money.originalAmount > 0 ? money.originalAmount : ''}" placeholder="0">${fieldError('originalAmount')}</div>
+        <div class="field" id="${prefix}RateField"><label for="${prefix}Rate">환율 (1단위당 원)</label><div class="money-rate-wrap"><input class="input" id="${prefix}Rate" inputmode="decimal" autocomplete="off" value="${rate}"><button class="button small" id="${prefix}Refresh" type="button" title="공식환율 다시 조회" aria-label="공식환율 다시 조회">${icon('refresh-cw')}</button></div>${fieldError('exchangeRate')}</div>
+        <input type="hidden" id="${prefix}RateDate" value="${Utils.escape(money.exchangeRateDate || '')}">
+        <input type="hidden" id="${prefix}RateSource" value="${Utils.escape(money.exchangeRateSource || '')}">
+        <input type="hidden" id="${prefix}RateFetchedAt" value="${Utils.escape(money.exchangeRateFetchedAt || '')}">
+        <input type="hidden" id="${prefix}RateManual" value="${money.exchangeRateManual ? 'true' : 'false'}">
+        <input type="hidden" id="${prefix}RateStale" value="false">
+        <div class="money-conversion" id="${prefix}Conversion" aria-live="polite"><span id="${prefix}Status">원화는 환율 적용 없이 그대로 저장됩니다.</span><strong id="${prefix}Converted">0원</strong></div>
+      </div>`;
+    }
+
+    function bindMoneyControl(root, prefix, { dateElement = null, onKrwChange = null, autoRefresh = false } = {}) {
+      const currency = root.querySelector(`#${prefix}Currency`);
+      const amount = root.querySelector(`#${prefix}Amount`);
+      const rate = root.querySelector(`#${prefix}Rate`);
+      const rateField = root.querySelector(`#${prefix}RateField`);
+      const refreshButton = root.querySelector(`#${prefix}Refresh`);
+      const conversion = root.querySelector(`#${prefix}Conversion`);
+      const status = root.querySelector(`#${prefix}Status`);
+      const converted = root.querySelector(`#${prefix}Converted`);
+      const meta = {
+        rateDate: root.querySelector(`#${prefix}RateDate`),
+        source: root.querySelector(`#${prefix}RateSource`),
+        fetchedAt: root.querySelector(`#${prefix}RateFetchedAt`),
+        manual: root.querySelector(`#${prefix}RateManual`),
+        stale: root.querySelector(`#${prefix}RateStale`)
+      };
+      const apply = () => {
+        const code = MoneyDomain.normalizeCurrency(currency.value) || 'KRW';
+        const krw = MoneyDomain.toKrw(amount.value, code === 'KRW' ? 1 : rate.value);
+        rateField.hidden = code === 'KRW';
+        refreshButton.hidden = code === 'KRW';
+        converted.textContent = Utils.won(krw);
+        conversion.classList.toggle('warning', meta.stale.value === 'true');
+        if (code === 'KRW') {
+          rate.value = '1';
+          meta.rateDate.value = '';
+          meta.source.value = 'KRW';
+          meta.fetchedAt.value = '';
+          meta.manual.value = 'false';
+          meta.stale.value = 'false';
+          status.textContent = '원화는 환율 적용 없이 그대로 저장됩니다.';
+        } else if (meta.manual.value === 'true') {
+          status.textContent = '직접 수정한 환율입니다. 저장 시 수동 환율로 기록됩니다.';
+        } else if (meta.rateDate.value) {
+          status.innerHTML = `${meta.stale.value === 'true' ? '네트워크 오류로 마지막 정상 환율 사용 · ' : ''}<a class="money-source-link" href="${CBU_RATE_URL}" target="_blank" rel="noopener">우즈베키스탄 중앙은행</a> ${Utils.escape(meta.rateDate.value)} 기준`;
+        } else {
+          status.textContent = '공식 일일 환율을 불러오세요.';
+        }
+        onKrwChange?.(krw);
+        return krw;
+      };
+      const refresh = async ({ force = false } = {}) => {
+        const code = MoneyDomain.normalizeCurrency(currency.value) || 'KRW';
+        if (code === 'KRW') return apply();
+        refreshButton.disabled = true;
+        status.textContent = '공식 일일 환율을 조회하는 중…';
+        try {
+          const snapshot = await ExchangeRateService.snapshot(dateElement?.value || Utils.today(), { force });
+          const nextRate = Number(snapshot.rates?.[code]);
+          if (!Number.isFinite(nextRate) || nextRate <= 0) throw new Error(`FX_RATE_MISSING:${code}`);
+          rate.value = String(nextRate);
+          rate.dataset.autoRate = String(nextRate);
+          meta.rateDate.value = snapshot.rateDate;
+          meta.source.value = snapshot.source;
+          meta.fetchedAt.value = snapshot.fetchedAt;
+          meta.manual.value = 'false';
+          meta.stale.value = snapshot.stale ? 'true' : 'false';
+          apply();
+        } catch (error) {
+          rate.value = '';
+          meta.stale.value = 'true';
+          status.textContent = '환율을 불러오지 못했습니다. 직접 환율을 입력해 주세요.';
+          conversion.classList.add('warning');
+        } finally {
+          refreshButton.disabled = false;
+        }
+      };
+      currency.addEventListener('change', () => {
+        meta.manual.value = 'false';
+        meta.stale.value = 'false';
+        if (currency.value === 'KRW') apply(); else refresh({ force: false });
+      });
+      amount.addEventListener('input', apply);
+      rate.addEventListener('input', () => {
+        meta.manual.value = 'true';
+        meta.stale.value = 'false';
+        meta.rateDate.value = dateElement?.value || Utils.today();
+        meta.source.value = 'MANUAL';
+        meta.fetchedAt.value = '';
+        apply();
+      });
+      refreshButton.addEventListener('click', () => refresh({ force: true }));
+      dateElement?.addEventListener('change', () => { if (currency.value !== 'KRW') refresh({ force: false }); });
+      apply();
+      if (autoRefresh && currency.value !== 'KRW' && meta.manual.value !== 'true') refresh({ force: false });
+      return {
+        refresh,
+        apply,
+        value() {
+          return MoneyDomain.inputContract({
+            currencyCode: currency.value,
+            originalAmount: amount.value,
+            exchangeRate: rate.value,
+            exchangeRateDate: meta.rateDate.value,
+            exchangeRateSource: meta.source.value,
+            exchangeRateFetchedAt: meta.fetchedAt.value,
+            exchangeRateManual: meta.manual.value === 'true',
+            exchangeRateStale: meta.stale.value === 'true'
+          });
+        }
+      };
+    }
+
+    function transactionMoneyTagHtml(row) {
+      const money = MoneyDomain.rowContract(row);
+      const fx = money.currencyCode === 'KRW' ? '' : ` <span class="fx-tag" title="${Utils.escape(`${MoneyDomain.formatOriginal(money.originalAmount, money.currencyCode)} · 1 ${money.currencyCode} = ${money.exchangeRate} KRW · ${money.exchangeRateDate || '환율일 미기록'} · ${money.exchangeRateSource}`)}">${Utils.escape(MoneyDomain.formatOriginal(money.originalAmount, money.currencyCode))}</span>`;
+      const overseas = row.is_overseas ? ` <span class="fx-tag" title="세무 판단용 해외 거래 표시">🌐 해외</span>` : '';
+      return `${fx}${overseas}`;
+    }
+
+    function calculatorCurrencyHtml(prefix, label = '입력 금액 통화') {
+      return `<div class="calculator-currency">
+        <div class="field"><label for="${prefix}Currency">${Utils.escape(label)}</label><select class="select" id="${prefix}Currency">${currencyOptions('KRW')}</select></div>
+        <button class="button small" id="${prefix}Refresh" type="button">${icon('refresh-cw')}환율 새로고침</button>
+        <input type="hidden" id="${prefix}Rate" value="1">
+        <div class="calculator-currency-status" id="${prefix}Status">원화 입력값을 그대로 계산합니다.</div>
+      </div>`;
+    }
+
+    function bindCalculatorCurrency(root, prefix, onChange) {
+      const currency = root.querySelector(`#${prefix}Currency`);
+      const rate = root.querySelector(`#${prefix}Rate`);
+      const refreshButton = root.querySelector(`#${prefix}Refresh`);
+      const status = root.querySelector(`#${prefix}Status`);
+      const refresh = async ({ force = false } = {}) => {
+        const code = MoneyDomain.normalizeCurrency(currency.value) || 'KRW';
+        if (code === 'KRW') {
+          rate.value = '1';
+          status.textContent = '원화 입력값을 그대로 계산합니다.';
+          onChange?.();
+          return;
+        }
+        refreshButton.disabled = true;
+        status.textContent = '공식 일일 환율 조회 중…';
+        try {
+          const snapshot = await ExchangeRateService.snapshot(Utils.today(), { force });
+          rate.value = String(snapshot.rates[code]);
+          status.textContent = `${snapshot.stale ? '마지막 정상 환율 · ' : ''}${snapshot.rateDate} 기준 · 1 ${code} = ${Number(snapshot.rates[code]).toLocaleString('ko-KR', { maximumFractionDigits: 6 })}원`;
+        } catch {
+          rate.value = '0';
+          status.textContent = '환율을 불러오지 못했습니다. 네트워크 연결 후 다시 시도해 주세요.';
+        } finally {
+          refreshButton.disabled = false;
+          onChange?.();
+        }
+      };
+      currency.addEventListener('change', () => refresh({ force: false }));
+      refreshButton.addEventListener('click', () => refresh({ force: true }));
+      return {
+        refresh,
+        currency: () => MoneyDomain.normalizeCurrency(currency.value) || 'KRW',
+        toKrw: value => MoneyDomain.toKrw(value, rate.value),
+        rate: () => Number(rate.value || 0)
+      };
     }
 
     function renderTransactionForm() {
@@ -3406,20 +3782,14 @@
             <div class="field third"><label for="counterpartyName">거래처</label><input class="input" id="counterpartyName" name="counterpartyName" maxlength="80" autocomplete="organization" value="${pending ? Utils.escape(pending.expense_name) : ''}" placeholder="예: 한빛문구"></div>
             <div class="field third"><label class="required" for="accountId">${term('계정과목')}</label><button type="button" class="guide-link" data-open-guide-topic="account-guide">${icon('help-circle')}선택 가이드</button><select class="select" id="accountId" name="accountId"><option value="">선택하세요</option>${choices.map(row=>`<option value="${row.id}" ${pending?.account_id === row.id ? 'selected' : ''}>${Utils.escape(row.account_name)}</option>`).join('')}</select><div class="field-error" data-error="accountId"></div></div>
             <div class="field full"><label class="required" for="description">거래 내용</label><input class="input" id="description" name="description" maxlength="160" value="${pending ? Utils.escape(pending.expense_name) : ''}" placeholder="무엇을 사고팔았는지 적어주세요"><div class="field-error" data-error="description"></div></div>
-            <div class="field third"><label class="required" for="totalAmount">총 금액</label><div class="money-wrap"><input class="input" id="totalAmount" name="totalAmount" inputmode="numeric" autocomplete="off" value="${pending ? Number(pending.amount || 0) : ''}" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-error="totalAmount"></div></div>
+            ${moneyControlHtml('transactionMoney', pending, { amountLabel: '결제 금액', errorAttribute: 'data-error' })}
+            <input type="hidden" id="totalAmount" name="totalAmount" value="${pending ? MoneyDomain.estimatedKrw(pending, state.latestExchangeRateSnapshot) : ''}">
+            <div class="field-error" data-error="totalAmount"></div>
             <div class="field third" ${personal ? 'hidden' : ''}><label for="vatType">부가세 처리 후보</label><select class="select" id="vatType" name="vatType"><option value="taxable">과세(총액에서 분리)</option><option value="exempt">면세</option><option value="none" ${personal ? 'selected' : ''}>부가세 없음/검토</option></select><div class="field-help">증빙에 세액이 따로 적혀 있다면 그 금액이 우선합니다.</div></div>
             <div class="field third"><label for="paymentStatus">결제 상태</label><select class="select" id="paymentStatus" name="paymentStatus"><option value="paid">받음/지급 완료</option><option value="unpaid">외상·미지급</option></select></div>
             <div class="field full"><label class="checkbox-row"><input type="checkbox" id="hasEvidence" name="hasEvidence"><span>증빙을 이미 보관하고 있습니다.<br><span class="field-help">파일 첨부 연결은 Cloudinary 설정 후 제공됩니다. 지금은 보관 여부만 기록합니다.</span></span></label></div>
-            <div class="field full"><label class="checkbox-row"><input type="checkbox" id="isOverseas" name="isOverseas"><span>해외 거래입니다(외화).<br><span class="field-help">외화 금액과 환율을 넣으면 원화 총 금액이 자동으로 채워집니다.</span></span></label></div>
-            <div class="field full" id="overseasBox" hidden>
-              <div class="form-grid">
-                <div class="field third"><label for="fxCurrency">통화</label><input class="input" id="fxCurrency" value="USD" maxlength="3" autocomplete="off" list="fxCurrencyList" placeholder="예: USD, UZS"><datalist id="fxCurrencyList">${CURRENCIES.map(c => `<option value="${c.code}">${Utils.escape(c.name)}</option>`).join('')}</datalist><div class="field-help">목록에서 고르거나 3글자 통화 코드를 직접 입력하세요.</div></div>
-                <div class="field third"><label for="fxAmount">외화 금액</label><input class="input" id="fxAmount" inputmode="decimal" autocomplete="off" placeholder="예: 100"></div>
-                <div class="field third"><label for="fxRate">환율 (1단위당 원)</label><input class="input" id="fxRate" inputmode="decimal" autocomplete="off" placeholder="예: 1350"></div>
-              </div>
-              <div class="field-help">거래일의 기준환율(매매기준율)을 입력하세요. 원화 = 외화 × 환율.</div>
-              <div id="overseasNote">${overseasNoteHtml()}</div>
-            </div>
+            <div class="field full"><label class="checkbox-row"><input type="checkbox" id="isOverseas" name="isOverseas"><span>해외 거래입니다(세무 판단용).<br><span class="field-help">통화 선택과 별개입니다. 원화 결제 해외 서비스도 해당할 수 있습니다.</span></span></label></div>
+            <div class="field full" id="overseasBox" hidden><div id="overseasNote">${overseasNoteHtml()}</div></div>
           </div>
           <div class="calc-strip" aria-live="polite"><div class="calc-item"><div class="calc-label">${term('공급가액')}</div><div class="calc-value" id="supplyPreview">0원</div></div><div class="calc-item"><div class="calc-label">${term('부가세')}</div><div class="calc-value" id="vatPreview">0원</div></div><div class="calc-item"><div class="calc-label">합계</div><div class="calc-value" id="totalPreview">0원</div></div></div>
           <div class="form-actions"><button class="button" type="reset">초기화</button><button class="button primary" type="submit">${icon('save')}거래와 전표 저장</button></div>
@@ -3444,7 +3814,7 @@
       return `
         ${pageHeader('장부', `국세청 간편장부 열 구조로 보는 원천거래입니다. 내부 기준은 ${term('복식부기')} 원장입니다.`, `<button class="button primary" type="button" data-route="transactions">${icon('plus')}거래 입력</button>`)}
         <div class="filter-bar"><input class="input" id="ledgerQuery" type="search" placeholder="내용·거래처 검색" value="${Utils.escape(state.filters.query)}"><select class="select" id="ledgerType"><option value="all">전체 유형</option><option value="income" ${state.filters.type==='income'?'selected':''}>수입</option><option value="expense" ${state.filters.type==='expense'?'selected':''}>비용</option><option value="asset_purchase" ${state.filters.type==='asset_purchase'?'selected':''}>자산</option></select><select class="select" id="ledgerYear"><option value="all">전체 연도</option>${years.map(year=>`<option value="${year}" ${state.filters.year===year?'selected':''}>${year}년</option>`).join('')}</select></div>
-        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}${row.is_overseas ? ` <span class="fx-tag" title="${Utils.escape([row.foreign_currency, row.foreign_amount, row.exchange_rate ? '@' + row.exchange_rate : ''].filter(Boolean).join(' '))}">🌐 해외</span>` : ''}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${result.totalRows?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>${pager('ledger', result)}`;
+        <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}${transactionMoneyTagHtml(row)}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${result.totalRows?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>${pager('ledger', result)}`;
     }
 
     function renderJournals() {
@@ -3601,7 +3971,7 @@
         return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)
           || String(a.next_due_date).localeCompare(String(b.next_due_date));
       });
-      const summary = FixedExpenseDomain.summary(rows);
+      const summary = FixedExpenseDomain.summary(rows, Utils.today(), state.latestExchangeRateSnapshot);
       const editing = rows.find(row => row.id === state.fixedExpenseEditingId) || null;
       const expenseAccounts = state.accounts.filter(row => !row.deleted_at && row.is_active !== false && row.account_type === 'expense');
       const accountOptions = expenseAccounts.map(row => `<option value="${row.id}" ${editing?.account_id === row.id ? 'selected' : ''}>${Utils.escape(row.account_name)}</option>`).join('');
@@ -3610,11 +3980,17 @@
         const overdue = active && row.next_due_date < Utils.today();
         const statusKind = active ? 'success' : row.status === 'paused' ? 'warning' : '';
         const payment = [row.payment_method, row.payment_provider, row.payment_reference_last4 ? `•••• ${row.payment_reference_last4}` : ''].filter(Boolean).join(' · ');
+        const money = MoneyDomain.rowContract(row);
+        const liveKrw = MoneyDomain.estimatedKrw(row, state.latestExchangeRateSnapshot);
+        const displayRateDate = state.latestExchangeRateSnapshot?.rates?.[money.currencyCode] ? state.latestExchangeRateSnapshot.rateDate : money.exchangeRateDate;
+        const amountDisplay = money.currencyCode === 'KRW'
+          ? Utils.won(liveKrw)
+          : `${MoneyDomain.formatOriginal(money.originalAmount, money.currencyCode)}<small>≈ ${Utils.won(liveKrw)} · ${Utils.escape(displayRateDate || '저장 환율')}</small>`;
         const statusActions = active
           ? `<button class="button small" type="button" data-fixed-status="paused" data-fixed-id="${row.id}">${icon('pause')}일시중지</button><button class="button small" type="button" data-fixed-status="ended" data-fixed-id="${row.id}">${icon('circle-stop')}해지</button>`
           : `<button class="button small" type="button" data-fixed-status="active" data-fixed-id="${row.id}">${icon('play')}다시 사용</button>`;
         return `<article class="fixed-expense-row ${overdue ? 'overdue' : ''}">
-          <div class="fixed-expense-row-head"><div><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.cycleLabel(row.billing_cycle)}</span><span>${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${Utils.won(row.amount)}</div></div>
+          <div class="fixed-expense-row-head"><div><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.cycleLabel(row.billing_cycle)}</span><span>${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${amountDisplay}</div></div>
           ${row.note ? `<div class="task-note">${Utils.escape(row.note)}</div>` : ''}
           <div class="fixed-expense-actions">${active ? `<button class="button small primary" type="button" data-fixed-book="${row.id}">${icon('receipt-text')}거래 입력</button>` : ''}<button class="button small" type="button" data-fixed-edit="${row.id}">${icon('pencil')}수정</button>${statusActions}</div>
         </article>`;
@@ -3630,7 +4006,7 @@
               <div class="field full"><label class="required" for="fixedExpenseName">지출처·서비스명</label><input class="input" id="fixedExpenseName" maxlength="100" value="${Utils.escape(editing?.expense_name || '')}" placeholder="예: ChatGPT 구독료"><div class="field-error" data-fixed-error="expenseName"></div></div>
               <div class="field"><label for="fixedExpenseCategory">구분</label><input class="input" id="fixedExpenseCategory" maxlength="50" list="fixedExpenseCategories" value="${Utils.escape(editing?.category || '')}" placeholder="예: 서비스 이용료"><datalist id="fixedExpenseCategories"><option value="서비스 이용료"><option value="통신비"><option value="임차료"><option value="보험료"><option value="공과금"><option value="교육비"></datalist></div>
               <div class="field"><label class="required" for="fixedExpenseAccount">계정과목</label><select class="select" id="fixedExpenseAccount"><option value="">선택하세요</option>${accountOptions}</select><div class="field-error" data-fixed-error="accountId"></div></div>
-              <div class="field"><label class="required" for="fixedExpenseAmount">예상 금액</label><div class="money-wrap"><input class="input" id="fixedExpenseAmount" inputmode="numeric" value="${editing ? Number(editing.amount || 0) : ''}" placeholder="0"><span class="money-unit">원</span></div><div class="field-error" data-fixed-error="amount"></div></div>
+              ${moneyControlHtml('fixedExpenseMoney', editing, { amountLabel: '예상 결제금액', errorAttribute: 'data-fixed-error' })}
               <div class="field"><label for="fixedExpenseAmountMode">금액 유형</label><select class="select" id="fixedExpenseAmountMode"><option value="fixed" ${editing?.amount_mode !== 'variable' ? 'selected' : ''}>고정</option><option value="variable" ${editing?.amount_mode === 'variable' ? 'selected' : ''}>변동(예상액)</option></select></div>
               <div class="field"><label for="fixedExpenseCycle">납부 주기</label><select class="select" id="fixedExpenseCycle"><option value="monthly" ${editing?.billing_cycle !== 'yearly' ? 'selected' : ''}>매월</option><option value="yearly" ${editing?.billing_cycle === 'yearly' ? 'selected' : ''}>연간</option></select></div>
               <div class="field"><label class="required" for="fixedExpenseDueDate">다음 납부일</label><input class="input" id="fixedExpenseDueDate" type="date" value="${editing?.next_due_date || Utils.today()}"><div class="field-error" data-fixed-error="nextDueDate"></div></div>
@@ -3669,14 +4045,23 @@
         catch (error) { diagnostic(error); }
       });
       root.querySelector('#fixedExpenseLast4')?.addEventListener('input', event => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4); });
+      const fixedExpenseMoney = bindMoneyControl(root, 'fixedExpenseMoney', {
+        dateElement: root.querySelector('#fixedExpenseDueDate'),
+        autoRefresh: Boolean(state.fixedExpenseEditingId && MoneyDomain.rowContract(state.fixedExpenses.find(row => row.id === state.fixedExpenseEditingId)).currencyCode !== 'KRW')
+      });
       root.querySelector('#fixedExpenseForm')?.addEventListener('submit', async event => {
         event.preventDefault();
         root.querySelectorAll('[data-fixed-error]').forEach(node => { node.textContent = ''; });
         try {
+          let money = fixedExpenseMoney.value();
+          if (money.currencyCode !== 'KRW' && !money.exchangeRateManual) {
+            await fixedExpenseMoney.refresh({ force: false });
+            money = fixedExpenseMoney.value();
+          }
           const result = await AppService.saveFixedExpense({
             id: el('fixedExpenseId').value || null, expenseName: el('fixedExpenseName').value,
             category: el('fixedExpenseCategory').value, accountId: el('fixedExpenseAccount').value,
-            amount: el('fixedExpenseAmount').value, amountMode: el('fixedExpenseAmountMode').value,
+            amountMode: el('fixedExpenseAmountMode').value, ...money,
             billingCycle: el('fixedExpenseCycle').value, nextDueDate: el('fixedExpenseDueDate').value,
             paymentMethod: el('fixedExpensePaymentMethod').value, paymentProvider: el('fixedExpenseProvider').value,
             paymentReferenceLast4: el('fixedExpenseLast4').value, status: el('fixedExpenseStatus').value,
@@ -3724,6 +4109,7 @@
       const rateNote = rate ? `업종 ${Utils.escape(code)} ${Utils.escape(name)} 경비율 자동 채움 · 필요시 수정` : '업종코드를 설정하면 경비율이 자동으로 채워집니다. 값을 직접 입력할 수도 있습니다.';
       const dutyNote = dutyThreshold != null ? ` · 이 업종 복식부기 기준: 직전연도 수입 ${Utils.won(dutyThreshold)} 이상` : '';
       return `<div class="estimator">
+        ${calculatorCurrencyHtml('estCalculator')}
         <div class="estimator-grid">
           <label class="est-field"><span>총수입금액</span><input class="select" type="text" inputmode="numeric" id="estRevenue" value="${rev || ''}"></label>
           <label class="est-field"><span>직전연도 수입금액</span><input class="select" type="text" inputmode="numeric" id="estPriorRevenue" value="" placeholder="입력 시 자동 판정"></label>
@@ -3844,6 +4230,8 @@
         <div class="notice info">${icon('info')}<div><strong>검토용 추정 계산기입니다.</strong> 재산세 과세기준일은 매년 6월 1일이고, 납기는 7월 16일~31일과 9월 16일~30일에 절반씩입니다(20만원 이하는 7월에 한 번에 부과될 수 있음). 실제 고지세액은 위택스(wetax.go.kr)·이택스 또는 관할 지자체에서 확인하세요.</div></div>
         <div class="notice">${icon('circle-alert')}<div>지금은 <strong>주택</strong>만 계산합니다. 토지·건축물·선박·항공기는 다음 업데이트에서 추가할 예정입니다. 도시지역분은 관할 지자체가 도시지역으로 고시한 지역에만 적용되며, 표준세율(0.14%)만 계산합니다(조례로 최대 0.23%까지 다를 수 있음). "1세대 1주택" 판정은 다주택·상속·혼인·임대주택 등 여러 예외가 있어 이 계산기는 사용자가 직접 판단해 체크한 값을 그대로 사용합니다 — 정확한 판정은 위택스·이택스에서 확인하세요. 지역자원시설세(소방분)는 재산세와 과세표준(건물 시가표준액)이 달라 별도로 계산·표시하며, 실제 고지서는 재산세와 통합해 한 번에 고지할 수 있어 표시 방식이 다를 수 있습니다.</div></div>
         <section class="panel card-panel"><div class="panel-head"><div><h2 class="section-title">주택분 재산세 계산</h2><p class="section-help">공시가격(시가표준액)을 넣으면 자동으로 계산됩니다.</p></div>${badge('검토용','info')}</div>
+          ${calculatorCurrencyHtml('ptCalculator', '공시가격 입력 통화')}
+          <div class="field-help" style="margin:-4px 0 12px">대한민국 공식 공시가격은 원화입니다. 외화로 알고 있는 경우에만 선택 통화의 최신 일일 환율로 원화 환산 후 계산합니다.</div>
           <div class="form-grid">
             <div class="field half"><label for="ptMarketValue">주택 공시가격(시가표준액)</label><input class="input" type="text" inputmode="numeric" id="ptMarketValue" placeholder="예: 500000000"><div class="amount-echo" id="ptMarketValueEcho"></div><div class="field-help">이번 재산세(과세기준일 6월 1일)를 계산하려면 <strong>같은 해 1월 1일 기준 공동주택가격</strong>을 넣으세요 — 매년 4월 30일까지 확정 공시됩니다(부동산 가격공시에 관한 법률 시행령 §43①). 국토교통부 부동산공시가격알리미(realtyprice.kr)에서 조회할 수 있습니다. 신축 등으로 그 값이 아직 없으면 6월 1일 기준 추가공시가격(그 해 9월 30일까지 공시)을 넣으세요.</div></div>
             <div class="field half"><label for="ptPriorMarketValue">직전연도 공시가격 <span class="label-optional">(선택)</span></label><input class="input" type="text" inputmode="numeric" id="ptPriorMarketValue" placeholder="모르면 비워두세요(상한 계산 생략)"><div class="amount-echo" id="ptPriorMarketValueEcho"></div><div class="field-help">모르면 비워두세요 — 과세표준상한액 계산만 생략되고 나머지는 그대로 계산됩니다. 넣을 땐 <strong>작년(같은 해 1월 1일 기준) 공시가격</strong>을 그대로 넣으세요(부동산공시가격알리미에서 연도별로 조회 가능). 과세표준상한액은 법령상 "작년 공시가격 × 올해 공정시장가액비율"로 계산합니다(시행령 §109의2① — 작년에 실제로 적용됐던 비율이 아니라 항상 올해 비율을 씁니다) — 그래서 작년 재산세 고지서의 과세표준 숫자를 그대로 넣으면 오히려 틀릴 수 있습니다.</div></div>
@@ -4541,28 +4929,31 @@
           el('vatPreview').textContent = Utils.won(amounts.vatAmount);
           el('totalPreview').textContent = Utils.won(amounts.totalAmount);
         };
-        el('totalAmount').addEventListener('input', preview);
+        const transactionMoney = bindMoneyControl(transactionForm, 'transactionMoney', {
+          dateElement: el('transactionDate'),
+          autoRefresh: Boolean(state.pendingFixedExpense && MoneyDomain.rowContract(state.pendingFixedExpense).currencyCode !== 'KRW'),
+          onKrwChange: krw => { el('totalAmount').value = String(krw); preview(); }
+        });
         el('vatType').addEventListener('change', preview);
-        const fxConvert = () => {
-          const krw = AccountingDomain.fxToKrw(el('fxAmount').value, el('fxRate').value);
-          if (krw > 0) { el('totalAmount').value = String(krw); preview(); }
-        };
-        el('isOverseas')?.addEventListener('change', event => { el('overseasBox').hidden = !event.target.checked; if (event.target.checked) fxConvert(); });
-        el('fxAmount')?.addEventListener('input', fxConvert);
-        el('fxRate')?.addEventListener('input', fxConvert);
-        transactionForm.addEventListener('reset', () => setTimeout(() => { if (el('overseasBox')) el('overseasBox').hidden = true; preview(); }));
+        el('isOverseas')?.addEventListener('change', event => { el('overseasBox').hidden = !event.target.checked; });
+        transactionForm.addEventListener('reset', () => setTimeout(() => { if (el('overseasBox')) el('overseasBox').hidden = true; transactionMoney.apply(); preview(); }));
         preview();
         transactionForm.addEventListener('submit', async event => {
           event.preventDefault();
           transactionForm.querySelectorAll('[data-error]').forEach(node => node.textContent = '');
           try {
             const overseas = el('isOverseas')?.checked;
+            let money = transactionMoney.value();
+            if (money.currencyCode !== 'KRW' && !money.exchangeRateManual) {
+              await transactionMoney.refresh({ force: false });
+              money = transactionMoney.value();
+            }
             const result = await AppService.saveTransaction({
               transactionDate: el('transactionDate').value, transactionType: state.formType,
               description: el('description').value, counterpartyName: el('counterpartyName').value,
               accountId: el('accountId').value, totalAmount: el('totalAmount').value,
               vatType: el('vatType').value, paymentStatus: el('paymentStatus').value, hasEvidence: el('hasEvidence').checked,
-              isOverseas: overseas, foreignCurrency: overseas ? el('fxCurrency').value : '', foreignAmount: overseas ? el('fxAmount').value : '', exchangeRate: overseas ? el('fxRate').value : '',
+              isOverseas: overseas, ...money,
               fixedExpenseId: state.pendingFixedExpense?.id || null
             });
             if (!result.ok) {
@@ -4577,15 +4968,17 @@
 
       if (el('estRevenue')) {
         const code = state.business?.main_industry_code || '';
+        let estCurrencyControl = null;
+        const estMoney = value => estCurrencyControl ? estCurrencyControl.toKrw(value) : Utils.number(value);
         const estRecalc = () => {
           const priorRaw = el('estPriorRevenue').value.trim();
-          const duty = code && priorRaw ? BookkeepingDuty.assess(code, Utils.number(priorRaw), false) : null;
-          const method = code && priorRaw ? ExpenseRateMethod.method(code, Utils.number(priorRaw), false) : null;
+          const duty = code && priorRaw ? BookkeepingDuty.assess(code, estMoney(priorRaw), false) : null;
+          const method = code && priorRaw ? ExpenseRateMethod.method(code, estMoney(priorRaw), false) : null;
           el('estDutyAuto').textContent = duty?.obligation ? `기장의무 판정: ${duty.obligation}` : '';
           el('estMethodAuto').textContent = method?.method ? `경비율 적용: ${method.method}` : '';
-          const mainCosts = Utils.number(el('estPurchase').value) + Utils.number(el('estRent').value) + Utils.number(el('estLabor').value);
+          const mainCosts = estMoney(el('estPurchase').value) + estMoney(el('estRent').value) + estMoney(el('estLabor').value);
           const res = EstimatedIncome.byStandardRate({
-            revenue: Utils.number(el('estRevenue').value), mainCosts,
+            revenue: estMoney(el('estRevenue').value), mainCosts,
             stdRate: Utils.number(el('estStdRate').value), simpleRate: Utils.number(el('estSimpleRate').value),
             isDoubleEntry: el('estDuty').value === 'double'
           });
@@ -4595,8 +4988,9 @@
           el('estIncome').textContent = Utils.won(res.income);
           el('estNecessary').textContent = Utils.won(res.necessaryExpense);
         };
+        estCurrencyControl = bindCalculatorCurrency(document, 'estCalculator', estRecalc);
         el('estPriorRevenue').addEventListener('input', () => {
-          const duty = code && el('estPriorRevenue').value.trim() ? BookkeepingDuty.assess(code, Utils.number(el('estPriorRevenue').value), false) : null;
+          const duty = code && el('estPriorRevenue').value.trim() ? BookkeepingDuty.assess(code, estMoney(el('estPriorRevenue').value), false) : null;
           if (duty?.obligation) el('estDuty').value = duty.obligation === '복식부기의무자' ? 'double' : 'simple';
           estRecalc();
         });
@@ -4606,25 +5000,32 @@
       }
 
       if (el('ptMarketValue')) {
+        let ptCurrencyControl = null;
+        const ptMoney = value => ptCurrencyControl ? ptCurrencyControl.toKrw(value) : Utils.number(value);
         const ptEcho = (fieldId, echoId) => {
           const raw = el(fieldId).value.trim();
-          el(echoId).textContent = raw === '' ? '' : `= ${Utils.wonKorean(Utils.number(raw))}`;
+          if (raw === '') return el(echoId).textContent = '';
+          const code = ptCurrencyControl?.currency() || 'KRW';
+          el(echoId).textContent = code === 'KRW'
+            ? `= ${Utils.wonKorean(Utils.number(raw))}`
+            : `${MoneyDomain.formatOriginal(Utils.number(raw), code)} ≈ ${Utils.wonKorean(ptMoney(raw))}`;
         };
         const ptRecalc = () => {
           const shareRaw = el('ptShare').value.trim();
           const input = {
-            marketValue: Utils.number(el('ptMarketValue').value),
+            marketValue: ptMoney(el('ptMarketValue').value),
             isOneHouseholdOneHouse: el('ptOneHouse').checked,
-            priorYearMarketValue: el('ptPriorMarketValue').value.trim() === '' ? null : Utils.number(el('ptPriorMarketValue').value),
+            priorYearMarketValue: el('ptPriorMarketValue').value.trim() === '' ? null : ptMoney(el('ptPriorMarketValue').value),
             includeUrbanAreaLevy: el('ptUrbanArea').checked,
             ownershipShare: shareRaw === '' ? 1 : Utils.number(shareRaw) / 100,
-            buildingValueForFireLevy: el('ptBuildingValue').value.trim() === '' ? null : Utils.number(el('ptBuildingValue').value)
+            buildingValueForFireLevy: el('ptBuildingValue').value.trim() === '' ? null : ptMoney(el('ptBuildingValue').value)
           };
           el('ptResult').innerHTML = propertyTaxPanelHtml(input, PropertyTax.calculateHousing(input));
           ptEcho('ptMarketValue', 'ptMarketValueEcho');
           ptEcho('ptPriorMarketValue', 'ptPriorMarketValueEcho');
           ptEcho('ptBuildingValue', 'ptBuildingValueEcho');
         };
+        ptCurrencyControl = bindCalculatorCurrency(document, 'ptCalculator', ptRecalc);
         ['ptMarketValue', 'ptPriorMarketValue', 'ptShare', 'ptBuildingValue'].forEach(id => el(id).addEventListener('input', ptRecalc));
         ['ptOneHouse', 'ptUrbanArea'].forEach(id => el(id).addEventListener('change', ptRecalc));
       }
@@ -4877,12 +5278,12 @@
       else { routeTo('settings'); }
     });
     window.addEventListener('hashchange', () => { state.route = (location.hash || '#dashboard').slice(1); render(); });
-    window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 자동으로 동기화합니다.','success'); SyncService.scheduleAutoSync(500); });
+    window.addEventListener('online', () => { state.online=true; renderShellStatus(); toast('인터넷 연결이 복구되었습니다. 자동으로 동기화합니다.','success'); ExchangeRateService.refreshLatest({ renderAfter: true }); SyncService.scheduleAutoSync(500); });
     window.addEventListener('offline', () => { state.online=false; renderShellStatus(); toast('오프라인입니다. 거래는 이 기기에 계속 저장됩니다.'); });
     // 기기간 자동 동기화 트리거 — 이 화면으로 돌아오거나(포커스·탭 전환) 일정 시간이 지나면
     // 사용자가 버튼을 누르지 않아도 클라우드와 맞춘다(기본값). 세부 규칙은 SyncService.runAutoSync 참고.
     window.addEventListener('focus', () => SyncService.scheduleAutoSync());
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { SyncService.scheduleAutoSync(); checkForWebUpdate(); CapacitorShell.checkForShellUpdate(); } });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { SyncService.scheduleAutoSync(); ExchangeRateService.refreshLatest({ renderAfter: true }); checkForWebUpdate(); CapacitorShell.checkForShellUpdate(); } });
     setInterval(() => SyncService.scheduleAutoSync(0), 30000);
 
     async function init() {
@@ -4892,6 +5293,7 @@
         await AppService.reload();
         state.ready = true;
         render();
+        await ExchangeRateService.refreshLatest({ renderAfter: true });
         await SyncService.runConnectionDiagnostics();
         await SyncService.initializeAuth();
         render();
@@ -4915,7 +5317,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, FixedExpenseDomain, SyncAlgorithms, SupabaseAdapter, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, SupabaseAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>

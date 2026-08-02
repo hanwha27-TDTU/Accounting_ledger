@@ -1,6 +1,6 @@
 # Accounting Ledger V1 Schema Design
 
-> 작성일: 2026-07-09 · 개정 2026-08-02(앱 0.59)
+> 작성일: 2026-07-09 · 개정 2026-08-02(앱 0.60)
 > 상태: V1 데이터/스키마 상세 설계  
 > 목적: Supabase, IndexedDB, JSON 백업이 같은 도메인 구조를 공유하도록 기준을 고정한다.
 
@@ -648,6 +648,22 @@ tombstones (
 );
 ```
 
+## 12.1 다중통화 금액 계약(앱 0.60)
+
+`source_transactions.total_amount`와 `fixed_expenses.amount`는 KRW 금액을 유지한다. 두 테이블 모두 아래 generic 필드를 추가해 외화 원금액과 환율 증거를 같은 LWW/canonical 행에 보존한다.
+
+| 필드 | 의미 |
+|---|---|
+| `currency_code` | ISO 4217 원통화. 신규 UI는 KRW·UZS·USD·JPY만 선택 |
+| `original_amount` | 사용자가 입력한 원통화 금액 |
+| `exchange_rate_to_krw` | 원통화 1단위당 KRW |
+| `exchange_rate_date` | CBU 실제 고시일 또는 수동 적용일 |
+| `exchange_rate_source` | `KRW`, `CBU_UZ`, `MANUAL`, legacy 출처 |
+| `exchange_rate_fetched_at` | 공식환율 조회시각 |
+| `exchange_rate_manual` | 사용자가 환율을 직접 수정했는지 여부 |
+
+기존 `source_transactions.foreign_*`는 구버전 앱 호환을 위해 삭제·rename하지 않는다. 신규 앱은 generic 필드를 우선 사용하고 legacy-only 행도 읽는다. 환율 캐시는 localStorage 참조 데이터라 canonical·JSON 백업 대상이 아니며, 실제 감사필드는 거래·고정지출 행에 포함된다.
+
 ## 13. IndexedDB store 설계
 
 IndexedDB store 이름은 Supabase 테이블명과 최대한 맞춘다.
@@ -692,8 +708,8 @@ JSON 백업 최상위 구조:
 
 ```json
 {
-  "backupSchemaVersion": "0.02",
-  "appVersion": "0.59",
+  "backupSchemaVersion": "0.03",
+  "appVersion": "0.60",
   "createdAt": "2026-07-09T00:00:00.000Z",
   "deviceId": "device-id",
   "tables": {
@@ -722,7 +738,9 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 | `supabase/migrations/20260709000300_accounting_v1_drop_duplicate_indexes.sql` | `accounting_v1_drop_duplicate_indexes` | `20260709123504` |
 | `supabase/migrations/20260709000400_accounting_v1_schema_meta_003.sql` | `accounting_v1_schema_meta_003` | `20260709123556` |
 | `supabase/migrations/20260712000500_accounting_v1_overseas_fields.sql` | `accounting_v1_overseas_fields` | `20260712000500` |
-| `supabase/migrations/20260802000600_accounting_v1_fixed_expenses.sql` | 적용 대기(`fixed_expenses`, schema 0.05) | 로컬 준비 |
+| `supabase/migrations/20260802000600_accounting_v1_fixed_expenses.sql` | `accounting_v1_fixed_expenses` | `20260802000600` |
+| `supabase/migrations/20260802000700_accounting_v1_fixed_expenses_account_index.sql` | `accounting_v1_fixed_expenses_account_index` | `20260802000700` |
+| `supabase/migrations/20260802000800_accounting_v1_multicurrency_daily_fx.sql` | `accounting_v1_multicurrency_daily_fx` | `20260802145707` |
 
 검증 기준:
 
@@ -732,7 +750,7 @@ V1 백업은 암호화하지 않는다. 대신 파일 생성 시 민감자료 �
 | RLS 적용 | 38/38 |
 | FK 보조 인덱스 누락 | 0개 |
 | owner allowlist | `hanwha27@gmail.com` |
-| `accounting_sync_meta.last_schema_version` | 운영 `0.04` · 0.59 배포 전 migration 적용 후 `0.05` |
+| `accounting_sync_meta.last_schema_version` | 운영 `0.06` |
 | `accounting_sync_meta.canonical_version` | `0` |
 
 Supabase advisor 잔여 항목 중 security ERROR/WARN은 기존 비회계 테이블(`news_items`, `language_sync_meta`, `vocab_items`, `usmle_cards`) 관련이다. 회계 신규 테이블에는 별도 security advisor 이슈가 확인되지 않았다. Performance 잔여 항목은 앱 사용 전 신규 인덱스의 `unused_index` INFO다.

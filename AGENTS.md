@@ -37,6 +37,7 @@
 - 세무 법적 기준(기장의무, 단순·기준경비율 적용, 추계 소득 계산, 부가세 면세)의 **값·조문·출처는 `docs/skills/accounting-legal-basis-reference-skill.md`를 SSOT**로 본다. 같은 숫자를 코드·문서에 중복 정의하지 않는다.
 - 거래, 분개, 계정과목, 대사, 마감, 감사, 세무 매핑, 리포트 작업은 `docs/skills/accounting-domain-guardians-skill.md`를 먼저 적용한다.
 - 단일 HTML 구조, 상태관리, adapter, 오류 처리, 성능, 의존성, 개발자 모드 작업은 `docs/skills/accounting-code-architecture-guardians-skill.md`를 먼저 적용한다.
+- 외화 입력, 환율 조회, 원화 환산, 고정지출 외화 예상액, 환율 감사필드 작업은 `docs/skills/accounting-multicurrency-fx-skill.md`를 먼저 적용한다.
 - `android-shell/`, `.github/workflows/android-apk.yml`, `CapacitorShell`, `APK_INFO`, safe-area/edge-to-edge CSS 등 안드로이드 셸 관련 작업은 `docs/skills/accounting-mobile-apk-readiness-skill.md`를 먼저 적용한다 — 실기기에서만 드러난 함정(PKCE flowType, 모바일 드로어 z-index, edge-to-edge 안전영역, allowNavigation 호스트 한계)을 정리해 둔 별도 관리 문서다.
 - 기능 추가·버그 수정의 실행 순서(브랜치 확인→조사→설계→구현→로직 테스트→하네스→헤드리스 실증 검증→문서 4종 갱신→버전→커밋)는 `docs/skills/accounting-development-governance-skill.md`의 "실행 루프" 절을 따른다.
 
@@ -54,6 +55,15 @@
 10. 완전한 삭제 동기화를 위해 `deleted_at` 또는 tombstone을 사용한다.
 11. batch upsert는 네트워크 성공 여부뿐 아니라 반드시 `res.ok`를 확인한다.
 12. 연결 테스트가 성공하면 단순 표시로 끝내지 말고 즉시 동기화를 실행한다.
+
+## 다중통화·일일환율 데이터 계약
+
+- 장부·전표·VAT·리포트의 기능통화는 KRW이며, 외화 거래도 저장 당시 확정한 원화 금액으로 전기한다.
+- 외화 원금액·통화·원화환율·환율 기준일·출처·조회시각·수동수정 여부를 원화 금액과 함께 보존한다. 과거 거래를 오늘 환율로 자동 재평가하지 않는다.
+- 고정지출 일정은 외화 원금액을 보존하고 화면 예상액만 최신 일일 환율로 표시할 수 있다. 실제 거래 생성 시 거래일 환율을 별도로 확정한다.
+- 통화 선택과 해외 세무거래 여부(`is_overseas`)는 서로 다른 개념으로 분리한다.
+- 환율 조회 실패를 숨기지 않는다. 마지막 정상 환율은 경고와 출처·기준일을 함께 표시하고, 캐시도 없으면 임의 환율 저장을 차단한다.
+- 세부 계산·호환·검증 규칙은 `docs/skills/accounting-multicurrency-fx-skill.md`를 SSOT로 본다.
 
 ## 반복지출·일정 데이터 계약
 

@@ -151,13 +151,37 @@ if (api) {
   const exempt = AccountingDomain.calculateAmounts('5000', 'exempt');
   ok(exempt.supplyAmount === 5000 && exempt.vatAmount === 0, 'calculateAmounts exempt -> no vat');
 
-  // 해외 거래 환율 환산 (외화 × 환율 -> 원화, 반올림)
+  // 공통 통화·일일 환율 계약 (외화 × 환율 -> 원화, 반올림)
   ok(AccountingDomain.fxToKrw('100', '1350') === 135000, 'fxToKrw 100 USD @1350 -> 135,000원');
-  // 통화 목록: 기축통화 + 요청하신 UZS(우즈베키스탄 숨) 포함, 모두 3글자 ISO 코드
+  const MoneyDomain = api.MoneyDomain;
+  // 초기 지원 통화는 요청 범위인 원·숨·달러·엔만 노출한다.
   ok(api.CURRENCIES.some(c => c.code === 'UZS' && c.name.includes('우즈베키스탄')), 'CURRENCIES includes UZS (우즈베키스탄 숨)');
-  ok(['USD', 'EUR', 'JPY', 'GBP', 'CNY'].every(code => api.CURRENCIES.some(c => c.code === code)), 'CURRENCIES includes reserve currencies USD/EUR/JPY/GBP/CNY');
+  ok(api.CURRENCIES.map(c => c.code).join(',') === 'KRW,UZS,USD,JPY', 'CURRENCIES exposes only KRW/UZS/USD/JPY initially');
   ok(api.CURRENCIES.every(c => /^[A-Z]{3}$/.test(c.code)), 'CURRENCIES codes are all 3-letter ISO 4217');
   ok(AccountingDomain.fxToKrw('9.99', '1350') === 13487 && AccountingDomain.fxToKrw('', '1350') === 0, 'fxToKrw rounds, empty -> 0');
+  const cbu = MoneyDomain.cbuSnapshot([
+    { Ccy: 'USD', Nominal: '1', Rate: '12006.39', Date: '31.07.2026' },
+    { Ccy: 'JPY', Nominal: '100', Rate: '7352', Date: '31.07.2026' },
+    { Ccy: 'KRW', Nominal: '1', Rate: '8.36', Date: '31.07.2026' }
+  ], '2026-08-02', '2026-08-02T00:00:00.000Z');
+  ok(cbu.rateDate === '2026-07-31' && cbu.source === 'CBU_UZ', 'CBU snapshot preserves official rate date/source');
+  ok(Math.abs(cbu.rates.USD - (12006.39 / 8.36)) < 1e-8, 'CBU USD/UZS and KRW/UZS derive USD/KRW cross-rate');
+  ok(Math.abs(cbu.rates.JPY - (73.52 / 8.36)) < 1e-8 && Math.abs(cbu.rates.UZS - (1 / 8.36)) < 1e-8, 'CBU nominal handling derives JPY/KRW and UZS/KRW');
+  let badCbuRejected = false;
+  try { MoneyDomain.cbuSnapshot([{ Ccy: 'USD', Nominal: '1', Rate: '12000', Date: '31.07.2026' }], '2026-08-02'); }
+  catch (error) { badCbuRejected = String(error.message).startsWith('FX_RATE_MISSING:KRW'); }
+  ok(badCbuRejected, 'CBU snapshot rejects a response missing the KRW cross-rate basis');
+  ok(MoneyDomain.requestedRateDate('2026-08-20', '2026-08-02') === '2026-08-02', 'future fixed-expense dates use latest available date');
+  const fxInput = MoneyDomain.inputContract({ currencyCode: 'usd', originalAmount: '9.99', exchangeRate: '1350', exchangeRateDate: '2026-08-01', exchangeRateSource: 'CBU_UZ' });
+  ok(fxInput.currencyCode === 'USD' && fxInput.krwAmount === 13487 && fxInput.exchangeRateDate === '2026-08-01', 'money input contract normalizes ISO code and locks KRW amount');
+  const legacyFx = MoneyDomain.rowContract({ currency_code: 'KRW', foreign_currency: 'USD', foreign_amount: 100, exchange_rate: 1350, total_amount: 135000 });
+  ok(legacyFx.currencyCode === 'USD' && legacyFx.originalAmount === 100 && legacyFx.exchangeRate === 1350, 'legacy overseas row wins over defaulted generic KRW fields');
+  const cachedSnapshot = { ...cbu, requestedDate: '2026-08-02' };
+  api.ExchangeRateService.save(cachedSnapshot);
+  const exactCached = await api.ExchangeRateService.snapshot('2026-08-02');
+  ok(exactCached.rateDate === '2026-07-31' && exactCached.stale === false, 'exchange-rate service reuses an exact-date normal snapshot');
+  const fallbackCached = await api.ExchangeRateService.snapshot('2026-08-03');
+  ok(fallbackCached.rateDate === '2026-07-31' && fallbackCached.requestedDate === '2026-08-03' && fallbackCached.stale === true, 'exchange-rate service marks latest-cache fallback stale after a network failure');
 
   const balanced = [{ account_id: 'a', debit_amount: 100, credit_amount: 0 }, { account_id: 'b', debit_amount: 0, credit_amount: 100 }];
   ok(AccountingDomain.validateJournal(balanced).status === 'pass', 'validateJournal balanced -> pass');
@@ -239,8 +263,12 @@ if (api) {
   ], '2026-08-02');
   ok(fixedSummary.monthlyEquivalent === 40000 && fixedSummary.activeCount === 2, 'FixedExpense: 연납/12 + 월납으로 월 환산, 중지 항목 제외');
   ok(fixedSummary.due30Amount === 150000 && fixedSummary.due30Count === 2 && fixedSummary.overdueCount === 0, 'FixedExpense: 30일 예정액과 건수 계산');
-  const fixedErrors = FixedExpenseDomain.validate({ expenseName: '', accountId: 'asset', amount: 0, amountMode: 'x', billingCycle: 'x', nextDueDate: '', paymentReferenceLast4: '123456', status: 'x' }, [{ id: 'asset', account_type: 'asset' }]);
-  ok(['expenseName','accountId','amount','amountMode','billingCycle','nextDueDate','paymentReferenceLast4','status'].every(key => fixedErrors[key]), 'FixedExpense: 필수값·비용계정·끝 4자리 검증');
+  const fixedErrors = FixedExpenseDomain.validate({ expenseName: '', accountId: 'asset', amount: 0, currencyCode: 'EUR', originalAmount: 0, exchangeRate: 0, amountMode: 'x', billingCycle: 'x', nextDueDate: '', paymentReferenceLast4: '123456', status: 'x' }, [{ id: 'asset', account_type: 'asset' }]);
+  ok(['expenseName','accountId','currencyCode','originalAmount','exchangeRate','amountMode','billingCycle','nextDueDate','paymentReferenceLast4','status'].every(key => fixedErrors[key]), 'FixedExpense: 통화·금액·환율·일정·끝 4자리 검증');
+  const liveSummary = FixedExpenseDomain.summary([
+    { currency_code: 'USD', original_amount: 120, exchange_rate_to_krw: 1300, amount: 156000, billing_cycle: 'yearly', next_due_date: '2026-08-20', status: 'active', deleted_at: null }
+  ], '2026-08-02', { rates: { USD: 1400 } });
+  ok(liveSummary.monthlyEquivalent === 14000 && liveSummary.due30Amount === 168000, 'FixedExpense summary uses latest snapshot without rewriting stored KRW history');
 }
 
 // ---- Part B: real sync/delete algorithms used by SyncService/AppService ----
@@ -334,7 +362,7 @@ function removeEvidence(evidenceFiles, transactions, id) {
 // force a full re-render mid-typing on that screen and wipe unsaved input (see SyncService.runAutoSync).
 {
   const unsafe = api.AUTO_SYNC_UNSAFE_ROUTES;
-  ok(Array.isArray(unsafe) && ['transactions', 'settings', 'imports'].every(r => unsafe.includes(r)), 'AUTO_SYNC_UNSAFE_ROUTES: skips re-render on screens with free-text input forms');
+  ok(Array.isArray(unsafe) && ['transactions', 'settings', 'imports', 'reports', 'closing', 'propertyTax'].every(r => unsafe.includes(r)), 'AUTO_SYNC_UNSAFE_ROUTES: skips re-render on screens with free-text input forms');
 }
 
 // multi-ledger: pickActiveBusiness (AppService.reload's active-ledger selection, pure)

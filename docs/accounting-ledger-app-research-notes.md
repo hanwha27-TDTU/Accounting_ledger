@@ -1548,3 +1548,25 @@ advisor 잔여 항목:
 | 운영 적용 | 사용자의 후속 배포 요청에 따라 운영 프로젝트 `Travel&Accounting`에 migration 0.05를 적용했다. `fixed_expenses` RLS=true, 정책 4개, anon SELECT grant 없음, authenticated/service_role grant, `source_transactions.fixed_expense_id`, updated_at trigger, schema meta 0.05를 SQL로 재확인했다. Supabase Advisor가 지적한 `account_id` FK 인덱스는 별도 보정 migration으로 추가했다. 실제 로그인 두 기기 왕복은 배포 후 수동 확인 항목으로 유지한다. |
 | 스킬·프롬프트 버전 | `Sub_app-research-notes_0.77`, `Sub_development-governance_0.08`, `Sub_v1-scope_0.04`; `docs/CONSTITUTION.md`에 반복지출·일정 데이터 계약을 추가하고 `AGENTS.md`·`CLAUDE.md`를 재생성했다. 오래된 앱 0.02·APK 미구현 기준선도 실제 0.59 상태로 교정했다. |
 | 배포 검증 | 기능 커밋 `b4d2449`를 `origin/main`에 push. GitHub Quality Harness run `30751685229`와 Pages run `30751684628`이 모두 success, Pages build `1128429857`이 built 상태임을 확인했다. 공개 URL은 HTTP 200이며 v0.59·`fixedExpensesButton`·`FixedExpenseDomain` 표식을 원격 HTML에서 재확인했다. |
+
+## 2026-08-02 앱 0.60: 전 도메인 다중통화·CBU 일일환율·원화 원장 고정
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.59 → 0.60 |
+| schema_version | 0.05 → 0.06(`source_transactions`·`fixed_expenses` generic money/FX 감사필드) |
+| backup_schema_version | 0.02 → 0.03(기존 0.01·0.02 읽기 호환 유지) |
+| note_type | `feature_release` + `schema_review` + `migration_review` + `security_review` |
+| 사용자 요구 | 고정지출을 포함해 금액 입력 시 통화를 고르고, UZS·USD·JPY 외화를 매일 기준 무료 환율로 KRW 환산해 관리. 사용자 동의에 따라 구현·검증·배포까지 진행. |
+| 설계 결정 | 기능통화는 KRW로 유지한다. `total_amount`·`fixed_expenses.amount`는 저장 당시 원화 확정/예상액이고, `currency_code`·`original_amount`·`exchange_rate_to_krw`·기준일·출처·조회시각·수동수정 여부를 같은 행에 보존한다. 과거 전표는 최신 환율로 재평가하지 않는다. `is_overseas`는 세무 판단용으로 통화와 분리한다. |
+| 환율원·계산 | 키 없는 우즈베키스탄 중앙은행 JSON API를 adapter로 격리. CBU의 UZS 기준 `Rate / Nominal`을 먼저 구한 뒤 동일 스냅샷의 KRW 고시값으로 나눠 KRW 교차환율을 산출한다. 날짜별 최대 32개 캐시, 주말·미래일은 실제 직전 고시일 표시, HTTP `response.ok`·필수통화·양수·날짜 구조를 검증한다. |
+| UX | 거래·고정지출에는 KRW·UZS·USD·JPY 선택, 원금액, 자동/수동 환율, 공식환율 새로고침, 원화 환산액·출처·기준일을 공통 컨트롤로 제공한다. 외화 고정지출 목록은 원금액과 최신 예상 KRW를 함께 표시하되 행을 재작성하지 않는다. 추계소득·재산세 계산기의 금액 입력도 선택 통화를 KRW로 바꾼 뒤 기존 엔진을 호출한다. 모바일은 통화·금액·환율을 1열로 접는다. |
+| 오프라인·오류 | 같은 날짜 캐시를 우선 사용하고 조회 실패 시 마지막 정상 스냅샷을 명시적 경고와 함께 쓴다. 캐시도 없으면 환율 입력을 비워 저장을 차단한다. stale 환율로 저장된 거래는 `exchange_rate_stale` 검토 사유를 남긴다. 수동 수정은 `MANUAL`·`exchange_rate_manual=true`로 감사 가능하게 저장한다. |
+| 하위호환·동기화 | migration은 기존 원화 금액을 변경하지 않고 generic 필드를 backfill한다. legacy `foreign_currency/foreign_amount/exchange_rate`는 구버전 앱을 위해 유지하고 신규 앱이 함께 기록하며, legacy-only 행도 읽는다. 새 필드는 기존 행에 포함돼 IndexedDB·queue·LWW·canonical·tombstone·JSON 백업 전 경로를 그대로 탄다. 재조회 가능한 환율 캐시는 localStorage 참조 데이터로 canonical/백업에서 제외한다. |
+| 보안 | 외부 API 키·새 라이브러리·service role을 추가하지 않았다. CSP `connect-src`에는 공식 `https://cbu.uz`만 추가했다. 기존 public 테이블 RLS/GRANT는 변경하지 않고 additive column migration만 사용한다. |
+| 스킬·프롬프트 | 신규 `Sub_multicurrency-fx_0.01`에 기능통화·CBU 교차환율·오프라인·legacy·감사 규칙을 고정하고, `docs/CONSTITUTION.md`에 다중통화 계약과 스킬 라우팅을 추가한 뒤 `AGENTS.md`·`CLAUDE.md`를 자동 재생성했다. |
+| 자동 검증 | 실제 앱 순수 함수 기준 로직 테스트 212→222 assertion 통과(CBU nominal/cross-rate·필수통화 검증, 지원통화, 미래일 clamp, 입력계약, legacy fallback, 동일일 캐시·오프라인 stale fallback, 최신 고정지출 예상액). 하네스 17개 중 REQUIRED 16개 전부 통과, MANUAL 1개는 아래 실브라우저 검증으로 보완했다. 운영 DB·브라우저·배포 결과는 릴리스 완료 시 함께 확정한다. |
+| 운영 DB | Supabase 프로젝트 `Travel&Accounting`(`ihxiywffzmvrwmqvatzt`)에 remote migration `20260802145707_accounting_v1_multicurrency_daily_fx` 적용 완료. 두 대상 테이블의 generic 14개 컬럼, 양수·코드 CHECK 6개, RLS=true, authenticated CRUD 정책 각 4개, schema meta 0.06을 SQL로 확인했다. 기존 운영 행은 두 테이블 모두 0건이라 backfill 전후 금액 대조 대상은 없었다. 공유 프로젝트 Advisor 잔여 경고는 비회계 `journey` 스키마/Auth 설정뿐이며 이번 회계 변경에서 새 경고는 없었다. |
+| 실브라우저 | 1280px에서 거래 USD 100 자동환산과 수동 1,500원 환율(150,000원·MANUAL), 고정지출 JPY 1,000 자동환산, 추계소득 USD 및 재산세 JPY 입력을 확인했다. 최초 고정지출 모달이 133px 가로 넘친 결함을 발견해 편집 열의 money control을 1열로 보정했고 이후 overflow 0. 390×844에서 거래·고정지출 money control 1열, 상단 버튼 아이콘 축약, 문서/모달 가로 overflow 0을 확인했다. |
+| 배포 검증 | GitHub main push·Quality Harness·Pages·공개 URL 검증 후 커밋/실행 ID를 기록한다. |
+| 잔여 위험 | CBU 공식 고시환율은 카드사 실제 청구환율과 다를 수 있어 수동 환율을 제공한다. 여러 기기의 실제 로그인 왕복과 모바일 실기기 촉감은 배포 후 수동 확인 대상이다. |

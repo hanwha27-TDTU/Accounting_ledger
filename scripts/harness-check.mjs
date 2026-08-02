@@ -14,7 +14,8 @@ const expectedMigrations = [
   '20260709000400_accounting_v1_schema_meta_003.sql',
   '20260712000500_accounting_v1_overseas_fields.sql',
   '20260802000600_accounting_v1_fixed_expenses.sql',
-  '20260802000700_accounting_v1_fixed_expenses_account_index.sql'
+  '20260802000700_accounting_v1_fixed_expenses_account_index.sql',
+  '20260802000800_accounting_v1_multicurrency_daily_fx.sql'
 ];
 
 const referenceAssets = new Set([
@@ -223,7 +224,13 @@ addGate('migration-contract', 'REQUIRED', () => {
   hasRequiredText(fixedExpenseSchema, 'create table if not exists public.fixed_expenses', fixedExpenseMigration);
   hasRequiredText(fixedExpenseSchema, 'alter table public.fixed_expenses enable row level security', fixedExpenseMigration);
   hasRequiredText(fixedExpenseSchema, 'payment_reference_last4', fixedExpenseMigration);
-  hasRequiredText(readText(`supabase/migrations/${expectedMigrations.at(-1)}`), 'idx_fixed_expenses_account_id', expectedMigrations.at(-1));
+  const fixedExpenseIndexMigration = expectedMigrations.find(file => file.endsWith('fixed_expenses_account_index.sql'));
+  hasRequiredText(readText(`supabase/migrations/${fixedExpenseIndexMigration}`), 'idx_fixed_expenses_account_id', fixedExpenseIndexMigration);
+  const multicurrencyMigration = expectedMigrations.find(file => file.endsWith('multicurrency_daily_fx.sql'));
+  const multicurrencySchema = readText(`supabase/migrations/${multicurrencyMigration}`);
+  for (const marker of ['currency_code', 'original_amount', 'exchange_rate_to_krw', 'exchange_rate_date', 'exchange_rate_source', 'exchange_rate_manual']) {
+    hasRequiredText(multicurrencySchema, marker, multicurrencyMigration);
+  }
   return { detail: `${expectedMigrations.length} migration files and sync/RLS markers verified` };
 });
 

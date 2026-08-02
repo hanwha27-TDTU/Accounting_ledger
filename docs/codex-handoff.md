@@ -1,12 +1,12 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 개정 2026-08-02 · 기준 앱 버전 `0.59` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
+> 개정 2026-08-02 · 기준 앱 버전 `0.60` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **기준 앱은 0.59**(상단 고정지출현황·반복일정·비용거래 연결)이며 자동 테스트 기준은 로직 212 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration 0.05는 적용 완료됐으며 현재 웹 배포 여부는 Git 최신 커밋과 GitHub Pages를 확인한다.
+- **기준 앱은 0.60**(전 금액 입력 KRW·UZS·USD·JPY 선택, CBU 일일환율과 원화 원장 고정)이며 자동 테스트 기준은 로직 222 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration 0.06은 적용 완료됐으며 현재 웹 배포 여부는 Git 최신 커밋과 GitHub Pages를 확인한다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
@@ -28,6 +28,7 @@
 - **0.49**: 상단바 가계부 빠른 전환(+모바일에서 현재 가계부 표시).
 - **0.50~0.57 안드로이드 아크** (아래 4장에서 상세).
 - **0.54 전수감사**: 0.40~0.53 전 구간 감사(문서 교차·ID 참조·봉합점·z-index·비밀값·헤드리스 E2E 34항목). 발견 2건 수정.
+- **0.59~0.60 반복지출·다중통화 아크**: 상단 고정지출현황과 실제 비용거래 연결 후, 거래·고정지출·추계소득·재산세에 KRW·UZS·USD·JPY 선택과 CBU 일일환율을 추가. 저장 원장은 KRW로 고정하고 원금액·환율 감사필드를 보존하며 schema 0.06을 운영 적용했다.
 
 ## 4. 안드로이드 셸 — 반드시 알아야 할 구조 (0.50~0.57)
 
