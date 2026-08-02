@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.69** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.70** · 개정 2026-08-02
 
 # Accounting Ledger App Research Notes
 
@@ -1440,3 +1440,18 @@ advisor 잔여 항목:
 | 부수 효과(의도됨) | `android-shell/**`가 0.50 이후 처음 바뀌는 커밋 → main 반영 시 Android APK 워크플로가 재실행돼 versionCode(run_number)가 올라가고, **이미 설치된 앱의 셸 자동 업데이트 흐름(새 빌드 감지→자동 다운로드→설치 확인 1탭)이 최초로 실전 트리거된다** — 체크리스트 10번의 마지막 미확인 항목을 실기기에서 확인할 기회. |
 | 검증 | 미리보기 이미지를 사용자에게 전달(사각·원형·어댑티브 3종). 아이콘 자체는 픽셀 산출물이라 하네스 대상 아님, `npm run harness:check` 회귀 확인만 수행. 실제 홈 화면 표시는 새 APK 설치 후 사용자 확인 필요. |
 | 스킬 버전 | `Sub_app-research-notes_0.69` |
+
+## 2026-08-02 앱 0.55: 셸 자동 업데이트 감지 무동작 근본원인(GitHub 릴리스 자산 CORS 차단) — API 마커 경로로 교체
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.54 → 0.55 |
+| note_type | `fix`(0.50에서 설계한 셸 자동 업데이트가 실기기 최초 트리거에서 무동작 — 근본원인 실측·수정) + `gate`(재발 방지 게이트 확장) |
+| 배경 | 새 아이콘 커밋(61333fb)이 0.50 이후 첫 `android-shell/**` 변경이라 셸 자동 업데이트 흐름이 처음 실전 트리거될 상황이었는데, 사용자가 "자동업데이트는 실제로 뜨지 않아서 앱내 링크를 통해서 업데이트 했어요"라고 제보(수동 링크 설치는 정상, 새 아이콘 적용 확인됨). |
+| 조사 — 근본원인 | `checkForShellUpdate()`는 `APK_INFO.versionManifestUrl`(= `github.com/.../releases/download/.../bareunjangbu-shell-version.json`)을 fetch하는데, **github.com의 릴리스 자산 다운로드는 302 리다이렉트 응답에 `Access-Control-Allow-Origin` 헤더가 없다**(curl로 Origin 헤더를 붙여 실측 — 응답 헤더 전체에 ACAO 부재 확인). 브라우저/웹뷰 fetch는 리다이렉트 체인의 모든 응답에 CORS 헤더를 요구하므로 첫 302에서 차단되고, 코드의 `catch {}`가 실패를 조용히 삼켜 아무 안내가 없었다. 수동 다운로드 링크가 잘 되는 이유: 그건 fetch(XHR)가 아니라 내비게이션(페이지 이동)이라 CORS 대상이 아님. 같은 원리로 0.53의 PKCE 건과 동일한 "에러 없이 조용히 죽는" 클래스. |
+| 조사 — 대안 선정 | `api.github.com`은 `Access-Control-Allow-Origin: *`를 보낸다(실측 확인). 릴리스 메타데이터 API(`/repos/{repo}/releases/tags/{tag}`)는 CORS-safe하지만 우리 versionCode를 모른다 → **워크플로가 릴리스 설명(body)에 기계가 읽는 마커를 심고, 앱이 API로 그 설명을 읽는** 방식 채택. 대안으로 검토·기각: ① 워크플로가 versionCode 파일을 main에 커밋해 Pages(같은 origin)로 서빙 — CORS는 완전 해결되지만 셸 빌드마다 봇 커밋·Pages 재배포가 생기고 사람 커밋과 경합 위험, ② raw.githubusercontent.com — 마찬가지로 저장소 커밋 필요. 릴리스 하나에 모든 산출물을 모아두는 기존 설계를 유지하는 마커 방식이 최소 변경. |
+| 구현 | ① `.github/workflows/android-apk.yml`: 게시 스텝이 매 실행마다 `gh release edit --notes`로 설명 끝에 `<!-- shell-version: {"versionCode": N, "signed": B} -->` 마커를 기록(HTML 주석이라 릴리스 페이지에서 사람 눈에는 안 보임). ② `index.html`: `APK_INFO.releaseApiUrl` 추가(왜 이 경로여야 하는지 CORS 실측 근거를 주석으로 남김), `CapacitorShell.parseShellVersionFromReleaseBody(body)` 순수 함수 신설(마커 없음/JSON 파손/versionCode 비숫자/null body 전부 null 반환), `checkForShellUpdate()`가 자산 fetch 대신 API JSON의 body에서 마커를 읽도록 교체. 자산 파일(`bareunjangbu-shell-version.json`) 업로드 자체는 유지(고정 링크 계약·외부 소비자용). |
+| 게이트 확장(재발 방지) | `apk-link-contract`에 3검사 추가: APK_INFO.releaseApiUrl 존재+api.github.com+releaseTag 포함, 워크플로에 `shell-version:` 마커 기록 존재, `checkForShellUpdate()`가 releaseApiUrl을 읽고 `APK_INFO.versionManifestUrl`을 fetch하지 않을 것. **일부러 두 가지로 깨서 각각 FAIL 확인 → 바이트 동일 복구 → PASS 재확인 완료**(이 저장소의 게이트 신설 규율 그대로). |
+| 검증 | 로직 테스트 182→188(+6): releaseApiUrl 자기 일관성, 파서 경계값 5종(정상 마커/마커 없음/JSON 파손/versionCode 비숫자/null·undefined). `npm run harness:check` 13/13. CORS 실측 증거: github.com 302 응답 헤더에 ACAO 부재, api.github.com 200 응답에 `Access-Control-Allow-Origin: *` — 둘 다 Origin 헤더를 붙인 curl로 확인. |
+| 실전 검증 계획(이 배포 자체가 테스트) | 이 커밋은 워크플로 파일이 트리거 경로에 포함돼 main 반영 시 APK가 versionCode 6으로 재빌드되고 마커가 처음 기록된다. 사용자 폰에는 build 5가 설치돼 있으므로: 앱을 껐다 켜면 → 새 웹(0.55)이 로드되고 → API에서 versionCode 6 발견 → **자동 업데이트 안내가 이번에는 실제로 떠야 한다.** 안 뜨면 다음 라운드 조사. |
+| 스킬 버전 | `Sub_app-research-notes_0.70` |

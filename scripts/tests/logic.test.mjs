@@ -503,6 +503,16 @@ function tombstoneBusinessId(explicitBusinessId, activeBusinessId) {
   ok(K.downloadUrl.includes(K.releaseTag) && K.downloadUrl.includes(K.assetName), 'APK_INFO: downloadUrl에 releaseTag·assetName이 실제로 들어있음');
   ok(K.releasePageUrl.includes(K.releaseTag), 'APK_INFO: releasePageUrl에 releaseTag가 실제로 들어있음');
   ok(K.downloadUrl.includes(K.repo) && K.releasePageUrl.includes(K.repo), 'APK_INFO: 두 URL 모두 같은 저장소(repo)를 가리킴');
+
+  // 셸 새 빌드 감지(0.55) — github.com 자산 직접 fetch는 CORS로 차단돼(실기기 실측) 릴리스
+  // 설명의 shell-version 마커를 api.github.com으로 읽는다. 그 파서의 경계값을 실코드로 검증.
+  ok(K.releaseApiUrl.includes('api.github.com') && K.releaseApiUrl.includes(K.repo) && K.releaseApiUrl.includes(K.releaseTag), 'APK_INFO: releaseApiUrl이 api.github.com + repo + releaseTag를 실제로 담고 있음');
+  const P = api.CapacitorShell.parseShellVersionFromReleaseBody.bind(api.CapacitorShell);
+  ok(JSON.stringify(P('설명글\n\n<!-- shell-version: {"versionCode": 6, "signed": true} -->')) === '{"versionCode":6,"signed":true}', 'parseShellVersion: 정상 마커에서 versionCode·signed 추출');
+  ok(P('마커가 없는 평범한 릴리스 설명') === null, 'parseShellVersion: 마커 없으면 null(조용히 확인 불가 처리)');
+  ok(P('<!-- shell-version: {깨진 json} -->') === null, 'parseShellVersion: JSON이 깨졌으면 null');
+  ok(P('<!-- shell-version: {"signed": true} -->') === null, 'parseShellVersion: versionCode가 숫자가 아니면 null');
+  ok(P(null) === null && P(undefined) === null, 'parseShellVersion: body가 없어도(null/undefined) 안전');
 }
 
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);

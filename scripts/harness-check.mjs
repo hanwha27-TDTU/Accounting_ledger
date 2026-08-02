@@ -428,6 +428,27 @@ addGate('apk-link-contract', 'REQUIRED', () => {
     throw new Error('APK_INFO.versionManifestUrl does not actually contain releaseTag/versionAssetName (copy-paste drift)');
   }
 
+  // 0.54 실기기 실측: github.com 릴리스 자산 다운로드는 302 리다이렉트에 CORS 헤더가 없어
+  // 웹뷰 fetch가 차단된다. 셸 새 빌드 감지는 api.github.com(CORS 허용) + 릴리스 설명의
+  // shell-version 마커 경로만 동작한다 — 세 조각(APK_INFO.releaseApiUrl, 워크플로의 마커 기록,
+  // 감지 코드의 API 사용)이 다시 어긋나면 자동 업데이트가 "에러 없이 조용히" 죽으므로 게이트로 강제한다.
+  const releaseApiUrl = apkInfoBlock[1].match(/releaseApiUrl:\s*'([^']+)'/)?.[1];
+  if (!releaseApiUrl) throw new Error('APK_INFO must define releaseApiUrl (CORS-safe api.github.com release endpoint)');
+  if (!releaseApiUrl.includes('api.github.com') || !releaseApiUrl.includes(releaseTag)) {
+    throw new Error('APK_INFO.releaseApiUrl must point at api.github.com and contain the release tag');
+  }
+  if (!workflow.includes('shell-version:')) {
+    throw new Error('android-apk.yml must write the shell-version marker into the release notes — the app detects new shell builds ONLY through this marker (direct asset fetch is CORS-blocked in the WebView)');
+  }
+  const shellUpdateBlock = html.match(/async checkForShellUpdate\(\)[\s\S]*?\n      \}/);
+  if (!shellUpdateBlock) throw new Error('index.html must define CapacitorShell.checkForShellUpdate()');
+  if (!shellUpdateBlock[0].includes('APK_INFO.releaseApiUrl')) {
+    throw new Error('checkForShellUpdate() must fetch APK_INFO.releaseApiUrl — fetching the release asset directly is CORS-blocked in the WebView (verified on a real device, 0.54)');
+  }
+  if (shellUpdateBlock[0].includes('APK_INFO.versionManifestUrl')) {
+    throw new Error('checkForShellUpdate() must not fetch APK_INFO.versionManifestUrl — that path silently fails CORS in the WebView (the regression this gate exists to prevent)');
+  }
+
   const workflowTag = workflow.match(/RELEASE_TAG:\s*(\S+)/)?.[1];
   const workflowAsset = workflow.match(/APK_ASSET_NAME:\s*(\S+)/)?.[1];
   const workflowVersionAsset = workflow.match(/VERSION_ASSET_NAME:\s*(\S+)/)?.[1];

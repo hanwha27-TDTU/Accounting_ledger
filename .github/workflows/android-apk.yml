@@ -107,20 +107,30 @@ jobs:
             android-shell/android/${{ env.VERSION_ASSET_NAME }}
           retention-days: 30
 
+      # 릴리스 설명(body) 끝의 shell-version 마커는 사람용 문구가 아니라 앱이 읽는 값이다 —
+      # 설치된 앱(index.html의 CapacitorShell.checkForShellUpdate)이 api.github.com으로 이
+      # 설명을 읽어 새 빌드를 감지한다. 자산 파일(bareunjangbu-shell-version.json)을 직접
+      # fetch하는 방식은 github.com 리다이렉트에 CORS 헤더가 없어 웹뷰에서 차단되므로(실기기
+      # 실측), 이 마커가 유일하게 동작하는 감지 경로다. 마커 형식을 바꾸면 APK_INFO.releaseApiUrl
+      # 파서(parseShellVersionFromReleaseBody)와 하네스 apk-link-contract 게이트도 함께 바꿔야 한다.
       - name: Publish/overwrite fixed-tag release
         run: |
+          NOTES="이 릴리스는 항상 최신 셸 빌드를 가리킵니다. 커밋마다 이 자산을 덮어쓰며 새 태그를 만들지 않습니다 — 다운로드 링크는 절대 바뀌지 않습니다.
+
+          <!-- shell-version: {\"versionCode\": ${{ github.run_number }}, \"signed\": ${{ steps.keystore.outputs.present }}} -->"
           if gh release view "$RELEASE_TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" \
               "android-shell/android/$APK_ASSET_NAME" \
               "android-shell/android/$VERSION_ASSET_NAME" \
               --clobber --repo "${{ github.repository }}"
+            gh release edit "$RELEASE_TAG" --repo "${{ github.repository }}" --notes "$NOTES"
           else
             gh release create "$RELEASE_TAG" \
               "android-shell/android/$APK_ASSET_NAME" \
               "android-shell/android/$VERSION_ASSET_NAME" \
               --repo "${{ github.repository }}" \
               --title "바른장부 Android (최신)" \
-              --notes "이 릴리스는 항상 최신 셸 빌드를 가리킵니다. 커밋마다 이 자산을 덮어쓰며 새 태그를 만들지 않습니다 — 다운로드 링크는 절대 바뀌지 않습니다."
+              --notes "$NOTES"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
