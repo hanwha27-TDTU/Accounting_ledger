@@ -1,6 +1,6 @@
 # 바른장부 안드로이드 앱 설치 플레이북
 
-> **v0.63** — 앱 버전과 항상 같은 버전으로 관리됩니다.
+> **v0.64** — 앱 버전과 항상 같은 버전으로 관리됩니다.
 >
 > ⚠ **이 파일은 자동 생성됩니다 — 직접 고치지 마세요.** 원본은 앱(index.html)의
 > "가이드 → 안드로이드 앱 설치" 화면(`androidInstallGuideHtml()`)이고,
@@ -52,4 +52,4 @@
 ➡ [배포 기록 보기](https://github.com/hanwha27-TDTU/Accounting_ledger/releases/tag/apk-latest)
 
 > **이 안내는 설치 플레이북 파일로도 자동 발행됩니다.**
-> 저장소의 `docs/bareunjangbu-apk-install-playbook.md`가 이 화면과 같은 내용·같은 앱 버전(v0.63)으로 자동 생성되며, 화면이 바뀌면 파일도 함께 바뀝니다(어긋나면 CI가 실패합니다).
+> 저장소의 `docs/bareunjangbu-apk-install-playbook.md`가 이 화면과 같은 내용·같은 앱 버전(v0.64)으로 자동 생성되며, 화면이 바뀌면 파일도 함께 바뀝니다(어긋나면 CI가 실패합니다).

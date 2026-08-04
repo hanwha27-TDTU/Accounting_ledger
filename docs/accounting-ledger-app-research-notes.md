@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.80** · 개정 2026-08-04
+> **📌 Sub_app-research-notes_0.81** · 개정 2026-08-04
 
 # Accounting Ledger App Research Notes
 
@@ -1622,3 +1622,17 @@ advisor 잔여 항목:
 | 자동 검증 | 로직 237 assertion 유지(CSS 전용 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
 | 스킬·문서 | `Sub_v1-scope_0.08`, `Sub_app-research-notes_0.80`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.63 기준으로 갱신한다. |
 | 배포 검증 | 기능 브랜치 `codex/recurring-payment-rules`를 push하고 PR [#1](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/1)의 Quality Harness 성공 후 `main`에 병합했다(merge `4dad36f`). main Quality run `30912168769`과 Pages run `30912165783`이 모두 success. 공개 URL `https://hanwha27-tdtu.github.io/Accounting_ledger/`은 HTTP 200이며 `version: '0.63'`, 반복 일정·환율 기준일 코드, `.data-grid > .panel + .panel { margin-top: 0; }` 표식을 원격 HTML에서 확인했다. |
+
+## 2026-08-04 앱 0.64: 거래 입력 계정과목 가이드 인라인 정렬
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.63 → 0.64 |
+| schema_version | 0.06 유지(CSS·마크업만 변경, migration 없음) |
+| note_type | `ux_fix` + `accessibility_preserved` |
+| 사용자 제보 | 거래 입력 화면의 `선택 가이드`가 계정과목 라벨과 선택 상자 사이에 별도 줄로 놓여 계정과목 필드만 거래일·거래처보다 아래로 밀린다고 지적하고, 가이드를 계정과목 옆으로 이동하도록 제안. |
+| 수정 | 계정과목 라벨과 가이드 버튼을 `.field-label-row`로 묶어 한 줄에 배치했다. 라벨·가이드의 줄높이와 용어 버튼의 점선 밑줄을 컨테이너 높이에 맞춰 select가 내려가지 않게 했다. `for=accountId`, 가이드 버튼, 계정과목 용어 툴팁은 그대로 유지한다. |
+| 실브라우저 | 앱 내 브라우저에서 `transactionDate`, `counterpartyName`, `accountId`의 top 302.34375px·bottom 344.34375px·height 42px가 모두 정확히 일치해 top spread 0px를 확인했다. 계정과목 가이드가 라벨 오른쪽에 표시되고 콘솔 오류는 0건. |
+| 자동 검증 | 로직 237 assertion 유지(순수 UI 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
+| 스킬·문서 | `Sub_v1-scope_0.09`, `Sub_app-research-notes_0.81`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.64 기준으로 갱신한다. |
+| 배포 상태 | 기능 브랜치 `codex/transaction-field-alignment`에서 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자 명시 요청 전에는 실행하지 않는다. |
