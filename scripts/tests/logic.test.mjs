@@ -172,6 +172,10 @@ if (api) {
   catch (error) { badCbuRejected = String(error.message).startsWith('FX_RATE_MISSING:KRW'); }
   ok(badCbuRejected, 'CBU snapshot rejects a response missing the KRW cross-rate basis');
   ok(MoneyDomain.requestedRateDate('2026-08-20', '2026-08-02') === '2026-08-02', 'future fixed-expense dates use latest available date');
+  const futureRateContext = MoneyDomain.rateDateContext('2026-08-20', '2026-08-02', '2026-08-02');
+  ok(futureRateContext.isFuture && futureRateContext.requestedDate === '2026-08-02', 'future FX basis date is explicitly clamped to today');
+  const weekendRateContext = MoneyDomain.rateDateContext('2026-08-02', '2026-07-31', '2026-08-02');
+  ok(weekendRateContext.usedPriorPublication && weekendRateContext.rateDate === '2026-07-31', 'weekend FX basis identifies the prior official publication date');
   const fxInput = MoneyDomain.inputContract({ currencyCode: 'usd', originalAmount: '9.99', exchangeRate: '1350', exchangeRateDate: '2026-08-01', exchangeRateSource: 'CBU_UZ' });
   ok(fxInput.currencyCode === 'USD' && fxInput.krwAmount === 13487 && fxInput.exchangeRateDate === '2026-08-01', 'money input contract normalizes ISO code and locks KRW amount');
   const legacyFx = MoneyDomain.rowContract({ currency_code: 'KRW', foreign_currency: 'USD', foreign_amount: 100, exchange_rate: 1350, total_amount: 135000 });
@@ -182,6 +186,11 @@ if (api) {
   ok(exactCached.rateDate === '2026-07-31' && exactCached.stale === false, 'exchange-rate service reuses an exact-date normal snapshot');
   const fallbackCached = await api.ExchangeRateService.snapshot('2026-08-03');
   ok(fallbackCached.rateDate === '2026-07-31' && fallbackCached.requestedDate === '2026-08-03' && fallbackCached.stale === true, 'exchange-rate service marks latest-cache fallback stale after a network failure');
+  api.ExchangeRateService.save({ ...cbu, requestedDate: '2026-08-04', rateDate: '2026-08-04', fetchedAt: '2026-08-04T00:00:00.000Z' });
+  ok(api.ExchangeRateService.latestCached('2026-08-02').rateDate === '2026-07-31', 'historical FX fallback never uses a rate published after the selected basis date');
+  api.ExchangeRateService.save({ ...cbu, requestedDate: '2026-08-01', rateDate: '2026-08-04', fetchedAt: '2026-08-04T00:00:00.000Z' });
+  const incompatibleExactFallback = await api.ExchangeRateService.snapshot('2026-08-01');
+  ok(incompatibleExactFallback.rateDate === '2026-07-31' && incompatibleExactFallback.stale === true, 'an incompatible exact-date cache is ignored in favor of an on-or-before fallback');
 
   const balanced = [{ account_id: 'a', debit_amount: 100, credit_amount: 0 }, { account_id: 'b', debit_amount: 0, credit_amount: 100 }];
   ok(AccountingDomain.validateJournal(balanced).status === 'pass', 'validateJournal balanced -> pass');
@@ -277,10 +286,10 @@ if (api) {
   ok(['expenseName','accountId','currencyCode','originalAmount','exchangeRate','amountMode','billingCycle','billingAnchorDay','nextDueDate','paymentReferenceLast4','status'].every(key => fixedErrors[key]), 'FixedExpense: 통화·금액·환율·반복 일정·끝 4자리 검증');
   const impossibleAnnual = FixedExpenseDomain.validate({ expenseName: '테스트', accountId: 'expense', amount: 1000, currencyCode: 'KRW', originalAmount: 1000, exchangeRate: 1, amountMode: 'fixed', billingCycle: 'yearly', billingAnchorDay: 30, billingAnchorMonth: 2, nextDueDate: '2026-02-28', status: 'active' }, [{ id: 'expense', account_type: 'expense' }]);
   ok(Boolean(impossibleAnnual.billingAnchorDay), 'FixedExpense: 존재하지 않는 연간 월일 조합 차단');
-  const liveSummary = FixedExpenseDomain.summary([
+  const basisSummary = FixedExpenseDomain.summary([
     { currency_code: 'USD', original_amount: 120, exchange_rate_to_krw: 1300, amount: 156000, billing_cycle: 'yearly', next_due_date: '2026-08-20', status: 'active', deleted_at: null }
-  ], '2026-08-02', { rates: { USD: 1400 } });
-  ok(liveSummary.monthlyEquivalent === 14000 && liveSummary.due30Amount === 168000, 'FixedExpense summary uses latest snapshot without rewriting stored KRW history');
+  ], '2026-08-02');
+  ok(basisSummary.monthlyEquivalent === 13000 && basisSummary.due30Amount === 156000, 'FixedExpense summary uses the stored user-selected basis rate');
 }
 
 // ---- Part B: real sync/delete algorithms used by SyncService/AppService ----
