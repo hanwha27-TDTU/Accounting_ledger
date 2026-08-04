@@ -1621,4 +1621,4 @@ advisor 잔여 항목:
 | 실브라우저 | 앱 내 브라우저에서 6개 카드의 `margin-top`이 모두 0px인지 확인했다. 각 행의 좌우 카드는 top/bottom/height가 정확히 동일했다: 첫 행 top 260.7344·bottom 478.0313·height 217.2969px, 둘째 행 top 494.0313·bottom 710.9297px, 셋째 행 top 726.9297·bottom 947.3281px. 콘솔 오류 0건. |
 | 자동 검증 | 로직 237 assertion 유지(CSS 전용 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
 | 스킬·문서 | `Sub_v1-scope_0.08`, `Sub_app-research-notes_0.80`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.63 기준으로 갱신한다. |
-| 배포 상태 | 기능 브랜치 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자 명시 요청 전에는 실행하지 않는다. |
+| 배포 검증 | 기능 브랜치 `codex/recurring-payment-rules`를 push하고 PR [#1](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/1)의 Quality Harness 성공 후 `main`에 병합했다(merge `4dad36f`). main Quality run `30912168769`과 Pages run `30912165783`이 모두 success. 공개 URL `https://hanwha27-tdtu.github.io/Accounting_ledger/`은 HTTP 200이며 `version: '0.63'`, 반복 일정·환율 기준일 코드, `.data-grid > .panel + .panel { margin-top: 0; }` 표식을 원격 HTML에서 확인했다. |

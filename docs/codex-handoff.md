@@ -6,7 +6,7 @@
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **기준 앱은 0.63**(전 금액 입력 다중통화·CBU 일일환율, 월간·연간 반복 일정 자동 계산, 고정지출 환율 기준일, 데이터 관리 2열 카드 정렬)이며 자동 테스트 기준은 로직 237 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration 0.06은 적용 완료됐으며 현재 웹 배포 여부는 Git 최신 커밋과 GitHub Pages를 확인한다.
+- **기준 앱은 0.63**(전 금액 입력 다중통화·CBU 일일환율, 월간·연간 반복 일정 자동 계산, 고정지출 환율 기준일, 데이터 관리 2열 카드 정렬)이며 자동 테스트 기준은 로직 237 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration 0.06 적용과 앱 0.63 GitHub Pages 배포가 완료됐으며 최신 상태는 Git `main`과 GitHub Pages를 확인한다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
