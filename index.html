@@ -326,6 +326,7 @@
     .status-item-body { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
     .data-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .data-grid > .panel + .panel { margin-top: 0; }
     .mode-select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
     .mode-card { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
     .mode-card:hover, .mode-card:focus-visible { border-color: var(--brand); box-shadow: var(--shadow); }
@@ -489,12 +490,16 @@
     .fixed-expense-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .fixed-expense-name { font-weight: 850; }
     .fixed-expense-meta { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.45; }
-    .fixed-expense-amount { color: var(--ink); font-size: 16px; font-weight: 900; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .fixed-expense-amount { flex: 0 0 210px; align-self: flex-start; color: var(--ink); font-size: 16px; font-weight: 900; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .fixed-expense-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e8ecea; }
     .fixed-expense-form { padding: 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
     .fixed-expense-form-title { margin: 0 0 13px; font-size: 15px; }
     .fixed-expense-form .money-control { grid-template-columns: 1fr; }
     .fixed-expense-form .money-conversion { grid-column: 1; }
+    .fixed-expense-schedule { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .fixed-expense-schedule-preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid #c9d9d2; border-radius: 7px; background: #f5faf7; }
+    .fixed-expense-schedule-preview strong { display: block; margin-top: 3px; font-size: 15px; font-variant-numeric: tabular-nums; }
+    .fixed-expense-schedule-preview svg { flex: 0 0 auto; color: var(--brand); }
 
     .toast-region { position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 120; display: grid; gap: 8px; width: min(360px, calc(100vw - 36px)); }
 
@@ -619,6 +624,7 @@
       .fixed-expense-trigger { min-width: 38px; width: 38px; padding: 0; }
       .fixed-expense-trigger-copy { display: none; }
       .fixed-summary-grid { grid-template-columns: 1fr; }
+      .fixed-expense-amount { flex: 0 1 auto; min-width: 0; }
     }
     @media (max-width: 480px) {
       .metric-grid { grid-template-columns: 1fr; }
@@ -691,7 +697,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.60',
+      version: '0.63',
       schemaVersion: '0.06',
       backupSchemaVersion: '0.03',
       postingRuleVersion: 'posting-0.01',
@@ -706,7 +712,10 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.60', date: '2026-08-02', label: '최신 · 전 도메인 다중통화·일일 환율', detail: '거래와 고정지출은 원·숨·달러·엔 중 입력 통화를 선택하고, 우즈베키스탄 중앙은행의 날짜별 공식 환율로 원화 환산액을 자동 계산합니다. 원금액·통화·적용환율·환율일·출처·수동수정 여부를 함께 보존하며 장부와 전표는 확정된 원화 금액으로 유지합니다. 고정지출 목록은 저장한 외화 원금액을 보존하면서 최신 일일 환율 기준 예상 원화액을 보여주고, 추계소득·재산세 계산기 입력도 선택 통화를 원화로 바꿔 계산합니다. 오프라인이면 마지막 정상 환율을 경고와 함께 사용하고 직접 환율을 수정할 수 있습니다.' },
+      { version: '0.63', date: '2026-08-04', label: '최신 · 데이터 관리 카드 정렬', detail: '데이터 관리 화면의 2열 카드에 일반 패널용 세로 여백이 중복 적용되어 두 번째 카드부터 윗선이 내려가던 문제를 수정했습니다. 같은 행의 로컬 캐시·클라우드 동기화 카드와 이후 백업·복원, 삭제 카드가 같은 윗선과 높이로 정렬되고 모바일 1열에서는 그리드 간격만 일정하게 유지됩니다.' },
+      { version: '0.62', date: '2026-08-04', label: '고정지출 금액 정렬·환율 기준일', detail: '고정지출 목록의 원화·외화 금액을 같은 폭의 오른쪽 정렬 열로 맞췄습니다. 외화 고정지출에는 환율 기준일을 직접 선택하는 입력을 추가하고, 선택일 이하의 가장 최근 우즈베키스탄 중앙은행 고시환율로 예상 원화액을 저장·표시합니다. 주말·공휴일이면 실제 고시일을 함께 보여주고, 미래 날짜는 아직 환율이 없으므로 오늘까지의 최신 고시환율을 예상값으로 사용한다고 명확히 안내합니다. 실제 거래를 만들 때는 거래일 환율을 다시 확정합니다.' },
+      { version: '0.61', date: '2026-08-04', label: '반복 납부일 자동 계산', detail: '고정지출의 다음 납부일을 직접 적는 대신 매월 결제일 또는 매년 결제월·결제일을 정하면 앱이 다음 납부 예정일을 자동 계산합니다. 매월 말일과 매년 2월 29일 같은 일정은 짧은 달과 평년에는 그 달의 마지막 날로 보정한 뒤 원래 기준일로 복귀합니다. 실제 거래를 일찍 입력해도 다음 회차로 이동하고, 밀린 거래는 입력일 뒤의 첫 일정까지 전진하며, 일시중지·해지 항목을 다시 사용하면 오늘 이후의 가장 가까운 일정으로 자동 재개합니다.' },
+      { version: '0.60', date: '2026-08-02', label: '전 도메인 다중통화·일일 환율', detail: '거래와 고정지출은 원·숨·달러·엔 중 입력 통화를 선택하고, 우즈베키스탄 중앙은행의 날짜별 공식 환율로 원화 환산액을 자동 계산합니다. 원금액·통화·적용환율·환율일·출처·수동수정 여부를 함께 보존하며 장부와 전표는 확정된 원화 금액으로 유지합니다. 고정지출 목록은 저장한 외화 원금액을 보존하면서 최신 일일 환율 기준 예상 원화액을 보여주고, 추계소득·재산세 계산기 입력도 선택 통화를 원화로 바꿔 계산합니다. 오프라인이면 마지막 정상 환율을 경고와 함께 사용하고 직접 환율을 수정할 수 있습니다.' },
       { version: '0.59', date: '2026-08-02', label: '고정지출현황 관리', detail: '상단바에 월 환산액과 활성 건수를 보여주는 고정지출현황 버튼을 추가했습니다. 항목별 지출처·계정과목·고정/변동 금액·월간/연간 주기·다음 납부일·결제수단·필수 여부·상태·메모를 관리할 수 있고, 결제정보는 안전하게 끝 4자리만 저장합니다. 예정 항목을 비용 거래로 바로 불러오면 거래와 균형 전표를 저장한 뒤 다음 납부일을 자동으로 이동합니다. fixed_expenses는 로컬 백업·복원·tombstone·정본 동기화 전 경로에 포함되며 RLS가 적용됩니다.' },
       { version: '0.58', date: '2026-08-02', label: '동기화 정본 정확성·대용량·공급망 보강', detail: '이 기기를 최종본으로 지정하면 이제 그 기기에 없는 클라우드 항목도 tombstone과 소프트삭제로 정리한 뒤 canonical_version을 올려, 다른 기기에서 다시 살아나지 않습니다. 실제 앱 동기화 알고리즘을 테스트가 직접 호출하도록 바꾸고, 500행 단위 전체 페이지네이션과 최근 변경분 동기화, 장부·전표·증빙 화면 100건 페이지 구분을 추가했습니다. 연결 진단이 성공한 로그인 상태에서는 즉시 동기화합니다. Lucide와 Supabase JS는 외부 CDN 실행 대신 저장소에 버전·해시를 고정했고 CSP를 추가했으며, Windows 줄바꿈에서도 품질 검사가 동일하게 통과하도록 보완했습니다. DB schema 표기도 실제 0.04로 바로잡았습니다.' },
       { version: '0.57', date: '2026-08-02', label: '설치 안내를 플레이북 파일로 자동 발행(앱 버전과 동기화)', detail: '가이드의 "안드로이드 앱 설치" 안내가 저장소의 설치 플레이북 파일(docs/bareunjangbu-apk-install-playbook.md)로도 자동 발행됩니다. 파일은 앱 화면과 같은 내용을 담고 앱 버전(v0.57)과 항상 같은 버전으로 관리됩니다 — 손으로 옮겨 적는 게 아니라 앱 코드에서 스크립트가 자동 생성하고, 화면과 파일이 어긋나면 자동 검사(CI)가 실패해서 어긋난 채로는 배포 자체가 안 됩니다. 설치 안내 화면 맨 아래에 이 사실을 알리는 안내도 추가했습니다.' },
@@ -1637,6 +1646,18 @@
         if (!/^20\d{2}-\d{2}-\d{2}$/.test(date || '')) return today;
         return date > today ? today : date;
       },
+      rateDateContext(selectedDate, rateDate, today = Utils.today()) {
+        const selected = /^20\d{2}-\d{2}-\d{2}$/.test(selectedDate || '') ? selectedDate : today;
+        const requested = this.requestedRateDate(selected, today);
+        const applied = /^20\d{2}-\d{2}-\d{2}$/.test(rateDate || '') ? rateDate : null;
+        return {
+          selectedDate: selected,
+          requestedDate: requested,
+          rateDate: applied,
+          isFuture: selected > today,
+          usedPriorPublication: Boolean(applied && applied < requested)
+        };
+      },
       cbuDateToIso(value) {
         const match = String(value || '').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
         return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
@@ -1733,13 +1754,51 @@
         if (Utils.number(input.amount) <= 0) errors.originalAmount = '원화 환산액이 0원보다 커야 합니다.';
         if (!['fixed', 'variable'].includes(input.amountMode)) errors.amountMode = '금액 유형을 확인해 주세요.';
         if (!['monthly', 'yearly'].includes(input.billingCycle)) errors.billingCycle = '납부 주기를 확인해 주세요.';
-        if (!/^20\d{2}-\d{2}-\d{2}$/.test(input.nextDueDate || '')) errors.nextDueDate = '다음 납부일을 선택해 주세요.';
+        const anchorDay = Number(input.billingAnchorDay);
+        const anchorMonth = Number(input.billingAnchorMonth);
+        if (!Number.isInteger(anchorDay) || anchorDay < 1 || anchorDay > 31) errors.billingAnchorDay = '결제일을 선택해 주세요.';
+        if (input.billingCycle === 'yearly') {
+          if (!Number.isInteger(anchorMonth) || anchorMonth < 1 || anchorMonth > 12) errors.billingAnchorMonth = '결제월을 선택해 주세요.';
+          const maxAnchorDay = anchorMonth === 2 ? 29 : [4, 6, 9, 11].includes(anchorMonth) ? 30 : 31;
+          if (anchorDay > maxAnchorDay) errors.billingAnchorDay = `${anchorMonth}월에 있는 날짜를 선택해 주세요.`;
+        }
+        if (!this.isDate(input.nextDueDate)) errors.nextDueDate = '다음 납부 예정일을 계산하지 못했습니다.';
         if (input.paymentReferenceLast4 && !/^\d{4}$/.test(input.paymentReferenceLast4)) errors.paymentReferenceLast4 = '카드·계좌는 끝 4자리만 입력해 주세요.';
         if (!['active', 'paused', 'ended'].includes(input.status || 'active')) errors.status = '상태를 확인해 주세요.';
         return errors;
       },
+      isDate(value) {
+        if (!/^20\d{2}-\d{2}-\d{2}$/.test(value || '')) return false;
+        const [year, month, day] = value.split('-').map(Number);
+        const parsed = new Date(Date.UTC(year, month - 1, day));
+        return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+      },
+      anchorOf(row = {}) {
+        const date = this.isDate(row.next_due_date) ? row.next_due_date.split('-').map(Number) : [null, null, null];
+        return {
+          day: Number(row.billing_anchor_day) || date[2] || 1,
+          month: Number(row.billing_anchor_month) || date[1] || 1
+        };
+      },
+      nextOccurrence(fromDate, cycle, anchorDay, anchorMonth = null) {
+        if (!this.isDate(fromDate) || !['monthly', 'yearly'].includes(cycle)) return null;
+        const [year, month] = fromDate.split('-').map(Number);
+        const day = Number(anchorDay);
+        const scheduleMonth = cycle === 'yearly' ? Number(anchorMonth) : month;
+        if (!Number.isInteger(day) || day < 1 || day > 31 || !Number.isInteger(scheduleMonth) || scheduleMonth < 1 || scheduleMonth > 12) return null;
+        const candidate = (targetYear, targetMonth) => {
+          const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+          return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
+        };
+        let result = candidate(year, scheduleMonth);
+        if (result < fromDate) {
+          if (cycle === 'yearly') result = candidate(year + 1, scheduleMonth);
+          else result = month === 12 ? candidate(year + 1, 1) : candidate(year, month + 1);
+        }
+        return result;
+      },
       nextDueDate(date, cycle, anchorDay = null, anchorMonth = null) {
-        if (!/^20\d{2}-\d{2}-\d{2}$/.test(date || '') || !['monthly', 'yearly'].includes(cycle)) return date || null;
+        if (!this.isDate(date) || !['monthly', 'yearly'].includes(cycle)) return date || null;
         const [year, month, day] = date.split('-').map(Number);
         const targetYear = cycle === 'yearly' ? year + 1 : year + Math.floor(month / 12);
         const targetMonth = cycle === 'yearly' ? (Number(anchorMonth) || month) : (month % 12) + 1;
@@ -1747,7 +1806,7 @@
         return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(Math.min(Number(anchorDay) || day, lastDay)).padStart(2, '0')}`;
       },
       advanceAfterBooking(row, bookedOn) {
-        let next = row.next_due_date;
+        let next = this.nextDueDate(row.next_due_date, row.billing_cycle, row.billing_anchor_day, row.billing_anchor_month);
         for (let i = 0; i < 120 && next && next <= bookedOn; i += 1) next = this.nextDueDate(next, row.billing_cycle, row.billing_anchor_day, row.billing_anchor_month);
         return next;
       },
@@ -1771,6 +1830,12 @@
       },
       statusLabel(status) { return ({ active: '정상', paused: '일시중지', ended: '해지' }[status] || status); },
       cycleLabel(cycle) { return cycle === 'yearly' ? '연간' : '매월'; },
+      scheduleLabel(row) {
+        const anchor = this.anchorOf(row);
+        return row.billing_cycle === 'yearly'
+          ? `매년 ${anchor.month}월 ${anchor.day}일`
+          : anchor.day === 31 ? '매월 말일' : `매월 ${anchor.day}일`;
+      },
       amountModeLabel(mode) { return mode === 'variable' ? '변동' : '고정'; }
     });
 
@@ -2439,19 +2504,20 @@
         ConfigAdapter.save(state.config);
         return snapshot;
       },
-      latestCached() {
+      latestCached(onOrBefore = null) {
         return Object.values(this.cache())
-          .filter(snapshot => snapshot?.rates && snapshot?.rateDate)
+          .filter(snapshot => snapshot?.rates && snapshot?.rateDate && (!onOrBefore || snapshot.rateDate <= onOrBefore))
           .sort((a, b) => String(b.rateDate).localeCompare(String(a.rateDate)) || String(b.fetchedAt).localeCompare(String(a.fetchedAt)))[0] || null;
       },
       async snapshot(date, { force = false } = {}) {
         const requestedDate = MoneyDomain.requestedRateDate(date);
         const cached = this.cache()[requestedDate];
-        if (cached && !force) return { ...cached, stale: false };
+        const compatibleCached = cached?.rateDate && cached.rateDate <= requestedDate ? cached : null;
+        if (compatibleCached && !force) return { ...compatibleCached, stale: false };
         try {
           return this.save(await CentralBankRateAdapter.fetchSnapshot(requestedDate));
         } catch (error) {
-          const fallback = cached || this.latestCached();
+          const fallback = compatibleCached || this.latestCached(requestedDate);
           if (!fallback) throw error;
           return { ...fallback, requestedDate, stale: true, fallbackReason: error.message };
         }
@@ -2735,15 +2801,25 @@
 
       async saveFixedExpense(input) {
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
-        const money = MoneyDomain.inputContract(input);
-        input = { ...input, ...money, amount: money.krwAmount };
-        const errors = FixedExpenseDomain.validate(input, state.accounts);
-        if (Object.keys(errors).length) return { ok: false, errors };
         const existing = input.id ? state.fixedExpenses.find(row => row.id === input.id) : null;
         if (input.id && !existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
-        const now = Utils.now();
+        const existingAnchor = FixedExpenseDomain.anchorOf(existing || {});
+        const anchorDay = Number(input.billingAnchorDay);
+        const anchorMonth = input.billingCycle === 'yearly' ? Number(input.billingAnchorMonth) : existingAnchor.month;
+        const scheduleChanged = !existing
+          || input.billingCycle !== existing.billing_cycle
+          || anchorDay !== existingAnchor.day
+          || (input.billingCycle === 'yearly' && anchorMonth !== existingAnchor.month);
         const status = input.status || 'active';
-        const scheduleChanged = !existing || input.nextDueDate !== existing.next_due_date || input.billingCycle !== existing.billing_cycle;
+        const resumed = Boolean(existing && existing.status !== 'active' && status === 'active');
+        const nextDueDate = scheduleChanged || resumed
+          ? FixedExpenseDomain.nextOccurrence(Utils.today(), input.billingCycle, anchorDay, anchorMonth)
+          : existing.next_due_date;
+        const money = MoneyDomain.inputContract(input);
+        input = { ...input, ...money, amount: money.krwAmount, nextDueDate };
+        const errors = FixedExpenseDomain.validate(input, state.accounts);
+        if (Object.keys(errors).length) return { ok: false, errors };
+        const now = Utils.now();
         const fixedExpense = {
           id: existing?.id || Utils.uuid(), business_id: state.business.id, account_id: input.accountId,
           category: String(input.category || '').trim() || null,
@@ -2754,8 +2830,10 @@
           exchange_rate_source: money.exchangeRateSource, exchange_rate_fetched_at: money.exchangeRateFetchedAt,
           exchange_rate_manual: money.exchangeRateManual,
           billing_cycle: input.billingCycle, next_due_date: input.nextDueDate,
-          billing_anchor_month: scheduleChanged ? Number(input.nextDueDate.slice(5, 7)) : existing.billing_anchor_month,
-          billing_anchor_day: scheduleChanged ? Number(input.nextDueDate.slice(8, 10)) : existing.billing_anchor_day,
+          billing_anchor_month: input.billingCycle === 'yearly'
+            ? anchorMonth
+            : (scheduleChanged ? Number(input.nextDueDate.slice(5, 7)) : (existing.billing_anchor_month || Number(input.nextDueDate.slice(5, 7)))),
+          billing_anchor_day: anchorDay,
           payment_method: String(input.paymentMethod || '').trim() || null,
           payment_provider: String(input.paymentProvider || '').trim() || null,
           payment_reference_last4: String(input.paymentReferenceLast4 || '').replace(/\D/g, '').slice(-4) || null,
@@ -2778,7 +2856,11 @@
         if (!existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
         if (!['active', 'paused', 'ended'].includes(status)) throw new Error('FIXED_EXPENSE_STATUS_INVALID');
         const now = Utils.now();
-        const updated = { ...existing, status, ended_on: status === 'ended' ? (existing.ended_on || Utils.today()) : null, updated_at: now };
+        const anchor = FixedExpenseDomain.anchorOf(existing);
+        const nextDueDate = status === 'active' && existing.status !== 'active'
+          ? FixedExpenseDomain.nextOccurrence(Utils.today(), existing.billing_cycle, anchor.day, anchor.month)
+          : existing.next_due_date;
+        const updated = { ...existing, status, next_due_date: nextDueDate, ended_on: status === 'ended' ? (existing.ended_on || Utils.today()) : null, updated_at: now };
         const audit = this.audit('fixed_expense', id, 'update', existing, updated, `고정지출 상태 ${FixedExpenseDomain.statusLabel(status)}`);
         await storage.putMany({ fixed_expenses: [updated], audit_logs: [audit], sync_queue: [this.queue('fixed_expenses', updated), this.queue('audit_logs', audit)] });
         await this.reload();
@@ -3510,7 +3592,7 @@
       const hasLedgers = state.businesses && state.businesses.length > 0;
       el('ledgerSwitchButton').hidden = !hasLedgers;
       el('ledgerSwitchLabel').textContent = state.business ? state.business.name : '가계부 선택';
-      const fixedSummary = FixedExpenseDomain.summary(state.fixedExpenses || [], Utils.today(), state.latestExchangeRateSnapshot);
+      const fixedSummary = FixedExpenseDomain.summary(state.fixedExpenses || [], Utils.today());
       el('fixedExpensesButton').hidden = !state.business;
       el('fixedExpenseTriggerValue').textContent = `${Utils.won(fixedSummary.monthlyEquivalent)} · ${fixedSummary.activeCount}건`;
       el('fixedExpensesButton').title = fixedSummary.overdueCount
@@ -3593,13 +3675,15 @@
       return CURRENCIES.map(currency => `<option value="${currency.code}" ${currency.code === selected ? 'selected' : ''}>${Utils.escape(currency.name)} (${currency.code})</option>`).join('');
     }
 
-    function moneyControlHtml(prefix, initialRow = null, { amountLabel = '금액', errorAttribute = 'data-error' } = {}) {
+    function moneyControlHtml(prefix, initialRow = null, { amountLabel = '금액', errorAttribute = 'data-error', rateDatePicker = false } = {}) {
       const money = initialRow ? MoneyDomain.rowContract(initialRow) : MoneyDomain.inputContract({ currencyCode: 'KRW', originalAmount: 0, exchangeRate: 1 });
       const rate = money.exchangeRate || 1;
+      const basisDate = money.currencyCode === 'KRW' ? Utils.today() : (money.exchangeRateDate || Utils.today());
       const fieldError = name => `<div class="field-error" ${errorAttribute}="${name}"></div>`;
       return `<div class="money-control" data-money-control="${prefix}">
         <div class="field"><label class="required" for="${prefix}Currency">화폐 단위</label><select class="select" id="${prefix}Currency">${currencyOptions(money.currencyCode)}</select>${fieldError('currencyCode')}</div>
         <div class="field"><label class="required" for="${prefix}Amount">${Utils.escape(amountLabel)}</label><input class="input" id="${prefix}Amount" inputmode="decimal" autocomplete="off" value="${money.originalAmount > 0 ? money.originalAmount : ''}" placeholder="0">${fieldError('originalAmount')}</div>
+        ${rateDatePicker ? `<div class="field" id="${prefix}BasisDateField"><label for="${prefix}BasisDate">환율 기준일</label><input class="input" id="${prefix}BasisDate" type="date" value="${basisDate}"><div class="field-help">선택한 날짜 이하의 가장 최근 공식 고시환율을 적용합니다. 미래 날짜는 오늘까지의 최신 환율로 예상합니다.</div></div>` : ''}
         <div class="field" id="${prefix}RateField"><label for="${prefix}Rate">환율 (1단위당 원)</label><div class="money-rate-wrap"><input class="input" id="${prefix}Rate" inputmode="decimal" autocomplete="off" value="${rate}"><button class="button small" id="${prefix}Refresh" type="button" title="공식환율 다시 조회" aria-label="공식환율 다시 조회">${icon('refresh-cw')}</button></div>${fieldError('exchangeRate')}</div>
         <input type="hidden" id="${prefix}RateDate" value="${Utils.escape(money.exchangeRateDate || '')}">
         <input type="hidden" id="${prefix}RateSource" value="${Utils.escape(money.exchangeRateSource || '')}">
@@ -3615,6 +3699,7 @@
       const amount = root.querySelector(`#${prefix}Amount`);
       const rate = root.querySelector(`#${prefix}Rate`);
       const rateField = root.querySelector(`#${prefix}RateField`);
+      const basisDateField = root.querySelector(`#${prefix}BasisDateField`);
       const refreshButton = root.querySelector(`#${prefix}Refresh`);
       const conversion = root.querySelector(`#${prefix}Conversion`);
       const status = root.querySelector(`#${prefix}Status`);
@@ -3626,10 +3711,20 @@
         manual: root.querySelector(`#${prefix}RateManual`),
         stale: root.querySelector(`#${prefix}RateStale`)
       };
+      const officialStatusHtml = () => {
+        const selectedDate = dateElement?.value || Utils.today();
+        const context = MoneyDomain.rateDateContext(selectedDate, meta.rateDate.value);
+        const source = `<a class="money-source-link" href="${CBU_RATE_URL}" target="_blank" rel="noopener">우즈베키스탄 중앙은행</a>`;
+        const stale = meta.stale.value === 'true' ? '네트워크 오류로 마지막 정상 환율 사용 · ' : '';
+        if (context.isFuture) return `${stale}${source} · 선택 ${Utils.escape(context.selectedDate)}은 미래이므로 ${Utils.escape(context.rateDate || context.requestedDate)} 기준 최신 고시환율로 예상`;
+        if (context.usedPriorPublication) return `${stale}${source} · 선택 ${Utils.escape(context.selectedDate)} · ${Utils.escape(context.rateDate)} 기준 최근 고시환율`;
+        return `${stale}${source} ${Utils.escape(context.rateDate || context.requestedDate)} 기준`;
+      };
       const apply = () => {
         const code = MoneyDomain.normalizeCurrency(currency.value) || 'KRW';
         const krw = MoneyDomain.toKrw(amount.value, code === 'KRW' ? 1 : rate.value);
         rateField.hidden = code === 'KRW';
+        if (basisDateField) basisDateField.hidden = code === 'KRW';
         refreshButton.hidden = code === 'KRW';
         converted.textContent = Utils.won(krw);
         conversion.classList.toggle('warning', meta.stale.value === 'true');
@@ -3644,7 +3739,7 @@
         } else if (meta.manual.value === 'true') {
           status.textContent = '직접 수정한 환율입니다. 저장 시 수동 환율로 기록됩니다.';
         } else if (meta.rateDate.value) {
-          status.innerHTML = `${meta.stale.value === 'true' ? '네트워크 오류로 마지막 정상 환율 사용 · ' : ''}<a class="money-source-link" href="${CBU_RATE_URL}" target="_blank" rel="noopener">우즈베키스탄 중앙은행</a> ${Utils.escape(meta.rateDate.value)} 기준`;
+          status.innerHTML = officialStatusHtml();
         } else {
           status.textContent = '공식 일일 환율을 불러오세요.';
         }
@@ -3774,7 +3869,7 @@
       const suggestedDate = pending ? (pending.next_due_date < Utils.today() ? Utils.today() : pending.next_due_date) : Utils.today();
       return `
         ${pageHeader('거래 입력', `쉽게 입력한 한 건을 ${term('원천거래')}와 ${term('복식부기')} 전표로 함께 저장합니다.`)}
-        ${pending ? `<div class="notice info">${icon('calendar-clock')}<div><strong>${Utils.escape(pending.expense_name)}</strong> 고정지출에서 불러왔습니다.<br>금액과 실제 결제일을 확인해 저장하면 다음 납부일이 ${FixedExpenseDomain.cycleLabel(pending.billing_cycle)} 주기에 맞춰 자동 이동합니다.</div></div>` : ''}
+        ${pending ? `<div class="notice info">${icon('calendar-clock')}<div><strong>${Utils.escape(pending.expense_name)}</strong> 고정지출에서 불러왔습니다.<br>금액과 실제 결제일을 확인해 저장하면 ${FixedExpenseDomain.scheduleLabel(pending)} 규칙에 맞춰 다음 납부 예정일이 자동 이동합니다.</div></div>` : ''}
         <form id="transactionForm" class="panel card-panel" novalidate>
           <div class="field full"><span class="field-label required">거래 유형</span><div class="segmented" role="group" aria-label="거래 유형">${[['income','수입'],['expense','비용'],['asset_purchase','자산구입']].map(([value,label])=>`<button class="segment ${state.formType===value?'active':''}" type="button" data-transaction-type="${value}" aria-pressed="${state.formType===value}">${label}</button>`).join('')}</div></div>
           <div class="form-grid" style="margin-top:16px">
@@ -3964,6 +4059,13 @@
       return `${diff}일 후`;
     }
 
+    function fixedExpenseDayOptions(maxDay, selectedDay, monthEnd = false) {
+      const choices = Array.from({ length: monthEnd ? 30 : maxDay }, (_, index) => index + 1)
+        .map(day => `<option value="${day}" ${day === selectedDay ? 'selected' : ''}>${day}일</option>`);
+      if (monthEnd) choices.push(`<option value="31" ${selectedDay === 31 ? 'selected' : ''}>말일</option>`);
+      return choices.join('');
+    }
+
     function renderFixedExpenseModal() {
       if (!state.business) return toast('먼저 가계부 정보를 설정해 주세요.', 'error');
       const rows = [...state.fixedExpenses].sort((a, b) => {
@@ -3971,31 +4073,36 @@
         return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)
           || String(a.next_due_date).localeCompare(String(b.next_due_date));
       });
-      const summary = FixedExpenseDomain.summary(rows, Utils.today(), state.latestExchangeRateSnapshot);
+      const summary = FixedExpenseDomain.summary(rows, Utils.today());
       const editing = rows.find(row => row.id === state.fixedExpenseEditingId) || null;
       const expenseAccounts = state.accounts.filter(row => !row.deleted_at && row.is_active !== false && row.account_type === 'expense');
       const accountOptions = expenseAccounts.map(row => `<option value="${row.id}" ${editing?.account_id === row.id ? 'selected' : ''}>${Utils.escape(row.account_name)}</option>`).join('');
+      const initialCycle = editing?.billing_cycle === 'yearly' ? 'yearly' : 'monthly';
+      const initialAnchor = FixedExpenseDomain.anchorOf(editing || { next_due_date: Utils.today() });
+      const annualMaxDay = initialAnchor.month === 2 ? 29 : [4, 6, 9, 11].includes(initialAnchor.month) ? 30 : 31;
+      const initialNextDueDate = editing?.next_due_date || FixedExpenseDomain.nextOccurrence(Utils.today(), initialCycle, initialAnchor.day, initialAnchor.month);
       const list = rows.length ? rows.map(row => {
         const active = row.status === 'active';
         const overdue = active && row.next_due_date < Utils.today();
         const statusKind = active ? 'success' : row.status === 'paused' ? 'warning' : '';
         const payment = [row.payment_method, row.payment_provider, row.payment_reference_last4 ? `•••• ${row.payment_reference_last4}` : ''].filter(Boolean).join(' · ');
         const money = MoneyDomain.rowContract(row);
-        const liveKrw = MoneyDomain.estimatedKrw(row, state.latestExchangeRateSnapshot);
-        const displayRateDate = state.latestExchangeRateSnapshot?.rates?.[money.currencyCode] ? state.latestExchangeRateSnapshot.rateDate : money.exchangeRateDate;
+        const basisKrw = MoneyDomain.estimatedKrw(row);
+        const displayRateDate = money.exchangeRateDate;
+        const rateBasis = displayRateDate ? `${Utils.escape(displayRateDate)} 기준` : '저장 환율';
         const amountDisplay = money.currencyCode === 'KRW'
-          ? Utils.won(liveKrw)
-          : `${MoneyDomain.formatOriginal(money.originalAmount, money.currencyCode)}<small>≈ ${Utils.won(liveKrw)} · ${Utils.escape(displayRateDate || '저장 환율')}</small>`;
+          ? Utils.won(basisKrw)
+          : `${MoneyDomain.formatOriginal(money.originalAmount, money.currencyCode)}<small>≈ ${Utils.won(basisKrw)} · ${rateBasis}</small>`;
         const statusActions = active
           ? `<button class="button small" type="button" data-fixed-status="paused" data-fixed-id="${row.id}">${icon('pause')}일시중지</button><button class="button small" type="button" data-fixed-status="ended" data-fixed-id="${row.id}">${icon('circle-stop')}해지</button>`
           : `<button class="button small" type="button" data-fixed-status="active" data-fixed-id="${row.id}">${icon('play')}다시 사용</button>`;
         return `<article class="fixed-expense-row ${overdue ? 'overdue' : ''}">
-          <div class="fixed-expense-row-head"><div><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.cycleLabel(row.billing_cycle)}</span><span>${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${amountDisplay}</div></div>
+          <div class="fixed-expense-row-head"><div><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.scheduleLabel(row)}</span><span>다음 ${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${amountDisplay}</div></div>
           ${row.note ? `<div class="task-note">${Utils.escape(row.note)}</div>` : ''}
           <div class="fixed-expense-actions">${active ? `<button class="button small primary" type="button" data-fixed-book="${row.id}">${icon('receipt-text')}거래 입력</button>` : ''}<button class="button small" type="button" data-fixed-edit="${row.id}">${icon('pencil')}수정</button>${statusActions}</div>
         </article>`;
       }).join('') : emptyState('calendar-clock', '등록한 고정지출이 없습니다', '구독료·통신비·임차료처럼 반복되는 지출을 오른쪽에서 추가하세요.');
-      const body = `<div class="modal-head"><div><h3 class="modal-title">고정지출현황</h3><p class="section-help">월 환산액과 다음 납부일을 보고, 실제 결제 시 비용 거래로 바로 연결합니다.</p></div><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
+      const body = `<div class="modal-head"><div><h3 class="modal-title">고정지출현황</h3><p class="section-help">반복 결제 규칙을 정하면 다음 납부 예정일을 자동 계산하고, 실제 결제 시 비용 거래로 연결합니다.</p></div><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
         <div class="modal-body">
           <div class="fixed-summary-grid"><div class="fixed-summary-card"><div class="fixed-summary-label">월 환산 예상액</div><div class="fixed-summary-value">${Utils.won(summary.monthlyEquivalent)}</div></div><div class="fixed-summary-card"><div class="fixed-summary-label">30일 내·미납 예정</div><div class="fixed-summary-value">${Utils.won(summary.due30Amount)}</div><div class="task-note">${summary.due30Count}건</div></div><div class="fixed-summary-card"><div class="fixed-summary-label">활성 항목</div><div class="fixed-summary-value">${summary.activeCount}건</div><div class="task-note">납부일 지남 ${summary.overdueCount}건</div></div></div>
           <div class="fixed-expense-layout"><section><div class="panel-head"><div><h4 class="section-title">등록 항목</h4><p class="section-help">연간 결제는 12개월로 나눠 월 환산액에 포함합니다.</p></div></div><div class="fixed-expense-list">${list}</div></section>
@@ -4006,10 +4113,12 @@
               <div class="field full"><label class="required" for="fixedExpenseName">지출처·서비스명</label><input class="input" id="fixedExpenseName" maxlength="100" value="${Utils.escape(editing?.expense_name || '')}" placeholder="예: ChatGPT 구독료"><div class="field-error" data-fixed-error="expenseName"></div></div>
               <div class="field"><label for="fixedExpenseCategory">구분</label><input class="input" id="fixedExpenseCategory" maxlength="50" list="fixedExpenseCategories" value="${Utils.escape(editing?.category || '')}" placeholder="예: 서비스 이용료"><datalist id="fixedExpenseCategories"><option value="서비스 이용료"><option value="통신비"><option value="임차료"><option value="보험료"><option value="공과금"><option value="교육비"></datalist></div>
               <div class="field"><label class="required" for="fixedExpenseAccount">계정과목</label><select class="select" id="fixedExpenseAccount"><option value="">선택하세요</option>${accountOptions}</select><div class="field-error" data-fixed-error="accountId"></div></div>
-              ${moneyControlHtml('fixedExpenseMoney', editing, { amountLabel: '예상 결제금액', errorAttribute: 'data-fixed-error' })}
+              ${moneyControlHtml('fixedExpenseMoney', editing, { amountLabel: '예상 결제금액', errorAttribute: 'data-fixed-error', rateDatePicker: true })}
               <div class="field"><label for="fixedExpenseAmountMode">금액 유형</label><select class="select" id="fixedExpenseAmountMode"><option value="fixed" ${editing?.amount_mode !== 'variable' ? 'selected' : ''}>고정</option><option value="variable" ${editing?.amount_mode === 'variable' ? 'selected' : ''}>변동(예상액)</option></select></div>
-              <div class="field"><label for="fixedExpenseCycle">납부 주기</label><select class="select" id="fixedExpenseCycle"><option value="monthly" ${editing?.billing_cycle !== 'yearly' ? 'selected' : ''}>매월</option><option value="yearly" ${editing?.billing_cycle === 'yearly' ? 'selected' : ''}>연간</option></select></div>
-              <div class="field"><label class="required" for="fixedExpenseDueDate">다음 납부일</label><input class="input" id="fixedExpenseDueDate" type="date" value="${editing?.next_due_date || Utils.today()}"><div class="field-error" data-fixed-error="nextDueDate"></div></div>
+              <div class="field"><label for="fixedExpenseCycle">납부 주기</label><select class="select" id="fixedExpenseCycle"><option value="monthly" ${initialCycle === 'monthly' ? 'selected' : ''}>매월</option><option value="yearly" ${initialCycle === 'yearly' ? 'selected' : ''}>매년</option></select></div>
+              <div class="field" id="fixedExpenseMonthlySchedule" ${initialCycle === 'yearly' ? 'hidden' : ''}><label class="required" for="fixedExpenseMonthlyDay">매월 결제일</label><select class="select" id="fixedExpenseMonthlyDay">${fixedExpenseDayOptions(31, initialAnchor.day, true)}</select><div class="field-help">말일을 고르면 2월에도 그 달의 마지막 날로 계산합니다.</div></div>
+              <div class="field" id="fixedExpenseYearlySchedule" ${initialCycle === 'monthly' ? 'hidden' : ''}><label class="required" for="fixedExpenseYearlyMonth">매년 결제일</label><div class="fixed-expense-schedule"><select class="select" id="fixedExpenseYearlyMonth" aria-label="매년 결제월">${Array.from({ length: 12 }, (_, index) => index + 1).map(month => `<option value="${month}" ${month === initialAnchor.month ? 'selected' : ''}>${month}월</option>`).join('')}</select><select class="select" id="fixedExpenseYearlyDay" aria-label="매년 결제일">${fixedExpenseDayOptions(annualMaxDay, Math.min(initialAnchor.day, annualMaxDay))}</select></div><div class="field-help">2월 29일은 평년에는 2월 말일로 계산합니다.</div></div>
+              <div class="field full"><input type="hidden" id="fixedExpenseDueDate" value="${initialNextDueDate}"><div class="fixed-expense-schedule-preview" role="status" aria-live="polite">${icon('calendar-check')}<div><span class="field-help" id="fixedExpenseDueCaption">${editing ? '현재 다음 납부 예정일' : '자동 계산된 다음 납부 예정일'}</span><strong id="fixedExpenseDuePreview">${initialNextDueDate} · ${fixedExpenseDueLabel(initialNextDueDate)}</strong></div></div><div class="field-error" data-fixed-error="billingAnchorMonth"></div><div class="field-error" data-fixed-error="billingAnchorDay"></div><div class="field-error" data-fixed-error="nextDueDate"></div></div>
               <div class="field"><label for="fixedExpensePaymentMethod">지출방법</label><select class="select" id="fixedExpensePaymentMethod"><option value="">선택 안 함</option>${['카드','계좌이체','자동이체','간편결제','현금','기타'].map(value => `<option value="${value}" ${editing?.payment_method === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
               <div class="field"><label for="fixedExpenseProvider">은행·카드사</label><input class="input" id="fixedExpenseProvider" maxlength="40" value="${Utils.escape(editing?.payment_provider || '')}" placeholder="예: 신한카드"></div>
               <div class="field"><label for="fixedExpenseLast4">카드·계좌 끝 4자리</label><input class="input" id="fixedExpenseLast4" inputmode="numeric" maxlength="4" value="${Utils.escape(editing?.payment_reference_last4 || '')}" placeholder="예: 5251"><div class="field-help">전체 번호는 저장하지 않습니다.</div><div class="field-error" data-fixed-error="paymentReferenceLast4"></div></div>
@@ -4036,7 +4145,11 @@
       }));
       root.querySelectorAll('[data-fixed-status]').forEach(button => button.addEventListener('click', async () => {
         if (button.dataset.fixedStatus === 'ended' && !confirm('이 고정지출을 해지 상태로 바꿀까요? 과거 기록은 유지됩니다.')) return;
-        try { await AppService.setFixedExpenseStatus(button.dataset.fixedId, button.dataset.fixedStatus); renderShellStatus(); renderFixedExpenseModal(); toast('고정지출 상태를 변경했습니다.', 'success'); }
+        try {
+          const updated = await AppService.setFixedExpenseStatus(button.dataset.fixedId, button.dataset.fixedStatus);
+          renderShellStatus(); renderFixedExpenseModal();
+          toast(button.dataset.fixedStatus === 'active' ? `다음 납부 예정일을 ${updated.next_due_date}로 다시 계산했습니다.` : '고정지출 상태를 변경했습니다.', 'success');
+        }
         catch (error) { diagnostic(error); }
       }));
       root.querySelector('[data-fixed-delete]')?.addEventListener('click', async event => {
@@ -4045,8 +4158,54 @@
         catch (error) { diagnostic(error); }
       });
       root.querySelector('#fixedExpenseLast4')?.addEventListener('input', event => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4); });
+      const editing = state.fixedExpenses.find(row => row.id === state.fixedExpenseEditingId) || null;
+      const cycleElement = root.querySelector('#fixedExpenseCycle');
+      const monthlySchedule = root.querySelector('#fixedExpenseMonthlySchedule');
+      const monthlyDayElement = root.querySelector('#fixedExpenseMonthlyDay');
+      const yearlySchedule = root.querySelector('#fixedExpenseYearlySchedule');
+      const yearlyMonthElement = root.querySelector('#fixedExpenseYearlyMonth');
+      const yearlyDayElement = root.querySelector('#fixedExpenseYearlyDay');
+      const dueDateElement = root.querySelector('#fixedExpenseDueDate');
+      const duePreviewElement = root.querySelector('#fixedExpenseDuePreview');
+      const dueCaptionElement = root.querySelector('#fixedExpenseDueCaption');
+      const editingAnchor = FixedExpenseDomain.anchorOf(editing || {});
+      let resumePreview = false;
+      const annualMaxDay = month => month === 2 ? 29 : [4, 6, 9, 11].includes(month) ? 30 : 31;
+      const rebuildYearlyDays = () => {
+        const selected = Number(yearlyDayElement.value || 1);
+        const maxDay = annualMaxDay(Number(yearlyMonthElement.value));
+        yearlyDayElement.innerHTML = fixedExpenseDayOptions(maxDay, Math.min(selected, maxDay));
+      };
+      const scheduleValue = () => ({
+        cycle: cycleElement.value,
+        day: Number(cycleElement.value === 'yearly' ? yearlyDayElement.value : monthlyDayElement.value),
+        month: Number(yearlyMonthElement.value)
+      });
+      const updateSchedulePreview = () => {
+        const schedule = scheduleValue();
+        monthlySchedule.hidden = schedule.cycle !== 'monthly';
+        yearlySchedule.hidden = schedule.cycle !== 'yearly';
+        const scheduleChanged = !editing
+          || schedule.cycle !== editing.billing_cycle
+          || schedule.day !== editingAnchor.day
+          || (schedule.cycle === 'yearly' && schedule.month !== editingAnchor.month);
+        const calculated = FixedExpenseDomain.nextOccurrence(Utils.today(), schedule.cycle, schedule.day, schedule.month);
+        const dueDate = (scheduleChanged || resumePreview) ? calculated : editing.next_due_date;
+        dueDateElement.value = dueDate || '';
+        dueCaptionElement.textContent = (scheduleChanged || resumePreview) ? '자동 계산된 다음 납부 예정일' : '현재 다음 납부 예정일';
+        duePreviewElement.textContent = dueDate ? `${dueDate} · ${fixedExpenseDueLabel(dueDate)}` : '일정을 확인해 주세요.';
+      };
+      cycleElement?.addEventListener('change', updateSchedulePreview);
+      monthlyDayElement?.addEventListener('change', updateSchedulePreview);
+      yearlyMonthElement?.addEventListener('change', () => { rebuildYearlyDays(); updateSchedulePreview(); });
+      yearlyDayElement?.addEventListener('change', updateSchedulePreview);
+      root.querySelector('#fixedExpenseStatus')?.addEventListener('change', event => {
+        resumePreview = Boolean(editing && editing.status !== 'active' && event.target.value === 'active');
+        updateSchedulePreview();
+      });
+      updateSchedulePreview();
       const fixedExpenseMoney = bindMoneyControl(root, 'fixedExpenseMoney', {
-        dateElement: root.querySelector('#fixedExpenseDueDate'),
+        dateElement: root.querySelector('#fixedExpenseMoneyBasisDate'),
         autoRefresh: Boolean(state.fixedExpenseEditingId && MoneyDomain.rowContract(state.fixedExpenses.find(row => row.id === state.fixedExpenseEditingId)).currencyCode !== 'KRW')
       });
       root.querySelector('#fixedExpenseForm')?.addEventListener('submit', async event => {
@@ -4058,11 +4217,13 @@
             await fixedExpenseMoney.refresh({ force: false });
             money = fixedExpenseMoney.value();
           }
+          const schedule = scheduleValue();
           const result = await AppService.saveFixedExpense({
             id: el('fixedExpenseId').value || null, expenseName: el('fixedExpenseName').value,
             category: el('fixedExpenseCategory').value, accountId: el('fixedExpenseAccount').value,
             amountMode: el('fixedExpenseAmountMode').value, ...money,
-            billingCycle: el('fixedExpenseCycle').value, nextDueDate: el('fixedExpenseDueDate').value,
+            billingCycle: schedule.cycle, billingAnchorDay: schedule.day, billingAnchorMonth: schedule.month,
+            nextDueDate: dueDateElement.value,
             paymentMethod: el('fixedExpensePaymentMethod').value, paymentProvider: el('fixedExpenseProvider').value,
             paymentReferenceLast4: el('fixedExpenseLast4').value, status: el('fixedExpenseStatus').value,
             isRequired: el('fixedExpenseRequired').checked, note: el('fixedExpenseNote').value

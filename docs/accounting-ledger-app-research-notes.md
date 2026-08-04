@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.77** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.80** · 개정 2026-08-04
 
 # Accounting Ledger App Research Notes
 
@@ -1570,3 +1570,55 @@ advisor 잔여 항목:
 | 실브라우저 | 1280px에서 거래 USD 100 자동환산과 수동 1,500원 환율(150,000원·MANUAL), 고정지출 JPY 1,000 자동환산, 추계소득 USD 및 재산세 JPY 입력을 확인했다. 최초 고정지출 모달이 133px 가로 넘친 결함을 발견해 편집 열의 money control을 1열로 보정했고 이후 overflow 0. 390×844에서 거래·고정지출 money control 1열, 상단 버튼 아이콘 축약, 문서/모달 가로 overflow 0을 확인했다. |
 | 배포 검증 | 기능 커밋 `8cc14f3`를 `origin/main`에 push. GitHub Quality Harness run `30753771558`과 Pages run `30753771294`가 모두 success이고 Pages latest build가 같은 commit으로 `built`임을 확인했다. 공개 URL은 HTTP 200이며 `v0.60`·`MoneyDomain`·`CBU_UZ`·`fixedExpensesButton` 표식과 문서 가로 overflow 0을 원격 HTML/런타임에서 재확인했다. |
 | 잔여 위험 | CBU 공식 고시환율은 카드사 실제 청구환율과 다를 수 있어 수동 환율을 제공한다. 여러 기기의 실제 로그인 왕복과 모바일 실기기 촉감은 배포 후 수동 확인 대상이다. |
+
+## 2026-08-04 앱 0.61: 월간 결제일·연간 결제월일 기반 반복 납부 예정일 자동 계산
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.60 → 0.61 |
+| schema_version | 0.06 유지(기존 `billing_anchor_day/month`, `next_due_date` 사용) |
+| backup_schema_version | 0.03 유지 |
+| note_type | `feature_release` + `schema_review` + `migration_review` |
+| 사용자 요구 | 고정지출에서 다음 납부일을 매번 직접 적기보다, 매월이면 매월 며칠·매년이면 매년 몇 월 며칠을 지정하고 앱이 다음 예정일을 자동 계산해야 한다는 제안. 추천 설계대로 진행 승인. |
+| 설계 결정 | `billing_anchor_day/month`를 반복 규칙의 기준값으로 유지하고 `next_due_date`는 조회·대시보드·오프라인·동기화를 위해 저장하는 파생 상태로 둔다. 월간 UI는 1~30일과 말일(내부 anchor 31), 연간 UI는 1~12월과 해당 월의 유효일(2월은 29일까지)을 받는다. 사용자가 직접 `next_due_date`를 수정하지 못하게 해 규칙과 예정일 불일치를 차단한다. |
+| 기존 데이터 | 기존 행은 저장된 anchor를 우선 사용하고 없으면 `next_due_date`의 월·일에서 승계한다. 수정 화면을 열기만 하거나 일정 외 필드만 바꿀 때는 기존 미납 예정일을 보존해 조용히 연체를 건너뛰지 않는다. 반복 규칙을 바꾸거나 중지·해지에서 정상으로 재개할 때만 오늘 이후 가장 가까운 일정을 다시 계산한다. |
+| 경계 규칙 | 매월 말일은 2월 28/29일·30일 달에 말일로 보정하고 다음 31일 달에는 31일로 복귀한다. 매년 2월 29일은 윤년에는 29일, 평년에는 말일을 쓴다. 실제 거래 입력은 예정일 전에 했어도 다음 회차로 최소 한 번 이동하고, 연체가 여러 회차면 거래일 이후 첫 일정까지 반복 전진한다. |
+| 원자성·동기화 | 기존 `saveTransaction`의 단일 `storage.putMany`에 실제 거래·균형 전표·고정지출 `last_booked_on/next_due_date`를 함께 저장하는 원자 경로는 유지했다. 새 필드나 테이블이 없어 IndexedDB·Supabase·RLS·LWW·canonical·tombstone·백업 계약과 운영 DB를 변경하지 않는다. 상태 재개와 일정 수정은 기존과 같이 `updated_at`·audit·sync queue를 갱신한다. |
+| UX | 직접 날짜 입력을 제거하고 월간/연간 규칙 선택과 읽기 전용 자동 예정일 카드를 배치했다. 목록에도 `매월 10일`, `매월 말일`, `매년 5월 19일` 같은 실제 규칙과 다음 날짜를 함께 표시한다. 재개 버튼은 재계산된 예정일을 토스트로 알린다. |
+| 스킬·프롬프트 | `Sub_development-governance_0.09`, `Sub_v1-scope_0.06`, `Sub_app-research-notes_0.78`. `docs/CONSTITUTION.md` 반복지출 계약에 월간/연간 입력·파생 예정일·조기결제·재개 규칙을 추가하고 `npm run gen:adapters`로 `AGENTS.md`·`CLAUDE.md`를 재생성했다. |
+| 자동 검증 | 실제 `FixedExpenseDomain` 로직 테스트 222→233 assertion: 다음 일정 포함 계산, 월말, 윤년/평년 2월 29일, 지난 연간 일정, 조기 결제 최소 1회 전진, 미납 catch-up, 일정 표시, 불가능한 2월 30일 차단. 전체 하네스 결과는 릴리스 마감 시 기록한다. |
+| 실브라우저 | 데스크톱에서 월간 기본값·말일 선택, 연간 전환, 2월 일수 29개 제한, 2월 29일→2027-02-28 미리보기, 기존 매월 10일·2026-09-10 승계, 매년 5월 19일로 수정 저장 후 목록 문구·2027-05-19를 확인했다. 390×844에서 반복 일정 카드와 입력 폼의 문서·모달 가로 overflow 0px, 콘솔 오류 0건. |
+| 배포 상태 | 기능 브랜치 로컬 커밋까지 완료. 사용자 명시 배포 요청이 없어 원격 push·main 반영·GitHub Pages 배포는 실행하지 않는다. |
+| 잔여 위험 | 실제 로그인 두 기기 간 anchor·예정일 LWW/canonical 왕복과 안드로이드 실기기 촉감은 배포 후 수동 확인 대상이다. |
+
+## 2026-08-04 앱 0.62: 고정지출 금액 정렬·사용자 환율 기준일
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.61 → 0.62 |
+| schema_version | 0.06 유지(새 migration 없음) |
+| note_type | `ux_fix` + `fx_contract_hardening` |
+| 사용자 요구 | 고정지출 목록에서 USD와 KRW 금액의 오른쪽 정렬이 어긋나는 문제를 바로잡고, 고정지출 환율을 사용자가 고른 기준날짜로 적용할 수 있게 해 달라는 요청. |
+| 설계 결정 | 고정지출 폼에 반복 납부일과 독립된 `환율 기준일`을 둔다. 선택일 이하 가장 최근 CBU 고시환율을 적용하고 실제 고시일을 `exchange_rate_date`에 저장한다. 주말·공휴일은 직전 고시일을 표시하며, 미래 선택일은 오늘까지의 최신 고시환율을 사용한 예상치임을 명시한다. 실제 비용 거래 생성 시에는 기존 원칙대로 거래일 환율을 새로 확정한다. |
+| 표시·집계 | 외화 원금액과 환산 KRW를 함께 표시하되 `.fixed-expense-amount`를 고정 폭·우측 정렬·tabular 숫자로 통일했다. 목록·상단·모달 요약은 저장된 기준 환율을 사용해 같은 금액을 보여주고, 최신 환율이 조용히 예상액을 바꾸지 않게 했다. |
+| 오류 방어 | 과거 기준일 조회 실패 시 fallback 캐시도 `rateDate <= 선택 기준일`인 항목만 허용한다. 따라서 나중 날짜의 환율이 과거 기준액에 섞이지 않는다. 캐시가 없으면 기존대로 임의 환율 저장을 막고 수동 입력을 요구한다. |
+| 데이터 영향 | 기존 `exchange_rate_date`는 실제 적용된 공식 고시일이라는 의미를 유지한다. 별도 요청일 필드를 추가하지 않아 IndexedDB·Supabase·백업 schema와 canonical/tombstone 생명주기는 변경되지 않는다. |
+| 자동 검증 | 실제 `MoneyDomain`·`ExchangeRateService`·`FixedExpenseDomain` 로직 assertion 233→237: 미래 기준일 clamp, 주말 선택일/실제 고시일 분리, 과거 기준일보다 뒤인 일반·동일 요청일 캐시 배제, 저장 기준 환율 요약을 고정했다. `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
+| 실브라우저 | 앱 내 브라우저에서 USD 25 고정지출을 2026-08-02 기준으로 저장해 실제 고시일 2026-07-31·환산 35,904원을 확인했다. USD/원화 금액 셀 right 좌표는 모두 723.2578px(차이 0px), 상단 월 환산액과 모달 요약은 저장 기준액으로 함께 갱신됐다. 미래 2026-08-20은 2026-08-04 최신 고시환율 예상 문구, KRW 전환 시 기준일·환율 필드 비표시, 콘솔 오류 0건을 확인했다. 390px 실증은 현재 브라우저 표면이 고정 폭이라 이번 라운드에서 재실행하지 못했으며 기존 반응형 1열 계약과 최종 하네스로 회귀를 점검한다. |
+| 스킬·프롬프트 | `Sub_multicurrency-fx_0.02`, `Sub_v1-scope_0.07`, `Sub_app-research-notes_0.79`; `docs/CONSTITUTION.md`의 환율 계약을 갱신하고 `AGENTS.md`·`CLAUDE.md`를 재생성했다. |
+| 배포 상태 | 기능 브랜치 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자의 명시 요청 전에는 실행하지 않는다. |
+
+## 2026-08-04 앱 0.63: 데이터 관리 2열 카드 상단 정렬
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.62 → 0.63 |
+| schema_version | 0.06 유지(앱 CSS만 변경, migration 없음) |
+| note_type | `ux_fix` + `css_regression` |
+| 사용자 제보 | 데이터 관리 화면 스크린샷에서 왼쪽 `로컬 캐시` 카드보다 오른쪽 `클라우드 동기화` 카드의 윗선이 아래로 내려가 박스 정렬이 맞지 않는 문제를 지적. |
+| 원인 | 일반 문서 흐름에서 연속 패널 사이 간격을 만드는 `.panel + .panel { margin-top: 18px; }`가 CSS Grid의 형제 카드에도 적용됐다. 첫 카드만 제외하고 모든 후속 카드가 추가로 18px 내려가 그리드 `gap`과 중복되었다. |
+| 수정 | `.data-grid > .panel + .panel { margin-top: 0; }`을 추가해 데이터 관리 그리드 안에서는 grid `gap`만 간격의 SSOT로 사용한다. 각 카드의 `display:flex`와 `data-actions { margin-top:auto }`는 유지해 같은 행의 높이와 버튼 하단 정렬을 함께 보존한다. 모바일 1열도 중복 18px 없이 일정한 16px 간격을 사용한다. |
+| 실브라우저 | 앱 내 브라우저에서 6개 카드의 `margin-top`이 모두 0px인지 확인했다. 각 행의 좌우 카드는 top/bottom/height가 정확히 동일했다: 첫 행 top 260.7344·bottom 478.0313·height 217.2969px, 둘째 행 top 494.0313·bottom 710.9297px, 셋째 행 top 726.9297·bottom 947.3281px. 콘솔 오류 0건. |
+| 자동 검증 | 로직 237 assertion 유지(CSS 전용 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
+| 스킬·문서 | `Sub_v1-scope_0.08`, `Sub_app-research-notes_0.80`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.63 기준으로 갱신한다. |
+| 배포 상태 | 기능 브랜치 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자 명시 요청 전에는 실행하지 않는다. |
