@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.77** · 개정 2026-08-02
+> **📌 Sub_app-research-notes_0.78** · 개정 2026-08-04
 
 # Accounting Ledger App Research Notes
 
@@ -1570,3 +1570,23 @@ advisor 잔여 항목:
 | 실브라우저 | 1280px에서 거래 USD 100 자동환산과 수동 1,500원 환율(150,000원·MANUAL), 고정지출 JPY 1,000 자동환산, 추계소득 USD 및 재산세 JPY 입력을 확인했다. 최초 고정지출 모달이 133px 가로 넘친 결함을 발견해 편집 열의 money control을 1열로 보정했고 이후 overflow 0. 390×844에서 거래·고정지출 money control 1열, 상단 버튼 아이콘 축약, 문서/모달 가로 overflow 0을 확인했다. |
 | 배포 검증 | 기능 커밋 `8cc14f3`를 `origin/main`에 push. GitHub Quality Harness run `30753771558`과 Pages run `30753771294`가 모두 success이고 Pages latest build가 같은 commit으로 `built`임을 확인했다. 공개 URL은 HTTP 200이며 `v0.60`·`MoneyDomain`·`CBU_UZ`·`fixedExpensesButton` 표식과 문서 가로 overflow 0을 원격 HTML/런타임에서 재확인했다. |
 | 잔여 위험 | CBU 공식 고시환율은 카드사 실제 청구환율과 다를 수 있어 수동 환율을 제공한다. 여러 기기의 실제 로그인 왕복과 모바일 실기기 촉감은 배포 후 수동 확인 대상이다. |
+
+## 2026-08-04 앱 0.61: 월간 결제일·연간 결제월일 기반 반복 납부 예정일 자동 계산
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.60 → 0.61 |
+| schema_version | 0.06 유지(기존 `billing_anchor_day/month`, `next_due_date` 사용) |
+| backup_schema_version | 0.03 유지 |
+| note_type | `feature_release` + `schema_review` + `migration_review` |
+| 사용자 요구 | 고정지출에서 다음 납부일을 매번 직접 적기보다, 매월이면 매월 며칠·매년이면 매년 몇 월 며칠을 지정하고 앱이 다음 예정일을 자동 계산해야 한다는 제안. 추천 설계대로 진행 승인. |
+| 설계 결정 | `billing_anchor_day/month`를 반복 규칙의 기준값으로 유지하고 `next_due_date`는 조회·대시보드·오프라인·동기화를 위해 저장하는 파생 상태로 둔다. 월간 UI는 1~30일과 말일(내부 anchor 31), 연간 UI는 1~12월과 해당 월의 유효일(2월은 29일까지)을 받는다. 사용자가 직접 `next_due_date`를 수정하지 못하게 해 규칙과 예정일 불일치를 차단한다. |
+| 기존 데이터 | 기존 행은 저장된 anchor를 우선 사용하고 없으면 `next_due_date`의 월·일에서 승계한다. 수정 화면을 열기만 하거나 일정 외 필드만 바꿀 때는 기존 미납 예정일을 보존해 조용히 연체를 건너뛰지 않는다. 반복 규칙을 바꾸거나 중지·해지에서 정상으로 재개할 때만 오늘 이후 가장 가까운 일정을 다시 계산한다. |
+| 경계 규칙 | 매월 말일은 2월 28/29일·30일 달에 말일로 보정하고 다음 31일 달에는 31일로 복귀한다. 매년 2월 29일은 윤년에는 29일, 평년에는 말일을 쓴다. 실제 거래 입력은 예정일 전에 했어도 다음 회차로 최소 한 번 이동하고, 연체가 여러 회차면 거래일 이후 첫 일정까지 반복 전진한다. |
+| 원자성·동기화 | 기존 `saveTransaction`의 단일 `storage.putMany`에 실제 거래·균형 전표·고정지출 `last_booked_on/next_due_date`를 함께 저장하는 원자 경로는 유지했다. 새 필드나 테이블이 없어 IndexedDB·Supabase·RLS·LWW·canonical·tombstone·백업 계약과 운영 DB를 변경하지 않는다. 상태 재개와 일정 수정은 기존과 같이 `updated_at`·audit·sync queue를 갱신한다. |
+| UX | 직접 날짜 입력을 제거하고 월간/연간 규칙 선택과 읽기 전용 자동 예정일 카드를 배치했다. 목록에도 `매월 10일`, `매월 말일`, `매년 5월 19일` 같은 실제 규칙과 다음 날짜를 함께 표시한다. 재개 버튼은 재계산된 예정일을 토스트로 알린다. |
+| 스킬·프롬프트 | `Sub_development-governance_0.09`, `Sub_v1-scope_0.06`, `Sub_app-research-notes_0.78`. `docs/CONSTITUTION.md` 반복지출 계약에 월간/연간 입력·파생 예정일·조기결제·재개 규칙을 추가하고 `npm run gen:adapters`로 `AGENTS.md`·`CLAUDE.md`를 재생성했다. |
+| 자동 검증 | 실제 `FixedExpenseDomain` 로직 테스트 222→233 assertion: 다음 일정 포함 계산, 월말, 윤년/평년 2월 29일, 지난 연간 일정, 조기 결제 최소 1회 전진, 미납 catch-up, 일정 표시, 불가능한 2월 30일 차단. 전체 하네스 결과는 릴리스 마감 시 기록한다. |
+| 실브라우저 | 데스크톱에서 월간 기본값·말일 선택, 연간 전환, 2월 일수 29개 제한, 2월 29일→2027-02-28 미리보기, 기존 매월 10일·2026-09-10 승계, 매년 5월 19일로 수정 저장 후 목록 문구·2027-05-19를 확인했다. 390×844에서 반복 일정 카드와 입력 폼의 문서·모달 가로 overflow 0px, 콘솔 오류 0건. |
+| 배포 상태 | 기능 브랜치 로컬 커밋까지 완료. 사용자 명시 배포 요청이 없어 원격 push·main 반영·GitHub Pages 배포는 실행하지 않는다. |
+| 잔여 위험 | 실제 로그인 두 기기 간 anchor·예정일 LWW/canonical 왕복과 안드로이드 실기기 촉감은 배포 후 수동 확인 대상이다. |

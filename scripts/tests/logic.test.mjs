@@ -252,10 +252,20 @@ if (api) {
   ok(/^\d+\.\d{2}$/.test(APP_INFO.version), 'APP_INFO.version is two-decimal');
 
   // 고정지출 순수 규칙: 말일·윤년을 보존하고 월 환산/예정액을 중복 없이 계산한다.
+  ok(FixedExpenseDomain.nextOccurrence('2026-02-10', 'monthly', 31, 2) === '2026-02-28', 'FixedExpense: 매월 말일은 현재 달의 실제 말일로 자동 계산');
+  ok(FixedExpenseDomain.nextOccurrence('2026-02-28', 'monthly', 31, 2) === '2026-02-28', 'FixedExpense: 오늘이 결제일이면 오늘을 다음 예정일로 유지');
+  ok(FixedExpenseDomain.nextOccurrence('2026-03-01', 'monthly', 15, 3) === '2026-03-15', 'FixedExpense: 이번 달 결제일 전이면 이번 달 일정 선택');
+  ok(FixedExpenseDomain.nextOccurrence('2026-03-20', 'monthly', 15, 3) === '2026-04-15', 'FixedExpense: 이번 달 결제일 후면 다음 달 일정 선택');
+  ok(FixedExpenseDomain.nextOccurrence('2026-08-04', 'yearly', 19, 5) === '2027-05-19', 'FixedExpense: 지난 연간 월일은 다음 해로 자동 계산');
+  ok(FixedExpenseDomain.nextOccurrence('2028-01-01', 'yearly', 29, 2) === '2028-02-29', 'FixedExpense: 매년 2월 29일은 윤년에 원래 기준일 사용');
+  ok(FixedExpenseDomain.nextOccurrence('2029-01-01', 'yearly', 29, 2) === '2029-02-28', 'FixedExpense: 매년 2월 29일은 평년에 말일 보정');
   ok(FixedExpenseDomain.nextDueDate('2026-01-31', 'monthly', 31, 1) === '2026-02-28', 'FixedExpense: 1월 31일 월납 -> 2월 말일로 clamp');
   ok(FixedExpenseDomain.nextDueDate('2026-02-28', 'monthly', 31, 1) === '2026-03-31', 'FixedExpense: anchor 31 보존 -> 3월 31일 복귀');
   ok(FixedExpenseDomain.nextDueDate('2028-02-29', 'yearly', 29, 2) === '2029-02-28', 'FixedExpense: 윤년 2월 29일 연납 -> 다음 해 2월 말일');
   ok(FixedExpenseDomain.advanceAfterBooking({ next_due_date: '2026-01-31', billing_cycle: 'monthly', billing_anchor_day: 31, billing_anchor_month: 1 }, '2026-03-10') === '2026-03-31', 'FixedExpense: 밀린 월납 거래 입력 시 미래 납부일까지 전진');
+  ok(FixedExpenseDomain.advanceAfterBooking({ next_due_date: '2026-08-29', billing_cycle: 'monthly', billing_anchor_day: 29, billing_anchor_month: 8 }, '2026-08-20') === '2026-09-29', 'FixedExpense: 결제일 전에 거래를 입력해도 다음 회차로 한 번 전진');
+  ok(FixedExpenseDomain.scheduleLabel({ next_due_date: '2026-02-28', billing_cycle: 'monthly', billing_anchor_day: 31 }) === '매월 말일', 'FixedExpense: 월말 anchor를 사용자 문구로 표시');
+  ok(FixedExpenseDomain.scheduleLabel({ next_due_date: '2027-05-19', billing_cycle: 'yearly', billing_anchor_day: 19, billing_anchor_month: 5 }) === '매년 5월 19일', 'FixedExpense: 연간 월일을 사용자 문구로 표시');
   const fixedSummary = FixedExpenseDomain.summary([
     { amount: 120000, billing_cycle: 'yearly', next_due_date: '2026-08-20', status: 'active', deleted_at: null },
     { amount: 30000, billing_cycle: 'monthly', next_due_date: '2026-08-05', status: 'active', deleted_at: null },
@@ -263,8 +273,10 @@ if (api) {
   ], '2026-08-02');
   ok(fixedSummary.monthlyEquivalent === 40000 && fixedSummary.activeCount === 2, 'FixedExpense: 연납/12 + 월납으로 월 환산, 중지 항목 제외');
   ok(fixedSummary.due30Amount === 150000 && fixedSummary.due30Count === 2 && fixedSummary.overdueCount === 0, 'FixedExpense: 30일 예정액과 건수 계산');
-  const fixedErrors = FixedExpenseDomain.validate({ expenseName: '', accountId: 'asset', amount: 0, currencyCode: 'EUR', originalAmount: 0, exchangeRate: 0, amountMode: 'x', billingCycle: 'x', nextDueDate: '', paymentReferenceLast4: '123456', status: 'x' }, [{ id: 'asset', account_type: 'asset' }]);
-  ok(['expenseName','accountId','currencyCode','originalAmount','exchangeRate','amountMode','billingCycle','nextDueDate','paymentReferenceLast4','status'].every(key => fixedErrors[key]), 'FixedExpense: 통화·금액·환율·일정·끝 4자리 검증');
+  const fixedErrors = FixedExpenseDomain.validate({ expenseName: '', accountId: 'asset', amount: 0, currencyCode: 'EUR', originalAmount: 0, exchangeRate: 0, amountMode: 'x', billingCycle: 'x', billingAnchorDay: 0, billingAnchorMonth: 0, nextDueDate: '', paymentReferenceLast4: '123456', status: 'x' }, [{ id: 'asset', account_type: 'asset' }]);
+  ok(['expenseName','accountId','currencyCode','originalAmount','exchangeRate','amountMode','billingCycle','billingAnchorDay','nextDueDate','paymentReferenceLast4','status'].every(key => fixedErrors[key]), 'FixedExpense: 통화·금액·환율·반복 일정·끝 4자리 검증');
+  const impossibleAnnual = FixedExpenseDomain.validate({ expenseName: '테스트', accountId: 'expense', amount: 1000, currencyCode: 'KRW', originalAmount: 1000, exchangeRate: 1, amountMode: 'fixed', billingCycle: 'yearly', billingAnchorDay: 30, billingAnchorMonth: 2, nextDueDate: '2026-02-28', status: 'active' }, [{ id: 'expense', account_type: 'expense' }]);
+  ok(Boolean(impossibleAnnual.billingAnchorDay), 'FixedExpense: 존재하지 않는 연간 월일 조합 차단');
   const liveSummary = FixedExpenseDomain.summary([
     { currency_code: 'USD', original_amount: 120, exchange_rate_to_krw: 1300, amount: 156000, billing_cycle: 'yearly', next_due_date: '2026-08-20', status: 'active', deleted_at: null }
   ], '2026-08-02', { rates: { USD: 1400 } });

@@ -67,7 +67,7 @@
 ## 반복지출·일정 데이터 계약
 
 - 고정지출 일정(`fixed_expenses`)과 실제 원천거래(`source_transactions`)는 분리하고, 실제 결제 저장 시 `fixed_expense_id`로 연결한다. 일정을 실제 거래처럼 선기장하지 않는다.
-- 실제 거래 저장과 `last_booked_on`·`next_due_date` 이동은 같은 로컬 원자 작업으로 처리한다. 월말 일정은 `billing_anchor_day/month`를 보존해 짧은 달 이후 원래 기준일로 복귀시킨다.
+- 실제 거래 저장과 `last_booked_on`·`next_due_date` 이동은 같은 로컬 원자 작업으로 처리한다. 사용자는 월간이면 `billing_anchor_day`(1~30일, 31=말일), 연간이면 `billing_anchor_month/day`를 지정하고 `next_due_date`는 앱이 계산한다. 월말·2월 29일 일정은 짧은 달에 말일로 보정한 뒤 원래 기준일로 복귀시키며, 조기 결제도 다음 회차로 한 번 전진하고 재개 시 오늘 이후 가장 가까운 일정으로 맞춘다.
 - 반복 일정의 등록·수정·상태 변경·삭제도 `updated_at`, 감사로그, tombstone, canonical 규칙을 적용한다. 새 동기화 테이블은 Supabase migration뿐 아니라 IndexedDB, state/reload, queue, merge, canonical, 백업·복원, 가계부 cascade까지 전 생명주기에 연결한다.
 - 결제수단 식별정보는 카드·계좌 전체 번호를 저장하지 않고 끝 4자리만 허용한다.
 
