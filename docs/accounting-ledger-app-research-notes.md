@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.82** · 개정 2026-08-04
+> **📌 Sub_app-research-notes_0.83** · 개정 2026-08-04
 
 # Accounting Ledger App Research Notes
 
@@ -1635,7 +1635,7 @@ advisor 잔여 항목:
 | 실브라우저 | 앱 내 브라우저에서 `transactionDate`, `counterpartyName`, `accountId`의 top 302.34375px·bottom 344.34375px·height 42px가 모두 정확히 일치해 top spread 0px를 확인했다. 계정과목 가이드가 라벨 오른쪽에 표시되고 콘솔 오류는 0건. |
 | 자동 검증 | 로직 237 assertion 유지(순수 UI 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
 | 스킬·문서 | `Sub_v1-scope_0.09`, `Sub_app-research-notes_0.81`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.64 기준으로 갱신한다. |
-| 배포 상태 | 기능 브랜치 `codex/transaction-field-alignment`에서 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자 명시 요청 전에는 실행하지 않는다. |
+| 배포 상태 | 앱 0.65와 함께 PR [#2](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/2)로 `main`에 반영·배포했다. 아래 앱 0.65 배포 기록을 따른다. |
 
 ## 2026-08-04 앱 0.65: 모바일 고정지출현황 요약 표시
 
@@ -1646,6 +1646,7 @@ advisor 잔여 항목:
 | 구현 | 561~780px은 고정지출 기능명·월 환산액·활성 건수를 그대로 복구하고, 560px 이하는 상단바를 2단으로 배치한다. 둘째 줄의 고정지출 버튼은 남은 폭을 사용하고 가계부 전환·월별 현황·빠른 입력 아이콘 버튼은 38px로 정규화한다. 360px 이하에서만 동기화 문구를 숨겨 고정지출 요약 폭을 보장하며 상태 점·title은 유지한다. |
 | 모바일/APK 스킬 영향 | `accounting-mobile-apk-readiness` 기준에 따라 기존 safe-area 패딩과 `topbar 36 > scrim 35` 순서를 유지했다. 메뉴가 열린 상태에서 사이드바가 덮지 않는 빠른 입력 버튼 중심의 `elementFromPoint()`가 `quickAddButton`을 반환해 scrim 터치 가로채기가 없음을 확인했다. |
 | 브라우저 실측 | 360·560·780px에서 `scrollWidth === clientWidth`; 390px에서 상단바 116px, 고정지출 버튼 108.4375×42px, 기능명 `고정지출현황`과 `0원 · 0건` 모두 표시. 고정지출 버튼 클릭으로 모달 제목 `고정지출현황`이 열리고 콘솔 오류 0건. |
-| BlueStacks | BlueStacks Pie64의 Android Chrome에서 `http://10.0.2.2:4173/` 로컬 수정본 로드에 성공했다. 현재 인스턴스가 1920×1080 가로 모드여서 데스크톱 분기가 적용되는 것까지 확인했으며, 모바일 중단점의 정밀 검증은 브라우저 viewport 360~780px로 수행했다. |
+| BlueStacks | BlueStacks Pie64(Android Chrome, 1920×1080·240 DPI·가로)에서 로컬 수정본과 공개 배포 주소를 열었다. 공개 화면의 `Accounting Ledger v0.65`와 정상 렌더를 확인했다. 현재 인스턴스가 가로라 데스크톱 분기가 적용되므로 세로 모바일 합격 판정은 하지 않았고, 모바일 중단점은 브라우저 viewport 360~780px 실측으로 보완했다. |
 | 버전·데이터 | 앱 0.64→0.65. 순수 CSS·표시 변경이므로 schema 0.06·backup 0.03·로직 assertion 수는 유지한다. |
-| 배포 상태 | `codex/transaction-field-alignment` 브랜치에서 로컬 구현·검증. 원격 push·PR·main 반영·배포는 아직 실행하지 않았다. |
+| 스킬 갱신 | `Sub_mobile-apk-readiness_0.04`에서 Android 화면 변경·배포 때 BlueStacks 공개본 검증을 필수화했다. 세로 휴대폰 방향만 모바일 합격으로 인정하고, 가로 확인은 보조 결과로 분리한다. |
+| 배포 상태 | PR [#2](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/2), merge `167eb92`; PR Quality run `30916715565`, main Quality run `30916763412`, Pages run `30916762664` success. 공개 URL은 HTTP 200이며 v0.65와 모바일 고정지출·계정과목 인라인 표식을 확인했다. |
