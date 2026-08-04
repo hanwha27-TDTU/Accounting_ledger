@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.79** · 개정 2026-08-04
+> **📌 Sub_app-research-notes_0.80** · 개정 2026-08-04
 
 # Accounting Ledger App Research Notes
 
@@ -1607,3 +1607,18 @@ advisor 잔여 항목:
 | 실브라우저 | 앱 내 브라우저에서 USD 25 고정지출을 2026-08-02 기준으로 저장해 실제 고시일 2026-07-31·환산 35,904원을 확인했다. USD/원화 금액 셀 right 좌표는 모두 723.2578px(차이 0px), 상단 월 환산액과 모달 요약은 저장 기준액으로 함께 갱신됐다. 미래 2026-08-20은 2026-08-04 최신 고시환율 예상 문구, KRW 전환 시 기준일·환율 필드 비표시, 콘솔 오류 0건을 확인했다. 390px 실증은 현재 브라우저 표면이 고정 폭이라 이번 라운드에서 재실행하지 못했으며 기존 반응형 1열 계약과 최종 하네스로 회귀를 점검한다. |
 | 스킬·프롬프트 | `Sub_multicurrency-fx_0.02`, `Sub_v1-scope_0.07`, `Sub_app-research-notes_0.79`; `docs/CONSTITUTION.md`의 환율 계약을 갱신하고 `AGENTS.md`·`CLAUDE.md`를 재생성했다. |
 | 배포 상태 | 기능 브랜치 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자의 명시 요청 전에는 실행하지 않는다. |
+
+## 2026-08-04 앱 0.63: 데이터 관리 2열 카드 상단 정렬
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.62 → 0.63 |
+| schema_version | 0.06 유지(앱 CSS만 변경, migration 없음) |
+| note_type | `ux_fix` + `css_regression` |
+| 사용자 제보 | 데이터 관리 화면 스크린샷에서 왼쪽 `로컬 캐시` 카드보다 오른쪽 `클라우드 동기화` 카드의 윗선이 아래로 내려가 박스 정렬이 맞지 않는 문제를 지적. |
+| 원인 | 일반 문서 흐름에서 연속 패널 사이 간격을 만드는 `.panel + .panel { margin-top: 18px; }`가 CSS Grid의 형제 카드에도 적용됐다. 첫 카드만 제외하고 모든 후속 카드가 추가로 18px 내려가 그리드 `gap`과 중복되었다. |
+| 수정 | `.data-grid > .panel + .panel { margin-top: 0; }`을 추가해 데이터 관리 그리드 안에서는 grid `gap`만 간격의 SSOT로 사용한다. 각 카드의 `display:flex`와 `data-actions { margin-top:auto }`는 유지해 같은 행의 높이와 버튼 하단 정렬을 함께 보존한다. 모바일 1열도 중복 18px 없이 일정한 16px 간격을 사용한다. |
+| 실브라우저 | 앱 내 브라우저에서 6개 카드의 `margin-top`이 모두 0px인지 확인했다. 각 행의 좌우 카드는 top/bottom/height가 정확히 동일했다: 첫 행 top 260.7344·bottom 478.0313·height 217.2969px, 둘째 행 top 494.0313·bottom 710.9297px, 셋째 행 top 726.9297·bottom 947.3281px. 콘솔 오류 0건. |
+| 자동 검증 | 로직 237 assertion 유지(CSS 전용 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
+| 스킬·문서 | `Sub_v1-scope_0.08`, `Sub_app-research-notes_0.80`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.63 기준으로 갱신한다. |
+| 배포 상태 | 기능 브랜치 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자 명시 요청 전에는 실행하지 않는다. |

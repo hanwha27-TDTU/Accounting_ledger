@@ -326,6 +326,7 @@
     .status-item-body { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
     .data-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .data-grid > .panel + .panel { margin-top: 0; }
     .mode-select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
     .mode-card { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
     .mode-card:hover, .mode-card:focus-visible { border-color: var(--brand); box-shadow: var(--shadow); }
@@ -696,7 +697,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.62',
+      version: '0.63',
       schemaVersion: '0.06',
       backupSchemaVersion: '0.03',
       postingRuleVersion: 'posting-0.01',
@@ -711,7 +712,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.62', date: '2026-08-04', label: '최신 · 고정지출 금액 정렬·환율 기준일', detail: '고정지출 목록의 원화·외화 금액을 같은 폭의 오른쪽 정렬 열로 맞췄습니다. 외화 고정지출에는 환율 기준일을 직접 선택하는 입력을 추가하고, 선택일 이하의 가장 최근 우즈베키스탄 중앙은행 고시환율로 예상 원화액을 저장·표시합니다. 주말·공휴일이면 실제 고시일을 함께 보여주고, 미래 날짜는 아직 환율이 없으므로 오늘까지의 최신 고시환율을 예상값으로 사용한다고 명확히 안내합니다. 실제 거래를 만들 때는 거래일 환율을 다시 확정합니다.' },
+      { version: '0.63', date: '2026-08-04', label: '최신 · 데이터 관리 카드 정렬', detail: '데이터 관리 화면의 2열 카드에 일반 패널용 세로 여백이 중복 적용되어 두 번째 카드부터 윗선이 내려가던 문제를 수정했습니다. 같은 행의 로컬 캐시·클라우드 동기화 카드와 이후 백업·복원, 삭제 카드가 같은 윗선과 높이로 정렬되고 모바일 1열에서는 그리드 간격만 일정하게 유지됩니다.' },
+      { version: '0.62', date: '2026-08-04', label: '고정지출 금액 정렬·환율 기준일', detail: '고정지출 목록의 원화·외화 금액을 같은 폭의 오른쪽 정렬 열로 맞췄습니다. 외화 고정지출에는 환율 기준일을 직접 선택하는 입력을 추가하고, 선택일 이하의 가장 최근 우즈베키스탄 중앙은행 고시환율로 예상 원화액을 저장·표시합니다. 주말·공휴일이면 실제 고시일을 함께 보여주고, 미래 날짜는 아직 환율이 없으므로 오늘까지의 최신 고시환율을 예상값으로 사용한다고 명확히 안내합니다. 실제 거래를 만들 때는 거래일 환율을 다시 확정합니다.' },
       { version: '0.61', date: '2026-08-04', label: '반복 납부일 자동 계산', detail: '고정지출의 다음 납부일을 직접 적는 대신 매월 결제일 또는 매년 결제월·결제일을 정하면 앱이 다음 납부 예정일을 자동 계산합니다. 매월 말일과 매년 2월 29일 같은 일정은 짧은 달과 평년에는 그 달의 마지막 날로 보정한 뒤 원래 기준일로 복귀합니다. 실제 거래를 일찍 입력해도 다음 회차로 이동하고, 밀린 거래는 입력일 뒤의 첫 일정까지 전진하며, 일시중지·해지 항목을 다시 사용하면 오늘 이후의 가장 가까운 일정으로 자동 재개합니다.' },
       { version: '0.60', date: '2026-08-02', label: '전 도메인 다중통화·일일 환율', detail: '거래와 고정지출은 원·숨·달러·엔 중 입력 통화를 선택하고, 우즈베키스탄 중앙은행의 날짜별 공식 환율로 원화 환산액을 자동 계산합니다. 원금액·통화·적용환율·환율일·출처·수동수정 여부를 함께 보존하며 장부와 전표는 확정된 원화 금액으로 유지합니다. 고정지출 목록은 저장한 외화 원금액을 보존하면서 최신 일일 환율 기준 예상 원화액을 보여주고, 추계소득·재산세 계산기 입력도 선택 통화를 원화로 바꿔 계산합니다. 오프라인이면 마지막 정상 환율을 경고와 함께 사용하고 직접 환율을 수정할 수 있습니다.' },
       { version: '0.59', date: '2026-08-02', label: '고정지출현황 관리', detail: '상단바에 월 환산액과 활성 건수를 보여주는 고정지출현황 버튼을 추가했습니다. 항목별 지출처·계정과목·고정/변동 금액·월간/연간 주기·다음 납부일·결제수단·필수 여부·상태·메모를 관리할 수 있고, 결제정보는 안전하게 끝 4자리만 저장합니다. 예정 항목을 비용 거래로 바로 불러오면 거래와 균형 전표를 저장한 뒤 다음 납부일을 자동으로 이동합니다. fixed_expenses는 로컬 백업·복원·tombstone·정본 동기화 전 경로에 포함되며 RLS가 적용됩니다.' },
