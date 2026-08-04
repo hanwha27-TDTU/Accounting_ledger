@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.80** · 개정 2026-08-04
+> **📌 Sub_app-research-notes_0.82** · 개정 2026-08-04
 
 # Accounting Ledger App Research Notes
 
@@ -1622,3 +1622,30 @@ advisor 잔여 항목:
 | 자동 검증 | 로직 237 assertion 유지(CSS 전용 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
 | 스킬·문서 | `Sub_v1-scope_0.08`, `Sub_app-research-notes_0.80`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.63 기준으로 갱신한다. |
 | 배포 검증 | 기능 브랜치 `codex/recurring-payment-rules`를 push하고 PR [#1](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/1)의 Quality Harness 성공 후 `main`에 병합했다(merge `4dad36f`). main Quality run `30912168769`과 Pages run `30912165783`이 모두 success. 공개 URL `https://hanwha27-tdtu.github.io/Accounting_ledger/`은 HTTP 200이며 `version: '0.63'`, 반복 일정·환율 기준일 코드, `.data-grid > .panel + .panel { margin-top: 0; }` 표식을 원격 HTML에서 확인했다. |
+
+## 2026-08-04 앱 0.64: 거래 입력 계정과목 가이드 인라인 정렬
+
+| 항목 | 내용 |
+|---|---|
+| app_version | 0.63 → 0.64 |
+| schema_version | 0.06 유지(CSS·마크업만 변경, migration 없음) |
+| note_type | `ux_fix` + `accessibility_preserved` |
+| 사용자 제보 | 거래 입력 화면의 `선택 가이드`가 계정과목 라벨과 선택 상자 사이에 별도 줄로 놓여 계정과목 필드만 거래일·거래처보다 아래로 밀린다고 지적하고, 가이드를 계정과목 옆으로 이동하도록 제안. |
+| 수정 | 계정과목 라벨과 가이드 버튼을 `.field-label-row`로 묶어 한 줄에 배치했다. 라벨·가이드의 줄높이와 용어 버튼의 점선 밑줄을 컨테이너 높이에 맞춰 select가 내려가지 않게 했다. `for=accountId`, 가이드 버튼, 계정과목 용어 툴팁은 그대로 유지한다. |
+| 실브라우저 | 앱 내 브라우저에서 `transactionDate`, `counterpartyName`, `accountId`의 top 302.34375px·bottom 344.34375px·height 42px가 모두 정확히 일치해 top spread 0px를 확인했다. 계정과목 가이드가 라벨 오른쪽에 표시되고 콘솔 오류는 0건. |
+| 자동 검증 | 로직 237 assertion 유지(순수 UI 변경). `npm run harness:check`는 16 REQUIRED PASS, 1 MANUAL, 실패 0. |
+| 스킬·문서 | `Sub_v1-scope_0.09`, `Sub_app-research-notes_0.81`; 브라우저 체크리스트와 Claude/Codex 인계서를 앱 0.64 기준으로 갱신한다. |
+| 배포 상태 | 기능 브랜치 `codex/transaction-field-alignment`에서 로컬 구현·검증 완료. 원격 push·main 반영·웹 배포는 사용자 명시 요청 전에는 실행하지 않는다. |
+
+## 2026-08-04 앱 0.65: 모바일 고정지출현황 요약 표시
+
+| 항목 | 결정·검증 |
+|---|---|
+| 사용자 피드백 | Android 화면의 상단 고정지출현황 버튼이 달력 아이콘만 보여 데스크톱 웹과 의미 전달이 다르다는 스크린샷 피드백. 기능명과 요약 금액·건수를 모바일에서도 동일하게 보여달라는 요청으로 해석했다. |
+| 원인 | `@media (max-width:780px)`가 `.fixed-expense-trigger-copy`를 `display:none` 처리하고 버튼을 38px 아이콘으로 축소했다. 단순히 문구만 복구하면 390px 상단바가 넘치므로 배치 변경이 필요했다. |
+| 구현 | 561~780px은 고정지출 기능명·월 환산액·활성 건수를 그대로 복구하고, 560px 이하는 상단바를 2단으로 배치한다. 둘째 줄의 고정지출 버튼은 남은 폭을 사용하고 가계부 전환·월별 현황·빠른 입력 아이콘 버튼은 38px로 정규화한다. 360px 이하에서만 동기화 문구를 숨겨 고정지출 요약 폭을 보장하며 상태 점·title은 유지한다. |
+| 모바일/APK 스킬 영향 | `accounting-mobile-apk-readiness` 기준에 따라 기존 safe-area 패딩과 `topbar 36 > scrim 35` 순서를 유지했다. 메뉴가 열린 상태에서 사이드바가 덮지 않는 빠른 입력 버튼 중심의 `elementFromPoint()`가 `quickAddButton`을 반환해 scrim 터치 가로채기가 없음을 확인했다. |
+| 브라우저 실측 | 360·560·780px에서 `scrollWidth === clientWidth`; 390px에서 상단바 116px, 고정지출 버튼 108.4375×42px, 기능명 `고정지출현황`과 `0원 · 0건` 모두 표시. 고정지출 버튼 클릭으로 모달 제목 `고정지출현황`이 열리고 콘솔 오류 0건. |
+| BlueStacks | BlueStacks Pie64의 Android Chrome에서 `http://10.0.2.2:4173/` 로컬 수정본 로드에 성공했다. 현재 인스턴스가 1920×1080 가로 모드여서 데스크톱 분기가 적용되는 것까지 확인했으며, 모바일 중단점의 정밀 검증은 브라우저 viewport 360~780px로 수행했다. |
+| 버전·데이터 | 앱 0.64→0.65. 순수 CSS·표시 변경이므로 schema 0.06·backup 0.03·로직 assertion 수는 유지한다. |
+| 배포 상태 | `codex/transaction-field-alignment` 브랜치에서 로컬 구현·검증. 원격 push·PR·main 반영·배포는 아직 실행하지 않았다. |
