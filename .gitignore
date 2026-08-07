@@ -7,3 +7,7 @@ android-shell/node_modules/
 # mistake. The release keystore lives only in GitHub Secrets (see android-shell/README.md).
 *.jks
 *.keystore
+
+# The canonical shared-skills repository is private while this repository is public.
+# Keep the locally generated content snapshot for `--check-vendor`, but commit only its lock hashes.
+vendor/codex-shared-skills/

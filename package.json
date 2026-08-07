@@ -8,6 +8,7 @@
   },
   "scripts": {
     "harness:check": "node scripts/harness-check.mjs",
+    "shared-skills:check": "node scripts/check-shared-skills.mjs",
     "test:logic": "node scripts/tests/logic.test.mjs",
     "playbook:build": "node scripts/build-install-playbook.mjs",
     "gen:adapters": "node scripts/build-agent-adapters.mjs"

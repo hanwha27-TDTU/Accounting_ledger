@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "project": "accounting-ledger",
+  "sharedLaw": {
+    "source": "https://github.com/hanwha27-TDTU/Codex-Shared-Skills",
+    "commit": "268126d44103df9ca709e7b8eec49d8e679437c2",
+    "contentSha256": "e8f70da5fe7074d517b820b3123410d093b7238e94ee3eb60aebcfca9137646a",
+    "vendoredPath": "schemas/codex-shared-skills-lock.json"
+  },
+  "gateRegistry": "scripts/harness-check.mjs",
+  "groups": [
+    {
+      "id": "shared-skills-supply-chain",
+      "command": "npm run shared-skills:check",
+      "coverage": ["고정 커밋", "프로젝트 공급망 스냅샷", "릴리스 프로필", "주입증명"]
+    },
+    {
+      "id": "domain-logic",
+      "command": "npm run test:logic",
+      "coverage": ["회계·외화·고정지출·동기화 순수 로직"]
+    },
+    {
+      "id": "quality-harness",
+      "command": "npm run harness:check",
+      "coverage": ["필수 파일·보안·지시문·스키마·버전·데이터 생명주기·설치 안내·공급망 전체 게이트"]
+    }
+  ],
+  "fullRequired": {
+    "command": "npm run harness:check",
+    "evidence": "ci",
+    "latestRevision": true
+  },
+  "versioning": {
+    "trigger": "index.html 변경",
+    "baseline": "HEAD:index.html 및 origin/main 병합 기준선",
+    "writer": "APP_INFO.version을 정확히 0.01 올리고 UPDATE_HISTORY를 갱신한 뒤 npm run playbook:build",
+    "history": "index.html의 UPDATE_HISTORY"
+  },
+  "releaseNodes": [
+    {
+      "id": "inputs-finalized",
+      "verdict": "생성물·스냅샷 드리프트 게이트 종료코드",
+      "writes": ["생성 지시문", "설치 안내", "공급망 스냅샷"]
+    },
+    {
+      "id": "narrow-gates",
+      "verdict": "영향받은 안정 그룹 종료코드",
+      "writes": []
+    },
+    {
+      "id": "required-ci",
+      "verdict": "최신 풀 리퀘스트 개정의 Quality Harness 성공 결론",
+      "writes": []
+    },
+    {
+      "id": "merge-main",
+      "verdict": "풀 리퀘스트 mergedAt과 main 커밋 SHA",
+      "writes": ["origin/main"]
+    },
+    {
+      "id": "github-pages",
+      "verdict": "Pages 배포 결론과 공개 URL 되읽기",
+      "writes": ["GitHub Pages 운영 웹"]
+    },
+    {
+      "id": "android-apk-release",
+      "verdict": "Android APK 워크플로 결론과 apk-latest 자산 되읽기",
+      "writes": ["GitHub Release apk-latest 자산"]
+    },
+    {
+      "id": "supabase-production",
+      "verdict": "승인된 마이그레이션 적용 결과와 운영 카탈로그·RLS 되읽기",
+      "writes": ["Supabase 운영 스키마"]
+    }
+  ],
+  "releaseEdges": [
+    { "from": "inputs-finalized", "to": "narrow-gates", "reason": "검사 입력과 생성물을 먼저 고정한다" },
+    { "from": "narrow-gates", "to": "required-ci", "reason": "조기경보를 통과한 개정만 원격 전체 게이트로 보낸다" },
+    { "from": "required-ci", "to": "merge-main", "reason": "최신 개정의 전체 필수 게이트가 main 쓰기의 선행 조건이다" },
+    { "from": "merge-main", "to": "github-pages", "reason": "GitHub Pages는 main 정적 파일을 공개한다" },
+    { "from": "merge-main", "to": "android-apk-release", "reason": "android-shell 경로 변경 때만 main 워크플로가 최신 APK 자산을 쓴다" },
+    { "from": "required-ci", "to": "supabase-production", "reason": "supabase/migrations 변경 때만 별도 승인 후 운영 스키마에 적용한다" }
+  ],
+  "runnerWriters": [
+    {
+      "id": "github-pages",
+      "writes": ["GitHub Pages 운영 환경"],
+      "branchExclusive": true
+    },
+    {
+      "id": "android-apk",
+      "writes": ["GitHub Release apk-latest 태그·자산"],
+      "branchExclusive": true
+    },
+    {
+      "id": "supabase-migration-operator",
+      "writes": ["Supabase 운영 스키마"],
+      "branchExclusive": true
+    }
+  ],
+  "deploymentSurfaces": [
+    {
+      "id": "github-pages",
+      "affectedBy": ["main의 정적 웹 파일", "index.html", "vendor 브라우저 자산"],
+      "deploy": "main 반영 후 GitHub Pages 자동 배포",
+      "readback": "https://hanwha27-tdtu.github.io/Accounting_ledger/ 공개 HTML의 버전·기능 표식 확인"
+    },
+    {
+      "id": "android-apk-release",
+      "affectedBy": ["android-shell/**", ".github/workflows/android-apk.yml"],
+      "deploy": "Android APK workflow의 main path filter 또는 workflow_dispatch",
+      "readback": "GitHub Release apk-latest의 본문 커밋 표식·APK·shell-version.json 자산 확인"
+    },
+    {
+      "id": "supabase-production",
+      "affectedBy": ["supabase/migrations/**", "운영 데이터 계약"],
+      "deploy": "승인된 Supabase migration 적용",
+      "readback": "운영 카탈로그의 마이그레이션·RLS·accounting_schema_meta 버전 질의"
+    }
+  ],
+  "exceptions": [
+    "저장소는 C:\\AppDevelopment 밖에 있지만 사용자가 이 프로젝트에 AutoRouter와 공통 릴리스 법 적용을 명시 승인했다.",
+    "공통 규칙은 프로젝트 지시문에 복사하지 않고 고정 잠금·해시 스냅샷·이 프로필을 포인터로 삼는다.",
+    "이 저장소는 공개이고 공통 정본은 비공개이므로 공통 스킬 본문은 커밋·Pages 배포하지 않는다. 정본 스크립트가 만든 해시 잠금만 커밋하고, 본문 스냅샷·전역 설치 드리프트는 승인된 PC에서 --check-vendor와 --check-global로 검증한다.",
+    "AGENTS.md와 CLAUDE.md는 docs/CONSTITUTION.md 생성물이며 데이터 안전·RLS·버전·배포 승인 규칙이 공통 기본값보다 우선한다.",
+    "GitHub Pages는 main 전체 변경에 자동 반응하지만 Android APK는 android-shell 경로 변경에만, Supabase는 마이그레이션 변경과 별도 승인에만 반응한다.",
+    "index.html이 바뀌지 않는 릴리스 거버넌스 변경은 앱 버전을 올리지 않는다."
+  ]
+}
