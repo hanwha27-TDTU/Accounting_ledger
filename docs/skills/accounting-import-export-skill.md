@@ -1,4 +1,4 @@
-> **📌 Sub_import-export_0.04** · 개정 2026-08-07
+> **📌 Sub_import-export_0.05** · 개정 2026-08-07
 
 # Accounting Ledger Import/Export Skill
 
@@ -149,6 +149,15 @@ C:\네이버박스 백업\나의 소중한 자료들(네이버박스)\1. 개인�
 5. 복원은 변경 건수 미리보기를 보여준 뒤 대상 store 전체를 단일 readwrite transaction으로 교체한다. 한 행이라도 실패하면 전부 rollback한다.
 6. 로컬 복원은 백업에 들어 있던 queue를 활성화하지 않고 현재 pending queue도 `quarantined_by_restore`로 격리한다. 클라우드 반영은 owner가 별도 canonical 발행을 확인한 경우에만 한다.
 7. JSON에는 Cloudinary 원본 파일 자체가 아니라 `secure_url`, `cloudinary_public_id`, 파일명·해시 등 증빙대장이 들어간다. UI와 파일의 `evidenceArchive.originalsIncluded=false`로 이 경계를 숨기지 않는다.
+
+## 증빙 원본 독립 아카이브 규칙
+
+1. 장부 JSON과 증빙 원본 아카이브는 서로 다른 파일이다. 장부 JSON을 먼저 복원하고 동일한 증빙 ID가 확인된 뒤에만 원본 아카이브를 적용한다.
+2. 원본 아카이브는 AES-256-GCM으로 암호화하고, 키는 사용자가 입력한 10자 이상 비밀번호를 PBKDF2-SHA-256으로 파생한다. 비밀번호는 앱·localStorage·아카이브 어디에도 저장하지 않는다.
+3. 외부 envelope에는 암호화 방식·salt·IV·ciphertext·ciphertext SHA-256만 두며 파일명·원본 bytes는 평문으로 노출하지 않는다.
+4. 복원은 전체 payload의 개수·용량과 각 파일의 UUID·MIME·크기·SHA-256을 재검증하고, 전부 Cloudinary에 업로드된 뒤에만 로컬 증빙 메타·감사·queue를 원자 갱신한다.
+5. 브라우저 unsigned upload는 이미 올라간 파일을 rollback할 수 없다. 중간 실패 시 장부는 바꾸지 않고, 성공한 앞선 업로드가 orphan일 수 있음을 사용자에게 알린다.
+6. JSON backup schema는 이 독립 파일 도입으로 올리지 않는다. JSON의 `evidenceArchive.originalsIncluded=false` 계약은 계속 유지한다.
 
 ## 검증 체크리스트
 

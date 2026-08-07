@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#163b33">
   <meta name="description" content="대한민국 개인사업자를 위한 간편장부·복식부기 통합 회계장부">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://api.github.com https://cbu.uz; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' data:; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://res.cloudinary.com https://api.github.com https://cbu.uz; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' data:; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>바른장부</title>
   <style>
     :root {
@@ -729,7 +729,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.68',
+      version: '0.69',
       schemaVersion: '0.08',
       backupSchemaVersion: '0.04',
       postingRuleVersion: 'posting-0.01',
@@ -744,7 +744,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.68', date: '2026-08-07', label: '최신 · 원자 복원·서버 LWW·정본 트랜잭션', detail: '백업은 생성과 복원에 같은 용량·행 제한과 SHA-256 무결성 검사를 적용하고, 필수 필드·참조·복식부기 균형을 모두 확인한 뒤 하나의 IndexedDB 트랜잭션으로만 복원합니다. 이 기기 복원은 동기화 대기열을 격리하고 적용 전 건수 차이를 보여줍니다. 일반 동기화는 클라우드를 먼저 비교하며 서버가 오래된 updated_at 쓰기를 거부하고, 최종본 지정은 canonical version CAS를 포함한 단일 DB 트랜잭션으로 발행합니다. 클라우드 백업도 단일 DB 스냅샷이며 익명 테이블 권한을 명시적으로 회수했습니다.' },
+      { version: '0.69', date: '2026-08-07', label: '최신 · 증빙 원본 암호화 독립 보관', detail: 'Cloudinary 링크와 별개로 이미지·PDF 증빙 원본을 비밀번호로 암호화한 전용 아카이브로 내려받을 수 있습니다. 복원할 때는 파일 전체의 암호화 무결성, 각 원본의 SHA-256·형식·크기를 먼저 확인하고 현재 장부의 증빙 ID와 맞는 경우에만 Cloudinary로 다시 올린 뒤 메타데이터와 동기화 대기열을 한 번에 갱신합니다. 브라우저 왕복 검증은 CI 필수 게이트로 승격했고 GitHub Actions도 Node 24 기반 공식 버전의 불변 SHA로 갱신했습니다.' },
+      { version: '0.68', date: '2026-08-07', label: '원자 복원·서버 LWW·정본 트랜잭션', detail: '백업은 생성과 복원에 같은 용량·행 제한과 SHA-256 무결성 검사를 적용하고, 필수 필드·참조·복식부기 균형을 모두 확인한 뒤 하나의 IndexedDB 트랜잭션으로만 복원합니다. 이 기기 복원은 동기화 대기열을 격리하고 적용 전 건수 차이를 보여줍니다. 일반 동기화는 클라우드를 먼저 비교하며 서버가 오래된 updated_at 쓰기를 거부하고, 최종본 지정은 canonical version CAS를 포함한 단일 DB 트랜잭션으로 발행합니다. 클라우드 백업도 단일 DB 스냅샷이며 익명 테이블 권한을 명시적으로 회수했습니다.' },
       { version: '0.67', date: '2026-08-07', label: '품질 대조군·앱 보안 감사 보완', detail: '모든 필수 품질 게이트에 정상·실패 대조군을 붙였습니다. 검색·필터 접근성과 장부 저장 안내를 바로잡고, 백업 복원값과 Excel 압축 크기를 검증하며 증빙은 HTTPS 주소만 사용합니다. 차단·열람자 권한, 삭제 신호, 최종본 버전을 사용자별로 격리하는 DB 마이그레이션도 준비했고, Android 백업과 미서명 공식 APK 발행을 차단했습니다.' },
       { version: '0.66', date: '2026-08-07', label: '모바일 고정지출 잘림·동기화 속도 개선', detail: '휴대폰의 고정지출현황에서 외화 금액과 환율 기준일이 카드 밖으로 잘리지 않도록 금액 영역을 독립 행으로 재배치하고, 모달 제목을 스크롤 중에도 고정했습니다. 동기화는 중복 실행을 하나로 합치고 여러 테이블을 제한 병렬 조회하며 대기 변경을 테이블 단위로 묶어 전송해, 정본·삭제·최신 수정 우선 규칙을 유지하면서 체감 대기 시간을 줄였습니다.' },
       { version: '0.65', date: '2026-08-04', label: '모바일 고정지출 요약', detail: '모바일 상단의 고정지출현황 버튼도 데스크톱처럼 기능명과 월 환산액·활성 건수를 함께 표시합니다. 작은 화면에서는 상단바를 두 줄로 배치해 다른 주요 버튼과 겹치거나 화면 밖으로 밀리지 않도록 했습니다.' },
@@ -1534,6 +1535,11 @@
     const SYNC_DELETE_ORDER = Object.freeze(SYNC_TABLE_ORDER.filter(table => table !== 'audit_logs').slice().reverse());
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
     const BACKUP_LIMITS = Object.freeze({ maxBytes: 25 * 1024 * 1024, maxRowsPerStore: 50000, maxRowsTotal: 200000 });
+    const EVIDENCE_ARCHIVE_LIMITS = Object.freeze({
+      schemaVersion: '0.01', maxEncryptedBytes: 190 * 1024 * 1024, maxOriginalBytes: 100 * 1024 * 1024,
+      maxFileBytes: 20 * 1024 * 1024, maxFiles: 500, minPasswordLength: 10, maxPasswordLength: 256,
+      kdfIterations: 310000
+    });
     const CURRENCIES = Object.freeze([
       { code: 'KRW', name: '원', locale: 'ko-KR', fractionDigits: 0 },
       { code: 'UZS', name: '우즈베키스탄 숨', locale: 'uz-UZ', fractionDigits: 0 },
@@ -1611,6 +1617,24 @@
         const bytes = Uint8Array.from(encoded, char => char.charCodeAt(0));
         const hash = await crypto.subtle.digest('SHA-256', bytes);
         return [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      },
+      async sha256Bytes(bytes) {
+        const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+        const hash = await crypto.subtle.digest('SHA-256', view);
+        return [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      },
+      bytesToBase64(bytes) {
+        const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+        let binary = '';
+        for (let offset = 0; offset < view.length; offset += 0x8000) binary += String.fromCharCode(...view.subarray(offset, offset + 0x8000));
+        return btoa(binary);
+      },
+      base64ToBytes(value) {
+        const text = String(value || '');
+        if (!text || text.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(text)) throw new Error('EVIDENCE_ARCHIVE_BASE64_INVALID');
+        let binary;
+        try { binary = atob(text); } catch { throw new Error('EVIDENCE_ARCHIVE_BASE64_INVALID'); }
+        return Uint8Array.from(binary, char => char.charCodeAt(0));
       },
       latestByUpdatedAt(local, remote) {
         if (!local) return remote;
@@ -2266,6 +2290,133 @@
       }
     });
 
+    // Evidence originals are exported separately from the ledger JSON. The archive is encrypted in
+    // the browser and can be restored only after the ledger metadata has been restored.
+    const EvidenceArchive = Object.freeze({
+      assertPassword(password) {
+        const length = String(password || '').length;
+        if (length < EVIDENCE_ARCHIVE_LIMITS.minPasswordLength || length > EVIDENCE_ARCHIVE_LIMITS.maxPasswordLength) {
+          throw new Error('EVIDENCE_ARCHIVE_PASSWORD_INVALID');
+        }
+      },
+      assertCloudinaryDeliveryUrl(value) {
+        let url;
+        try { url = new URL(String(value || '')); } catch { throw new Error('EVIDENCE_ARCHIVE_SOURCE_URL_INVALID'); }
+        if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com' || (url.port && url.port !== '443')
+          || url.username || url.password || !url.pathname.includes('/upload/')) {
+          throw new Error('EVIDENCE_ARCHIVE_SOURCE_URL_INVALID');
+        }
+        return url.href;
+      },
+      async deriveKey(password, salt, usages) {
+        this.assertPassword(password);
+        const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password)), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt, iterations: EVIDENCE_ARCHIVE_LIMITS.kdfIterations, hash: 'SHA-256' },
+          material,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          usages
+        );
+      },
+      validateItemShape(item) {
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!item || typeof item !== 'object' || !uuid.test(String(item.evidenceId || ''))) throw new Error('EVIDENCE_ARCHIVE_ITEM_INVALID');
+        if (!/^[0-9a-f]{64}$/i.test(String(item.sha256 || ''))) throw new Error('EVIDENCE_ARCHIVE_ITEM_HASH_INVALID');
+        if (!Number.isSafeInteger(item.size) || item.size < 1 || item.size > EVIDENCE_ARCHIVE_LIMITS.maxFileBytes) throw new Error('EVIDENCE_ARCHIVE_FILE_LIMIT_EXCEEDED');
+        if (!(item.mimeType === 'application/pdf' || /^image\/[a-z0-9.+-]+$/i.test(String(item.mimeType || '')))) throw new Error('EVIDENCE_ARCHIVE_MIME_INVALID');
+        if (typeof item.originalFilename !== 'string' || !item.originalFilename || item.originalFilename.length > 255 || /[\\/\u0000-\u001f]/.test(item.originalFilename)) throw new Error('EVIDENCE_ARCHIVE_FILENAME_INVALID');
+        return item;
+      },
+      async encryptPayload(payload, password) {
+        this.assertPassword(password);
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await this.deriveKey(password, salt, ['encrypt']);
+        const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+        const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext));
+        const envelope = {
+          archiveType: 'bareunjangbu-evidence-originals',
+          archiveSchemaVersion: EVIDENCE_ARCHIVE_LIMITS.schemaVersion,
+          appVersion: APP_INFO.version,
+          createdAt: Utils.now(),
+          encryption: {
+            algorithm: 'AES-256-GCM', kdf: 'PBKDF2-SHA-256', iterations: EVIDENCE_ARCHIVE_LIMITS.kdfIterations,
+            salt: Utils.bytesToBase64(salt), iv: Utils.bytesToBase64(iv)
+          },
+          ciphertext: Utils.bytesToBase64(ciphertext),
+          ciphertextSha256: await Utils.sha256Bytes(ciphertext)
+        };
+        if (new Blob([JSON.stringify(envelope)]).size > EVIDENCE_ARCHIVE_LIMITS.maxEncryptedBytes) throw new Error('EVIDENCE_ARCHIVE_SIZE_LIMIT_EXCEEDED');
+        return envelope;
+      },
+      async decryptEnvelope(envelope, password) {
+        this.assertPassword(password);
+        if (!envelope || typeof envelope !== 'object' || envelope.archiveType !== 'bareunjangbu-evidence-originals'
+          || envelope.archiveSchemaVersion !== EVIDENCE_ARCHIVE_LIMITS.schemaVersion
+          || envelope.encryption?.algorithm !== 'AES-256-GCM' || envelope.encryption?.kdf !== 'PBKDF2-SHA-256'
+          || envelope.encryption?.iterations !== EVIDENCE_ARCHIVE_LIMITS.kdfIterations) throw new Error('EVIDENCE_ARCHIVE_SCHEMA_UNSUPPORTED');
+        const salt = Utils.base64ToBytes(envelope.encryption.salt);
+        const iv = Utils.base64ToBytes(envelope.encryption.iv);
+        const ciphertext = Utils.base64ToBytes(envelope.ciphertext);
+        if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17 || ciphertext.length > EVIDENCE_ARCHIVE_LIMITS.maxEncryptedBytes) throw new Error('EVIDENCE_ARCHIVE_ENCRYPTION_INVALID');
+        if (await Utils.sha256Bytes(ciphertext) !== String(envelope.ciphertextSha256 || '').toLowerCase()) throw new Error('EVIDENCE_ARCHIVE_CIPHERTEXT_MISMATCH');
+        const key = await this.deriveKey(password, salt, ['decrypt']);
+        let plaintext;
+        try { plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext); }
+        catch { throw new Error('EVIDENCE_ARCHIVE_PASSWORD_OR_CORRUPT'); }
+        let payload;
+        try { payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)); }
+        catch { throw new Error('EVIDENCE_ARCHIVE_PAYLOAD_INVALID'); }
+        return this.validatePayload(payload);
+      },
+      async validatePayload(payload) {
+        if (!payload || payload.archiveType !== 'bareunjangbu-evidence-originals-payload'
+          || payload.archiveSchemaVersion !== EVIDENCE_ARCHIVE_LIMITS.schemaVersion || !Array.isArray(payload.items)
+          || payload.items.length < 1 || payload.items.length > EVIDENCE_ARCHIVE_LIMITS.maxFiles) throw new Error('EVIDENCE_ARCHIVE_PAYLOAD_INVALID');
+        const seen = new Set();
+        const decoded = [];
+        let totalBytes = 0;
+        for (const rawItem of payload.items) {
+          const item = this.validateItemShape(rawItem);
+          if (seen.has(item.evidenceId)) throw new Error('EVIDENCE_ARCHIVE_DUPLICATE_ID');
+          seen.add(item.evidenceId);
+          const bytes = Utils.base64ToBytes(item.dataBase64);
+          if (bytes.length !== item.size || (totalBytes += bytes.length) > EVIDENCE_ARCHIVE_LIMITS.maxOriginalBytes) throw new Error('EVIDENCE_ARCHIVE_SIZE_MISMATCH');
+          if (await Utils.sha256Bytes(bytes) !== item.sha256.toLowerCase()) throw new Error('EVIDENCE_ARCHIVE_ITEM_HASH_MISMATCH');
+          decoded.push({ ...item, bytes });
+        }
+        if (!Number.isSafeInteger(payload.itemCount) || payload.itemCount !== decoded.length
+          || !Number.isSafeInteger(payload.totalBytes) || payload.totalBytes !== totalBytes) throw new Error('EVIDENCE_ARCHIVE_SIZE_MISMATCH');
+        return { ...payload, items: decoded, totalBytes };
+      },
+      async create(evidenceRows, password, fetchOriginal = fetch) {
+        this.assertPassword(password);
+        const active = (evidenceRows || []).filter(row => !row.deleted_at);
+        if (!active.length) throw new Error('EVIDENCE_ARCHIVE_EMPTY');
+        if (active.length > EVIDENCE_ARCHIVE_LIMITS.maxFiles || active.some(row => !row.secure_url)) throw new Error('EVIDENCE_ARCHIVE_SOURCE_INCOMPLETE');
+        const items = [];
+        let totalBytes = 0;
+        for (const row of active) {
+          const sourceUrl = this.assertCloudinaryDeliveryUrl(row.secure_url);
+          const response = await fetchOriginal(sourceUrl, { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error' });
+          if (!response?.ok) throw new Error(`EVIDENCE_ARCHIVE_DOWNLOAD_${response?.status || 0}`);
+          if (response.url) this.assertCloudinaryDeliveryUrl(response.url);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          if (!bytes.length || bytes.length > EVIDENCE_ARCHIVE_LIMITS.maxFileBytes || (totalBytes += bytes.length) > EVIDENCE_ARCHIVE_LIMITS.maxOriginalBytes) throw new Error('EVIDENCE_ARCHIVE_FILE_LIMIT_EXCEEDED');
+          const sha256 = await Utils.sha256Bytes(bytes);
+          if (/^[0-9a-f]{64}$/i.test(String(row.file_hash || '')) && row.file_hash.toLowerCase() !== sha256) throw new Error('EVIDENCE_ARCHIVE_SOURCE_HASH_MISMATCH');
+          const mimeType = row.mime_type || response.headers?.get?.('content-type')?.split(';')[0] || '';
+          this.validateItemShape({ evidenceId: row.id, sha256, size: bytes.length, mimeType, originalFilename: row.original_filename || `evidence-${row.id}` });
+          items.push({ evidenceId: row.id, originalFilename: row.original_filename || `evidence-${row.id}`, mimeType, size: bytes.length, sha256, dataBase64: Utils.bytesToBase64(bytes) });
+        }
+        return this.encryptPayload({
+          archiveType: 'bareunjangbu-evidence-originals-payload', archiveSchemaVersion: EVIDENCE_ARCHIVE_LIMITS.schemaVersion,
+          createdAt: Utils.now(), itemCount: items.length, totalBytes, items
+        }, password);
+      }
+    });
+
     // 4. IndexedDB persistence adapter
     class IndexedDbAdapter {
       constructor() { this.db = null; this.name = 'accounting-ledger-v1'; this.version = 3; }
@@ -2387,6 +2538,8 @@
       async upload(file) {
         if (!this.isConfigured()) throw new Error('CLOUDINARY_NOT_CONFIGURED');
         if (Utils.isSecretKey(state.config.cloudinaryPreset) || Utils.isSecretKey(state.config.cloudinaryCloud)) throw new Error('SECRET_KEY_NOT_ALLOWED');
+        if (!(file instanceof Blob) || !file.size || file.size > EVIDENCE_ARCHIVE_LIMITS.maxFileBytes) throw new Error('EVIDENCE_FILE_SIZE_INVALID');
+        if (!(file.type === 'application/pdf' || /^image\/[a-z0-9.+-]+$/i.test(file.type))) throw new Error('EVIDENCE_FILE_TYPE_INVALID');
         const resourceType = file.type === 'application/pdf' ? 'auto' : 'image';
         const form = new FormData();
         form.append('file', file);
@@ -3465,6 +3618,7 @@
         const transaction = state.transactions.find(row => row.id === transactionId && !row.deleted_at);
         if (!transaction) throw new Error('TRANSACTION_NOT_FOUND');
         const now = Utils.now();
+        const fileHash = await Utils.sha256Bytes(new Uint8Array(await file.arrayBuffer()));
         const evidence = {
           id: Utils.uuid(), business_id: transaction.business_id, evidence_document_id: null,
           source_transaction_id: transaction.id, storage_provider: 'cloudinary',
@@ -3472,7 +3626,7 @@
           secure_url: uploadResult.secure_url || null,
           thumbnail_url: CloudinaryAdapter.thumbnailUrl(uploadResult.secure_url, uploadResult.resource_type),
           original_filename: file.name || null, mime_type: file.type || null,
-          file_size: uploadResult.bytes || file.size || null, file_hash: null,
+          file_size: uploadResult.bytes || file.size || null, file_hash: fileHash,
           page_count: uploadResult.pages || null, preview_status: 'ready',
           future_ocr_text: null, manual_summary: null, future_ai_summary: null, future_ai_status: 'not_configured',
           upload_status: 'uploaded', delete_status: null,
@@ -3529,6 +3683,61 @@
             '증빙 원본 파일은 Cloudinary에 별도 보관되며, 이 JSON에는 원본 링크·public_id·해시 등 증빙대장 메타데이터만 포함됩니다.'
           ]
         });
+      },
+
+      async exportEvidenceArchive(password) {
+        const evidenceRows = await storage.getAll('evidence_files');
+        return EvidenceArchive.create(evidenceRows, password);
+      },
+
+      async restoreEvidenceArchive(envelope, password) {
+        this.assertWritable();
+        if (!CloudinaryAdapter.isConfigured()) throw new Error('CLOUDINARY_NOT_CONFIGURED');
+        const payload = await EvidenceArchive.decryptEnvelope(envelope, password);
+        const currentRows = await storage.getAll('evidence_files');
+        const currentById = new Map(currentRows.filter(row => !row.deleted_at).map(row => [row.id, row]));
+        if (payload.items.some(item => !currentById.has(item.evidenceId))) throw new Error('EVIDENCE_ARCHIVE_LEDGER_MISMATCH');
+
+        const uploads = [];
+        try {
+          for (const item of payload.items) {
+            const file = new File([item.bytes], item.originalFilename, { type: item.mimeType, lastModified: Date.now() });
+            const result = await CloudinaryAdapter.upload(file);
+            if (!result?.secure_url || !result?.public_id) throw new Error('EVIDENCE_ARCHIVE_UPLOAD_RESPONSE_INVALID');
+            uploads.push({ item, result });
+          }
+        } catch (error) {
+          throw new Error(`EVIDENCE_ARCHIVE_UPLOAD_PARTIAL:${uploads.length}:${error.message}`);
+        }
+
+        const now = Utils.now();
+        const evidenceUpdates = [];
+        const audits = [];
+        const queueRows = [];
+        for (const { item, result } of uploads) {
+          const before = currentById.get(item.evidenceId);
+          const updated = {
+            ...before,
+            storage_provider: 'cloudinary', cloudinary_public_id: result.public_id || null,
+            resource_type: result.resource_type || (item.mimeType === 'application/pdf' ? 'raw' : 'image'),
+            secure_url: result.secure_url || null,
+            thumbnail_url: CloudinaryAdapter.thumbnailUrl(result.secure_url, result.resource_type),
+            original_filename: item.originalFilename, mime_type: item.mimeType,
+            file_size: result.bytes || item.size, file_hash: item.sha256,
+            page_count: result.pages || before.page_count || null, preview_status: 'ready', upload_status: 'uploaded',
+            delete_status: null, updated_at: now
+          };
+          const audit = this.audit('evidence_file', updated.id, 'restore_original',
+            { id: before.id, cloudinary_public_id: before.cloudinary_public_id },
+            { id: updated.id, cloudinary_public_id: updated.cloudinary_public_id, file_hash: updated.file_hash },
+            '암호화 증빙 원본 아카이브 복원');
+          evidenceUpdates.push(updated); audits.push(audit);
+          queueRows.push(this.queue('evidence_files', updated), this.queue('audit_logs', audit));
+        }
+        try { await storage.putMany({ evidence_files: evidenceUpdates, audit_logs: audits, sync_queue: queueRows }); }
+        catch (error) { throw new Error(`EVIDENCE_ARCHIVE_UPLOAD_PARTIAL:${uploads.length}:${error.message}`); }
+        await this.reload();
+        return { restored: evidenceUpdates.length, totalBytes: payload.totalBytes };
       },
 
       // 백업 파일 안에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes 같은 이 기기
@@ -3956,6 +4165,13 @@
       if (code.includes('ALLOWLIST_OWNER_PROTECTED')) return '소유자 계정은 차단할 수 없습니다.';
       if (code.includes('CANONICAL_OWNER_ONLY')) return '최종본 지정은 소유자 계정만 할 수 있습니다.';
       if (code.includes('EMPTY_CLOUD_GUARD')) return '클라우드에서 회계자료를 받지 못해(권한·연결 문제 가능) 로컬 데이터를 지키려고 최종본 적용을 중단했습니다. 로그인과 연결을 확인한 뒤 다시 시도해 주세요.';
+      if (code.includes('EVIDENCE_ARCHIVE_PASSWORD_INVALID')) return '증빙 아카이브 비밀번호는 10자 이상으로 입력해 주세요.';
+      if (code.includes('EVIDENCE_ARCHIVE_PASSWORD_OR_CORRUPT')) return '비밀번호가 다르거나 증빙 아카이브가 손상되어 복원하지 않았습니다.';
+      if (code.includes('EVIDENCE_ARCHIVE_LEDGER_MISMATCH')) return '증빙 ID가 현재 장부와 맞지 않습니다. 장부 JSON을 먼저 복원해 주세요.';
+      if (code.includes('EVIDENCE_ARCHIVE_UPLOAD_PARTIAL')) return '일부 원본이 Cloudinary에 올라갔지만 장부는 바꾸지 않았습니다. 연결 설정을 확인한 뒤 다시 시도해 주세요.';
+      if (code.includes('EVIDENCE_ARCHIVE_')) return '증빙 원본 아카이브의 형식·크기·무결성을 확인할 수 없어 작업하지 않았습니다.';
+      if (code.includes('EVIDENCE_FILE_SIZE_INVALID')) return '증빙 파일은 1바이트 이상 20MB 이하만 업로드할 수 있습니다.';
+      if (code.includes('EVIDENCE_FILE_TYPE_INVALID')) return '증빙 파일은 이미지 또는 PDF만 업로드할 수 있습니다.';
       if (code.includes('CLOUDINARY_NOT_CONFIGURED')) return 'Cloudinary cloud name과 unsigned preset을 먼저 설정해 주세요.';
       if (code.includes('CLOUDINARY_')) return '증빙 업로드에 실패했습니다. Cloudinary 설정과 unsigned preset 허용 형식을 확인해 주세요.';
       if (code.includes('REMOTE_409')) return '이미 허용 목록에 있는 이메일이거나 중복된 값입니다.';
@@ -5093,6 +5309,7 @@
 
     function renderData() {
       const activeCount = activeTransactions().length;
+      const activeEvidenceCount = state.evidenceFiles.filter(row => !row.deleted_at).length;
       const connected = Boolean(state.session && state.allowedUser);
       const owner = isBootstrapOwner();
       const lastSync = state.config.lastSyncAt ? new Date(state.config.lastSyncAt).toLocaleString('ko-KR') : '없음';
@@ -5116,6 +5333,10 @@
             state.config.lastBackupAt ? badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'), 'success') : badge('백업 없음', 'warning'),
             `<strong>클라우드에서 백업</strong>은 정본(Supabase)의 단일 DB 스냅샷에서 만듭니다. 두 백업 모두 복원 한도(25MB·테이블당 5만·전체 20만 행)와 SHA-256 무결성 검사를 통과해야 생성됩니다.<br>증빙 원본은 Cloudinary에 별도 보관되며 JSON에는 링크·public_id·해시를 포함한 증빙대장만 들어갑니다.`,
             `<button class="button primary" id="dataCloudBackupButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud-download')}클라우드에서 백업</button><button class="button" id="dataBackupButton" type="button">${icon('download')}이 기기 백업</button>`)}
+          ${dataCard('증빙 원본 독립 보관', 'Cloudinary 장애에도 원본을 복구할 수 있는 별도 암호화 파일입니다.',
+            state.config.lastEvidenceArchiveAt ? badge(new Date(state.config.lastEvidenceArchiveAt).toLocaleString('ko-KR'), 'success') : badge(`${activeEvidenceCount}개`, activeEvidenceCount ? 'info' : 'warning'),
+            `<strong>장부 JSON을 먼저 백업하고 이 파일도 함께 보관하세요.</strong> 이미지·PDF 원본을 AES-256-GCM으로 암호화하며, 비밀번호는 앱·파일 어디에도 저장하지 않습니다. 복원은 장부 JSON을 먼저 복원한 뒤 실행하고 현재 Cloudinary unsigned preset으로 새 원본을 올립니다.<div class="field" style="margin-top:12px"><label for="evidenceArchivePassword">아카이브 비밀번호</label><input class="input" id="evidenceArchivePassword" type="password" minlength="${EVIDENCE_ARCHIVE_LIMITS.minPasswordLength}" maxlength="${EVIDENCE_ARCHIVE_LIMITS.maxPasswordLength}" autocomplete="new-password" placeholder="10자 이상 · 잊으면 복구할 수 없습니다"><div class="field-help">최대 원본 500개·개별 20MB·전체 100MB. 비밀번호 분실 시 앱도 복호화할 수 없습니다.</div></div>`,
+            `<button class="button primary" id="dataEvidenceArchiveExportButton" type="button" ${activeEvidenceCount ? '' : 'disabled'}>${icon('archive')}원본 암호화 백업</button><button class="button" id="dataEvidenceArchiveRestoreButton" type="button" ${CloudinaryAdapter.isConfigured() ? '' : 'disabled'}>${icon('archive-restore')}원본 복원·재업로드</button><input id="dataEvidenceArchiveRestoreFile" type="file" accept="application/json,.json,.bjea" hidden>`)}
           ${dataCard('복원', '백업 파일로 데이터를 되돌립니다.',
             badge('주의', 'warning'),
             '파일의 필수값·참조·복식부기 균형·SHA-256을 먼저 검사하고 변경 건수를 보여준 뒤, 모든 저장소를 한 번에 교체합니다. "이 기기만 복원"은 대기열을 격리해 클라우드에 업로드하지 않습니다.' + (owner ? ' 다른 기기에도 반영하려면 "복원 후 모든 기기에 반영"을 쓰세요.' : ''),
@@ -5753,6 +5974,30 @@
           state.config.lastBackupAt = Utils.now(); ConfigAdapter.save(state.config); toast('클라우드 백업 파일을 만들었습니다.','success'); render();
         } catch(error){ diagnostic(error); }
       });
+      el('dataEvidenceArchiveExportButton')?.addEventListener('click', async () => {
+        const password = el('evidenceArchivePassword')?.value || '';
+        if (!confirm('증빙 원본을 비밀번호로 암호화해 내려받습니다. 비밀번호를 잊으면 누구도 복구할 수 없습니다. 계속하시겠습니까?')) return;
+        try {
+          const archive = await AppService.exportEvidenceArchive(password);
+          const blob = new Blob([JSON.stringify(archive)], { type: 'application/vnd.bareunjangbu.evidence-archive+json' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `bareunjangbu-evidence-originals-${Utils.today()}-v${APP_INFO.version}.bjea`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          state.config.lastEvidenceArchiveAt = Utils.now(); ConfigAdapter.save(state.config);
+          toast('증빙 원본 암호화 아카이브를 만들었습니다. 장부 JSON과 함께 보관하세요.', 'success'); render();
+        } catch (error) { diagnostic(error); }
+      });
+      el('dataEvidenceArchiveRestoreButton')?.addEventListener('click', () => el('dataEvidenceArchiveRestoreFile').click());
+      el('dataEvidenceArchiveRestoreFile')?.addEventListener('change', async event => {
+        const file = event.target.files?.[0]; if (!file) return;
+        try {
+          if (file.size > EVIDENCE_ARCHIVE_LIMITS.maxEncryptedBytes) throw new Error('EVIDENCE_ARCHIVE_SIZE_LIMIT_EXCEEDED');
+          const password = el('evidenceArchivePassword')?.value || '';
+          const envelope = JSON.parse(await file.text());
+          if (!confirm('현재 장부의 같은 증빙 ID에 원본을 다시 연결하고 Cloudinary로 재업로드합니다. 장부 JSON을 먼저 복원했는지 확인하세요. 계속하시겠습니까?')) return;
+          const result = await AppService.restoreEvidenceArchive(envelope, password);
+          toast(`증빙 원본 ${result.restored}개를 검증하고 다시 연결했습니다.`, 'success'); render();
+        } catch (error) { diagnostic(error); }
+        finally { event.target.value = ''; }
+      });
       el('dataRestoreButton')?.addEventListener('click', () => el('dataRestoreFile').click());
       el('dataRestoreFile')?.addEventListener('change', async event => {
         const file = event.target.files?.[0]; if (!file) return;
@@ -5889,7 +6134,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, SupabaseAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, EvidenceArchive, SupabaseAdapter, CloudinaryAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, EVIDENCE_ARCHIVE_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>

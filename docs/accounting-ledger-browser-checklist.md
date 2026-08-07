@@ -1,8 +1,8 @@
 # Accounting Ledger 브라우저 수동 체크리스트
 
-> 개정 2026-08-07 · 대상 앱 버전 `0.68`
+> 개정 2026-08-07 · 대상 앱 버전 `0.69`
 
-이 문서는 하네스의 `browser-roundtrip`(MANUAL) 게이트와 `CLAUDE.md` 검증 절차 6단계가 가리키는 **반복 실행용 시나리오 목록**이다. 자동 브라우저 러너가 도입되기 전까지, `index.html`을 실제로 바꾼 릴리스에서는 아래를 데스크톱과 모바일 폭에서 실행하고 결과(통과/실패/미확인)를 `docs/accounting-ledger-harness-baseline.md`에 남긴다.
+이 문서는 자동화된 Required `browser-roundtrip`과 실계정·실기기에서만 확인 가능한 수동 시나리오를 함께 관리한다. 증빙 원본 암호화 왕복의 핵심 데이터 계약은 실제 Chromium으로 매 하네스 실행마다 검증하며, 화면 배치·운영 계정·실기기 항목은 아래 체크리스트 결과를 별도로 남긴다.
 
 실행 방법: `index.html`을 브라우저로 연다(정적 파일이라 서버 불필요). 운영 확인은 `https://hanwha27-tdtu.github.io/Accounting_ledger/`에서 한다. 개발자 도구 콘솔을 열어 둔다.
 
@@ -368,3 +368,12 @@ owner(`hanwha27@gmail.com`)로 로그인:
 - [ ] 클라우드 백업은 `accounting_export_snapshot` 결과를 쓰고 증빙 원본 미포함 경계를 화면과 JSON `evidenceArchive`에서 확인할 수 있다.
 - [x] 더 최신 cloud row와 오래된 local queue payload가 충돌하면 cloud 값이 유지되고 queue는 `superseded_by_remote`가 된다. **실제 `SyncAlgorithms.planQueueAgainstCloud` 회귀 테스트로 검증됨; 운영 로그인 왕복은 별도.**
 - [ ] canonical expected version이 어긋난 동시 발행은 `CANONICAL_VERSION_CONFLICT`로 전체 rollback되며, 정상 발행은 version과 모든 표 변경이 한 번에 보인다.
+
+## 20. 증빙 원본 암호화 독립 보관 (0.69)
+
+- [x] 실제 Chromium에서 활성 증빙 원본을 Cloudinary delivery URL로 내려받아 `.bjea`로 다운로드하며 파일명에 v0.69가 포함된다. **Required `browser-roundtrip` 자동 검증.**
+- [x] 외부 envelope에는 원본 파일명과 원본 base64가 평문으로 포함되지 않고 AES-256-GCM·PBKDF2-SHA-256 프로필만 공개된다.
+- [x] 틀린 비밀번호와 한 글자 변조한 ciphertext는 Cloudinary upload 0회 상태로 차단되고 기존 `evidence_files.secure_url`이 유지된다.
+- [x] 정상 아카이브는 Cloudinary에 원본을 정확히 1회 재업로드하고, 새 public_id/secure_url·SHA-256·감사로그·동기화 queue를 원자 반영한다.
+- [x] CSP가 `res.cloudinary.com` delivery fetch를 허용하며 해당 connect-src 위반 콘솔 오류가 없다.
+- [ ] 실제 운영 Cloudinary preset으로 이미지와 PDF 각각 백업·다른 브라우저 프로필 복원을 실행해 provider의 CORS·용량 정책을 확인한다. 자동 게이트는 외부 과금·자격증명 없이 같은 앱 경로를 mock한다.

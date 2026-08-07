@@ -37,7 +37,8 @@ function loadApp() {
     navigator: { onLine: true }, location: { hash: '#dashboard', origin: 'http://x', pathname: '/', href: 'http://x/' },
     localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
     indexedDB: { open: () => ({}) },
-    crypto: webcrypto, console, setTimeout, clearTimeout, setInterval, clearInterval, Intl, Date, Math, JSON
+    crypto: webcrypto, console, setTimeout, clearTimeout, setInterval, clearInterval, Intl, Date, Math, JSON,
+    TextEncoder, TextDecoder, Blob, File, URL, btoa, atob
   };
   vm.runInNewContext(script, sandbox, { timeout: 5000 });
   const api = windowStub.__ACCOUNTING_APP_TEST__;
@@ -647,6 +648,58 @@ function removeEvidence(evidenceFiles, transactions, id) {
   ok(api.Utils.wonKorean(300000000) === '3억원', 'Utils.wonKorean: 3억원 정각은 만원 단위 생략');
   ok(api.Utils.wonKorean(149700) === '14만 9,700원', 'Utils.wonKorean: 149,700 -> "14만 9,700원"(억 단위 없음)');
   ok(api.Utils.wonKorean(0) === '0원', 'Utils.wonKorean: 0 -> "0원"');
+}
+
+// 증빙 원본 독립 아카이브(0.69) — 실제 앱의 Web Crypto 구현으로 암호화·복호화·무결성 경계를 검증한다.
+if (api) {
+  const EA = api.EvidenceArchive;
+  const password = 'correct horse battery staple';
+  const original = new TextEncoder().encode('%PDF-1.7\nindependent-evidence');
+  const evidenceId = '11111111-1111-4111-8111-111111111111';
+  const sourceUrl = 'https://res.cloudinary.com/demo/raw/upload/v1/receipt.pdf';
+  let fetchOptions;
+  const fetchOriginal = async (_url, options) => {
+    fetchOptions = options;
+    return ({
+    ok: true, status: 200, url: sourceUrl,
+    headers: { get: name => name.toLowerCase() === 'content-type' ? 'application/pdf' : null },
+    arrayBuffer: async () => original.slice().buffer
+    });
+  };
+  const envelope = await EA.create([{
+    id: evidenceId, secure_url: sourceUrl, original_filename: 'receipt.pdf', mime_type: 'application/pdf',
+    file_hash: null, deleted_at: null
+  }], password, fetchOriginal);
+  ok(envelope.archiveSchemaVersion === '0.01' && envelope.encryption.algorithm === 'AES-256-GCM', 'EvidenceArchive: 0.01 AES-256-GCM envelope 생성');
+  ok(fetchOptions.redirect === 'error' && fetchOptions.credentials === 'omit', 'EvidenceArchive: Cloudinary 원본 fetch는 redirect·credential 전달을 차단');
+  ok(!JSON.stringify(envelope).includes('independent-evidence') && !JSON.stringify(envelope).includes('receipt.pdf'), 'EvidenceArchive: 암호화 envelope에 원본 내용·파일명이 평문으로 노출되지 않음');
+  const opened = await EA.decryptEnvelope(envelope, password);
+  ok(opened.itemCount === 1 && opened.items[0].evidenceId === evidenceId, 'EvidenceArchive: 올바른 비밀번호로 증빙 ID와 항목 수 복원');
+  ok(new TextDecoder().decode(opened.items[0].bytes) === new TextDecoder().decode(original), 'EvidenceArchive: 원본 바이트 왕복 일치');
+  ok(opened.items[0].sha256 === await api.Utils.sha256Bytes(original), 'EvidenceArchive: 원본 SHA-256 저장·검증');
+  let wrongPassword = false;
+  try { await EA.decryptEnvelope(envelope, 'this password is wrong'); } catch (error) { wrongPassword = error.message === 'EVIDENCE_ARCHIVE_PASSWORD_OR_CORRUPT'; }
+  ok(wrongPassword, 'EvidenceArchive: 잘못된 비밀번호는 복호화 전에 안전하게 차단');
+  const corrupted = { ...envelope, ciphertext: `${envelope.ciphertext.slice(0, -4)}AAAA` };
+  let corruptBlocked = false;
+  try { await EA.decryptEnvelope(corrupted, password); } catch (error) { corruptBlocked = /EVIDENCE_ARCHIVE_(CIPHERTEXT_MISMATCH|PASSWORD_OR_CORRUPT)/.test(error.message); }
+  ok(corruptBlocked, 'EvidenceArchive: ciphertext 변조 차단');
+  let badUrlBlocked = false;
+  try { await EA.create([{ id: evidenceId, secure_url: 'https://example.com/private.pdf', original_filename: 'receipt.pdf', mime_type: 'application/pdf' }], password, fetchOriginal); }
+  catch (error) { badUrlBlocked = error.message === 'EVIDENCE_ARCHIVE_SOURCE_URL_INVALID'; }
+  ok(badUrlBlocked, 'EvidenceArchive: res.cloudinary.com 이외 원본 fetch 차단');
+  let credentialUrlBlocked = false;
+  try { await EA.create([{ id: evidenceId, secure_url: 'https://user:pass@res.cloudinary.com/demo/raw/upload/v1/receipt.pdf', original_filename: 'receipt.pdf', mime_type: 'application/pdf' }], password, fetchOriginal); }
+  catch (error) { credentialUrlBlocked = error.message === 'EVIDENCE_ARCHIVE_SOURCE_URL_INVALID'; }
+  ok(credentialUrlBlocked, 'EvidenceArchive: Cloudinary URL 내 자격증명 차단');
+  const mismatchedCountEnvelope = await EA.encryptPayload({ ...opened, itemCount: 2, items: opened.items.map(({ bytes, ...item }) => ({ ...item, dataBase64: api.Utils.bytesToBase64(bytes) })) }, password);
+  let mismatchedCountBlocked = false;
+  try { await EA.decryptEnvelope(mismatchedCountEnvelope, password); } catch (error) { mismatchedCountBlocked = error.message === 'EVIDENCE_ARCHIVE_SIZE_MISMATCH'; }
+  ok(mismatchedCountBlocked, 'EvidenceArchive: 인증된 payload 내부의 itemCount·totalBytes 불일치도 차단');
+  let shortPasswordBlocked = false;
+  try { await EA.create([{ id: evidenceId, secure_url: sourceUrl, original_filename: 'receipt.pdf', mime_type: 'application/pdf' }], 'short', fetchOriginal); }
+  catch (error) { shortPasswordBlocked = error.message === 'EVIDENCE_ARCHIVE_PASSWORD_INVALID'; }
+  ok(shortPasswordBlocked, 'EvidenceArchive: 10자 미만 비밀번호 차단');
 }
 
 // 안드로이드 셸(0.50) — WebUpdateService(재설치 없는 자동 갱신)와 CapacitorShell(OAuth 딥링크)의

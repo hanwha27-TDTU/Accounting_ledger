@@ -133,6 +133,7 @@ addGate('project-contract', 'REQUIRED', () => {
     'AGENTS.md',
     'CLAUDE.md',
     'package.json',
+    'package-lock.json',
     'scripts/harness-check.mjs',
     '.github/workflows/harness.yml',
     'docs/accounting-ledger-harness-baseline.md',
@@ -144,6 +145,7 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/skills/accounting-legal-basis-reference-skill.md',
     'scripts/tests/logic.test.mjs',
     'scripts/tests/app-audit.test.mjs',
+    'scripts/tests/browser-roundtrip.test.mjs',
     'scripts/tests/gate-controls.test.mjs',
     'docs/skills/accounting-domain-guardians-skill.md',
     'docs/skills/accounting-code-architecture-guardians-skill.md',
@@ -183,6 +185,7 @@ addGate('browser-dependency-integrity', 'REQUIRED', () => {
   hasRequiredText(html, 'vendor/lucide-0.468.0.min.js', 'index.html');
   hasRequiredText(html, 'vendor/supabase-js-2.110.2.js', 'index.html');
   hasRequiredText(html, 'Content-Security-Policy', 'index.html');
+  hasRequiredText(html, "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://res.cloudinary.com", 'index.html');
   if (/https:\/\/(?:unpkg\.com|cdn\.jsdelivr\.net)\//i.test(html)) throw new Error('index.html must not execute browser dependencies from a public CDN');
   const expected = {
     'vendor/lucide-0.468.0.min.js': '3411692820CB8D47543F69496AA25FD603A358F4498046F41C508A5A3342210E',
@@ -664,11 +667,26 @@ addGate('gate-controls', 'REQUIRED', () => {
   }
 });
 
-addGate('browser-roundtrip', 'MANUAL', () => {
-  if (!existsSync(absolute('index.html'))) {
-    return { status: 'MANUAL', detail: 'no runtime file or browser test runner exists yet' };
+addGate('browser-roundtrip', 'REQUIRED', () => {
+  const testPath = absolute('scripts/tests/browser-roundtrip.test.mjs');
+  if (!existsSync(testPath)) throw new Error('browser round-trip runner is missing');
+  try {
+    const out = execFileSync(process.execPath, ['scripts/tests/browser-roundtrip.test.mjs'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 60_000
+    });
+    const summary = out.match(/BROWSER ROUNDTRIP: (\d+) passed, (\d+) failed/);
+    if (!summary) throw new Error('browser round-trip output not recognized');
+    if (summary[2] !== '0') throw new Error(summary[0]);
+    return { detail: `${summary[1]} real-browser backup, tamper rejection and restore assertions passed` };
+  } catch (error) {
+    const combined = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    const firstFail = combined.match(/FAIL:.*/);
+    const summary = combined.match(/BROWSER ROUNDTRIP: \d+ passed, \d+ failed/);
+    throw new Error(summary ? `${summary[0]}${firstFail ? ` (${firstFail[0].trim()})` : ''}` : (error.message || 'browser round-trip failed'));
   }
-  return { status: 'MANUAL', detail: 'run the browser round-trip checklist until a browser test runner is added' };
 });
 
 if (listRequired) {

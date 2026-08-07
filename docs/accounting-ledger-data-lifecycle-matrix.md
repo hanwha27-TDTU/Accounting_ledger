@@ -1,6 +1,6 @@
 # Accounting Ledger 데이터 도메인 × 생명주기 매트릭스
 
-> 개정 2026-08-07 · 대상 앱 버전 `0.68`
+> 개정 2026-08-07 · 대상 앱 버전 `0.69`
 > 목적: 각 데이터 종류(도메인)가 생명주기 노드(로컬저장·로드·백업·복원·동기화 push·merge·최종본·삭제→tombstone·개수/버전)에 빠짐없이 배선됐는지 한눈에 보고, "다른 도메인엔 있는 노드가 특정 도메인만 조용히 빠진" 버그 클래스를 원천 차단한다. 새 동기화 도메인을 추가하면 이 표에도 반드시 추가한다(하네스 `data-lifecycle-matrix` 게이트가 강제).
 
 범례: ✓ 배선됨 · ✗ 미배선(gap) · ⊘ 데이터 클래스상 의도적 제외
@@ -31,7 +31,7 @@
 | source_transactions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 기준 도메인(전 노드). 0.60부터 원화 전기액(`total_amount`)과 원통화·원금액·환율 증거를 같은 행에 보존한다. legacy `foreign_*`는 구버전 클라이언트 호환용으로 함께 읽고 쓴다 |
 | journal_entries | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
 | journal_entry_lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 거래와 동반 삭제 |
-| evidence_files | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 0.12에서 증빙 제거(soft-delete+tombstone) 배선. Cloudinary 원본 삭제는 서명 필요라 후속 |
+| evidence_files | ✓ | ✓ | ✓(메타+별도 원본) | ✓(메타+별도 원본) | ✓ | ✓ | ✓ | ✓ | 0.12에서 증빙 제거(soft-delete+tombstone) 배선. 0.69에서 장부 JSON 메타와 별도 AES-256-GCM 원본 아카이브를 추가했다. 원본 복원은 동일 id 확인→Cloudinary 재업로드→메타·audit·queue 원자 갱신. Cloudinary 원본 삭제는 서명 필요라 후속 |
 | audit_logs | ✓ | ✓ | ✓ | ✓ | ✓(append) | ✓ | ✓ | ⊘ | append-only |
 | period_closings | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⊘ | 0.37에서 마감·마감해제 실동작 배선(`AppService.closePeriod`/`reopenPeriod`, `AccountingDomain.isDateClosed`가 저장·삭제를 실제로 막음). 삭제→tombstone은 의도적 제외 — 재개방은 행 삭제가 아니라 `status`를 다시 `'open'`으로 되돌리는 갱신이라 마감 이력(`closed_at`/`reopened_at`)이 감사 기록으로 남는다 |
 | tombstones | ✓ | ✗ | ✓ | ✓ | ✓ | ✓(apply) | ✓(apply) | ⊘ | 삭제 신호 자체 |
@@ -51,6 +51,7 @@
 - 삭제는 hard delete 금지: `deleted_at` + tombstone. 병합은 updated_at 최신 승리라 삭제(갱신된 updated_at)가 오래된 활성 행을 이긴다.
 - 백업은 `LOCAL_STORES` 기반이라 새 도메인이 자동 포함되고, tombstones·schemaVersion·canonicalVersion을 함께 담는다.
 - 0.68 백업 스키마는 0.04다. 신규 백업은 생성/복원 공통 상한과 SHA-256, 필수 필드·참조·복식부기 균형 사전검증, 변경 건수 미리보기, 전체 store 단일 IndexedDB transaction을 사용한다. 기존 0.01~0.03 백업도 읽되 파일에 없던 저장소는 보존하고, `sync_queue`는 어떤 버전에서도 자동 재활성화하지 않는다.
+- 0.69 증빙 원본은 JSON에 합치지 않는다. 별도 `.bjea` 아카이브가 활성 증빙 전체의 원본과 개별 SHA-256을 암호화하며, JSON 장부 복원 후 같은 evidence id가 전부 존재할 때만 현재 Cloudinary preset으로 재업로드한다. 이 때문에 backup schema는 0.04를 유지한다.
 - 환율 캐시는 canonical·백업 대상이 아니다. 각 기기가 CBU 같은 날짜의 공개 스냅샷을 다시 받을 수 있는 참조 데이터이고, 감사에 필요한 실제 적용환율·기준일·출처는 동기화되는 거래·고정지출 행 자체에 고정한다.
 - 0.68부터 `accounting_export_snapshot()`이 클라우드 표·tombstone·canonical version을 한 statement snapshot으로 반환하고, 로컬 snapshot도 모든 store를 한 readonly transaction에서 읽는다. `restoreBackup`은 누락 store를 보존하되 현재 pending queue를 격리해 “이 기기만 복원”이 나중에 클라우드를 바꾸지 않게 한다.
 - 일반 동기화는 cloud-first LWW다. 클라이언트가 먼저 최신 원격 행과 queue payload를 비교하고, DB `set_updated_at` trigger도 더 오래되거나 같은 `updated_at`의 UPDATE를 무시한다. 정본 발행은 `accounting_publish_canonical()` 한 transaction에서 expected canonical version을 `FOR UPDATE`로 잠그고 부모→자식 upsert, tombstone, 자식→부모 delete, version 갱신을 함께 commit한다.

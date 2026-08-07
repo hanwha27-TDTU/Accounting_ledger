@@ -1,4 +1,4 @@
-> **Sub_harness-quality-gate_0.08** · 개정 2026-08-07
+> **Sub_harness-quality-gate_0.09** · 개정 2026-08-07
 
 # Accounting Ledger Harness Quality Gate Skill
 
@@ -45,8 +45,11 @@
 | install-playbook-sync | 앱 설치 안내와 생성 플레이북 바이트 일치 |
 | app-audit | 접근성·저장 안내·증빙 HTTPS, 서명 APK, Android 백업, 백업/XLSX 자원 상한, tenant 보안 마이그레이션 회귀 |
 | gate-controls | 모든 Required 게이트의 정상 대조군과 격리 결함 주입 대조군 |
+| browser-roundtrip | 실제 Chromium·IndexedDB·Web Crypto·다운로드/파일 입력으로 증빙 원본 export, 변조 차단, 복원 재업로드 원자 갱신 |
 
 `gate-controls`는 `--list-required`에서 모집단을 동적으로 읽는다. Required 게이트를 추가하면서 결함 주입 대조군을 등록하지 않으면 이 게이트 자체가 실패하므로, 검사가 이름만 있고 실제로는 늘 초록인 상태를 허용하지 않는다.
+
+Quality CI는 `npm ci` 후 Playwright Chromium을 설치하고 같은 하네스를 실행한다. 공식 JavaScript Action은 immutable commit SHA에 고정하고, Node 24 런타임 기반 action 세대를 사용한다.
 
 ## 폐기 변경 게이트
 

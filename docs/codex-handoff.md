@@ -1,13 +1,13 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 개정 2026-08-07 · 작업 트리 앱 버전 `0.68` · 공개 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
+> 개정 2026-08-07 · 작업 트리 앱 버전 `0.69` · 공개 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 > 전역 공용 스킬은 private 정본 승인 커밋 `268126d`에 고정되어 있다. 해시 잠금은 `schemas/codex-shared-skills-lock.json`, 프로젝트 릴리스 프로필은 `schemas/accounting-ledger-release-profile.json`이며 공개 저장소에는 스킬 본문을 커밋하지 않는다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **작업 릴리스는 0.68**이다. 백업 0.04는 원자 snapshot/restore, SHA-256, 대칭 자원상한, 관계·전표검증, 미리보기와 queue 격리를 사용한다. 일반 동기화는 cloud-first LWW이고 DB trigger도 stale update를 거부한다. canonical 발행과 cloud backup은 각각 CAS transaction RPC와 statement snapshot RPC다. schema 0.08 migration은 익명 accounting grant도 명시적으로 회수한다. 최신 assertion·게이트·운영 배포 결과는 Git/CI/운영 read-back을 SSOT로 확인한다.
+- **작업 릴리스는 0.69**다. 0.68의 원자 JSON backup 0.04·cloud-first LWW·canonical CAS는 유지한다. 여기에 장부 JSON과 분리된 AES-256-GCM 증빙 원본 `.bjea` 백업과 검증 후 Cloudinary 재업로드 복원을 추가했다. 실제 Chromium 왕복 15 assertions가 `browser-roundtrip` Required 게이트로 실행되며 전체 Required는 20개다. schema 0.08·backup 0.04는 그대로이고 migration은 없다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
@@ -47,28 +47,30 @@
 4. **z-index**: 검증된 순서 scrim(35) < topbar(36) < sidebar(40) < 업데이트 배너(75) < modal(80) < tooltip(100) < toast(120).
 5. 업데이트 UX: 감지 시 **하단 배너 + [업데이트] 버튼**(자동 다운로드 강제 금지), 닫기는 세션 한정(영구 저장 금지 — 저장하면 설치 미룬 사용자가 영영 안내를 못 받는다).
 
-## 5. 하네스 게이트 18개 — `npm run harness:check` (전부 통과 전엔 완료 선언 금지)
+## 5. 하네스 게이트 20개 — `npm run harness:check` (전부 통과 전엔 완료 선언 금지)
 
 | 게이트 | 강제하는 것 |
 |---|---|
-| project-contract | 필수 파일 28개 존재(헌법·생성기·플레이북·공급망 잠금 포함) |
+| project-contract | 필수 프로젝트·테스트·lock 파일 존재(헌법·생성기·플레이북·공급망 잠금 포함) |
 | shared-skills-contract | 승인된 공통 커밋·내용 해시·프로젝트 릴리스 프로필·주입증명 |
 | browser-dependency-integrity | 로컬 vendor 2개 SHA-256·CSP 고정, CDN 실행 금지 |
 | workflow-action-pins | GitHub Actions 참조를 40자리 commit SHA로 고정 |
 | instruction-contract | AGENTS.md/CLAUDE.md에 동기화·보안·하네스 핵심 문구 존재 |
 | adapter-parity | CLAUDE.md·AGENTS.md가 `docs/CONSTITUTION.md` 생성 결과와 바이트 일치 |
-| migration-contract | 마이그레이션 11파일 + RLS/tenant 역할/canonical·tombstone·로컬 전용 queue·고정지출·다중통화 마커 |
+| migration-contract | 마이그레이션 history + RLS/tenant 역할/canonical·tombstone·원격 queue 퇴역·고정지출·다중통화 마커 |
 | tracked-scope-and-secrets | 참고자료 원본·비밀값류 커밋 금지 |
 | git-diff-integrity | 공백 오류 0 |
 | runtime-version-contract | `APP_INFO.version` +0.01 규칙, `최신 ·` 마커 1개, 버전 문자열 2회 |
 | data-lifecycle-matrix | 동기화 12개 도메인 문서화 |
-| logic-tests | 실제 앱 IIFE·`SyncAlgorithms`·`SupabaseAdapter`를 VM 로드해 240 assertion |
+| logic-tests | 실제 앱 IIFE·`SyncAlgorithms`·`SupabaseAdapter`·증빙 암호화를 VM 로드해 268 assertion |
 | term-ledger-contract | 세법 용어 39개 = `TAX_TERMS` ↔ 용어 원장 문서 일치 |
 | legal-ssot-contract | 법정 기준값·추계 배율이 코드 ↔ 법령 SSOT 문서 일치 |
 | concept-ledger-contract | 개념 원장 15개의 코드 anchor 실존 |
 | apk-link-contract | APK 링크·마커·감지 코드 3자 일치(위 4장) |
 | install-playbook-sync | 설치 플레이북 파일 = 앱 가이드 화면 (바이트 비교) |
-| browser-roundtrip (MANUAL) | 실브라우저 체크리스트(`docs/accounting-ledger-browser-checklist.md`) |
+| app-audit | 접근성·저장 안내·HTTPS 증빙·서명 APK·원자 복원 계약 정적 감사 |
+| gate-controls | 20개 Required 전체의 known-good/결함주입 감도 증명 |
+| browser-roundtrip | 실제 Chromium에서 증빙 원본 export·변조 차단·Cloudinary 재업로드·IndexedDB 원자 갱신 |
 
 새 게이트를 만들면 **일부러 깨서 FAIL 확인 → 바이트 동일 복구 → PASS 재확인**까지 해야 완료다(이 저장소의 규율).
 

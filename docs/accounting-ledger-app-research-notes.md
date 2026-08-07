@@ -1,8 +1,19 @@
-> **📌 Sub_app-research-notes_0.88** · 개정 2026-08-07
+> **📌 Sub_app-research-notes_0.89** · 개정 2026-08-07
 
 # Accounting Ledger App Research Notes
 
 이 문서는 회계장부 앱의 개발, 설계, 업데이트 이력을 남기는 연구노트다. 거래나 세무 판단 근거는 이 문서가 아니라 앱 내부 `decision_notes`에 남긴다.
+
+## 2026-08-07 앱 0.69: 증빙 원본 독립 보관·실브라우저 Required 게이트
+
+| 항목 | 결정·검증 |
+|---|---|
+| 증빙 원본 독립 보관 | 장부 JSON과 분리한 `.bjea` 파일을 추가했다. Cloudinary delivery URL의 활성 이미지/PDF를 모두 내려받아 개별 SHA-256을 확인하고, PBKDF2-SHA-256 310,000회로 만든 키와 AES-256-GCM으로 암호화한다. 비밀번호·평문 파일명·평문 원본은 외부 envelope에 저장하지 않는다. |
+| 복원 | 장부 JSON을 먼저 복원해 동일 증빙 ID가 존재하는 경우만 허용한다. 비밀번호·암호문·개별 해시·개수·용량을 검증한 뒤 현재 제한형 unsigned preset으로 재업로드하고, 모두 성공한 경우에만 `evidence_files` 메타데이터·감사로그·동기화 큐를 하나의 IndexedDB transaction으로 갱신한다. 브라우저에서 이미 올라간 Cloudinary 파일은 rollback할 수 없으므로 중간 업로드 실패 시 장부는 보존하고 orphan 가능성을 명시한다. |
+| 자원·보안 경계 | 이미지/PDF만 허용하고 개별 20MB, 전체 원본 100MB, 이중 base64 오버헤드를 포함한 암호화 파일 190MB, 최대 500개로 제한한다. Cloudinary delivery fetch를 위해 CSP `connect-src`에 `res.cloudinary.com`을 명시하고, source URL은 자격증명·비표준 포트·redirect가 없는 HTTPS Cloudinary upload 경로로 제한한다. 신규 첨부도 SHA-256을 기록한다. |
+| 실브라우저 게이트 | Playwright Chromium이 실제 IndexedDB·Web Crypto·Blob download·파일 input을 사용해 export, 평문 비노출, 틀린 비밀번호/암호문 변조 무업로드 차단, 정상 재업로드와 원자 메타 갱신을 15 assertions로 검증한다. `browser-roundtrip`을 Manual에서 20번째 Required로 승격하고 gate-controls가 19 positive·20 negative로 전 Required를 덮는다. |
+| CI 공급망 | Quality workflow는 `npm ci`와 Chromium 설치 후 하네스를 실행한다. checkout/setup-node/upload-artifact를 공식 Node 24 기반 v7 immutable SHA로 갱신했다. Android workflow 변경으로 main 반영 시 서명 APK 재발행 표면도 함께 검증한다. |
+| 버전·스키마 | 앱 0.68→0.69. schema 0.08·backup 0.04는 그대로이며 Supabase migration은 없다. `Sub_import-export_0.05`, `Sub_evidence-archive_0.02`, `Sub_harness-quality-gate_0.09`, `Sub_harness-baseline_0.09`, `Sub_app-research-notes_0.89`. |
 
 ## 2026-08-07 앱 0.68: 저장·백업·복원 전수감사 일괄 수정
 

@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync
 } from 'node:fs';
@@ -39,6 +40,8 @@ function copyFixture() {
   tracked.push(
     'scripts/tests/gate-controls.test.mjs',
     'scripts/tests/app-audit.test.mjs',
+    'scripts/tests/browser-roundtrip.test.mjs',
+    'package-lock.json',
     'supabase/migrations/20260807000900_harden_tenant_authorization_and_sync_boundaries.sql',
     'supabase/migrations/20260807113200_index_tombstones_owner_scope.sql',
     'supabase/migrations/20260807114500_drop_unused_remote_sync_queue.sql',
@@ -50,6 +53,9 @@ function copyFixture() {
     const target = path.join(fixtureRoot, relativePath);
     mkdirSync(path.dirname(target), { recursive: true });
     copyFileSync(source, target);
+  }
+  if (existsSync(path.join(sourceRoot, 'node_modules'))) {
+    symlinkSync(path.join(sourceRoot, 'node_modules'), path.join(fixtureRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   }
   run('git', ['init', '--quiet']);
   run('git', ['config', 'user.name', 'Gate Controls']);
@@ -156,7 +162,7 @@ const controls = new Map([
   ['browser-dependency-integrity', (m) => m.append('vendor/lucide-0.468.0.min.js', '\n// control mutation\n')],
   ['workflow-action-pins', (m) => m.replace(
     '.github/workflows/harness.yml',
-    'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',
+    'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
     'actions/checkout@v4'
   )],
   ['instruction-contract', (m) => m.replace('AGENTS.md', 'canonical_version', 'canonical-version-control', { all: true })],
@@ -207,6 +213,12 @@ const controls = new Map([
     'index.html',
     'aria-label="세법 용어 검색"',
     'aria-label=""'
+  )],
+  ['browser-roundtrip', (m) => m.replace(
+    'scripts/tests/browser-roundtrip.test.mjs',
+    'BROWSER ROUNDTRIP:',
+    'BROWSER ROUNDTRIP CONTROL:',
+    { all: true }
   )],
   // The suite cannot recursively run its own known-good path. Its positive result is the outer
   // gate-controls invocation; its negative path is still proven by removing the runner in a fixture.
