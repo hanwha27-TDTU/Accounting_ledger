@@ -1,4 +1,4 @@
-> **Sub_harness-quality-gate_0.07** · 개정 2026-08-07
+> **Sub_harness-quality-gate_0.08** · 개정 2026-08-07
 
 # Accounting Ledger Harness Quality Gate Skill
 
@@ -47,6 +47,14 @@
 | gate-controls | 모든 Required 게이트의 정상 대조군과 격리 결함 주입 대조군 |
 
 `gate-controls`는 `--list-required`에서 모집단을 동적으로 읽는다. Required 게이트를 추가하면서 결함 주입 대조군을 등록하지 않으면 이 게이트 자체가 실패하므로, 검사가 이름만 있고 실제로는 늘 초록인 상태를 허용하지 않는다.
+
+## 폐기 변경 게이트
+
+1. migration 계약은 파일별 중간 상태가 아니라 정렬된 전체 history의 최종 상태를 검사한다. 앞선 migration이 만든 객체를 후속 migration이 안전하게 퇴역시키는 것은 허용하되, 퇴역 표식이 없거나 다시 생성되면 실패시킨다.
+2. 데이터 객체를 제거하는 migration은 비어 있지 않을 때 중단하는 guard와 `CASCADE` 부재를 자동 검사한다. 의존성이 있으면 DB가 적용을 거부하게 둔다.
+3. 운영 적용 전 최신 변경 SHA의 Required 게이트 성공을 확인한다. 적용 뒤 테이블·정책·권한·schema metadata와 관련 Advisor를 되읽는 검증은 `Manual` 증거로 별도 기록한다.
+4. `unused_index` 같은 관측성 알림은 낮은 사용량을 뜻할 뿐 불필요성을 증명하지 않는다. 제약·쿼리·workload 근거 없이 인덱스를 제거하지 않는다.
+5. 삭제한 테스트가 잘못된 템플릿임을 증명하더라도, 해당 경로가 빌드·배포 필터에 포함되면 관련 산출물 게이트를 다시 실행한다.
 
 ## 런타임 도입 후 규칙
 
