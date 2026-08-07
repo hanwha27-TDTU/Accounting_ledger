@@ -124,6 +124,8 @@
     "이 저장소는 공개이고 공통 정본은 비공개이므로 공통 스킬 본문은 커밋·Pages 배포하지 않는다. 정본 스크립트가 만든 해시 잠금만 커밋하고, 본문 스냅샷·전역 설치 드리프트는 승인된 PC에서 --check-vendor와 --check-global로 검증한다.",
     "AGENTS.md와 CLAUDE.md는 docs/CONSTITUTION.md 생성물이며 데이터 안전·RLS·버전·배포 승인 규칙이 공통 기본값보다 우선한다.",
     "GitHub Pages는 main 전체 변경에 자동 반응하지만 Android APK는 android-shell 경로 변경에만, Supabase는 마이그레이션 변경과 별도 승인에만 반응한다.",
+    "2026-08-07 현재 main은 branch protection이 없으므로 Quality Harness는 정책상 필수 검사지만 GitHub가 merge를 강제 차단하지는 않는다. 릴리스 주체가 최신 PR 개정의 harness 성공을 직접 확인한 뒤에만 merge한다.",
+    "Android APK workflow는 signing secret이 없거나 실패하면 debug 서명으로 fallback하고 Quality Harness와 직렬화되지 않는다. 이번 변경은 android-shell 비영향이라 실행하지 않으며, 차기 Android 릴리스 전 별도 안전 강화가 필요하다.",
     "index.html이 바뀌지 않는 릴리스 거버넌스 변경은 앱 버전을 올리지 않는다."
   ]
 }

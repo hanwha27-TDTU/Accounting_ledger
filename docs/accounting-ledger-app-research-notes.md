@@ -17,6 +17,8 @@
 
 기존 데이터 안전·RLS·동기화·버전 규칙은 공통 기본값보다 엄격한 프로젝트 고유 규칙으로 유지한다. 공통 법 본문을 `AGENTS.md`/`CLAUDE.md`에 복사하지 않고 잠금과 프로젝트 프로필로만 연결했다.
 
+운영 설정 되읽기 결과 GitHub Pages는 `legacy`, source `main /`, public 상태이고 main branch protection은 없다. 따라서 현재 CI는 자동 실행되지만 GitHub가 merge를 강제 차단하지 않으므로 릴리스 주체가 최신 개정의 `harness` 성공을 직접 확인해야 한다. Android workflow도 Quality와 직렬화되지 않고 서명 비밀값 실패 시 debug fallback하는 기존 위험이 있어, Android 경로를 바꾸는 다음 릴리스 전에 별도 강화 대상으로 남긴다.
+
 ## 2026-07-09 설계 시작
 
 | 항목 | 내용 |
