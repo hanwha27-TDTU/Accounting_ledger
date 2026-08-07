@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.85** · 개정 2026-08-07
+> **📌 Sub_app-research-notes_0.86** · 개정 2026-08-07
 
 # Accounting Ledger App Research Notes
 
@@ -17,7 +17,21 @@
 
 기존 데이터 안전·RLS·동기화·버전 규칙은 공통 기본값보다 엄격한 프로젝트 고유 규칙으로 유지한다. 공통 법 본문을 `AGENTS.md`/`CLAUDE.md`에 복사하지 않고 잠금과 프로젝트 프로필로만 연결했다.
 
-운영 설정 되읽기 결과 GitHub Pages는 `legacy`, source `main /`, public 상태이고 main branch protection은 없다. 따라서 현재 CI는 자동 실행되지만 GitHub가 merge를 강제 차단하지 않으므로 릴리스 주체가 최신 개정의 `harness` 성공을 직접 확인해야 한다. Android workflow도 Quality와 직렬화되지 않고 서명 비밀값 실패 시 debug fallback하는 기존 위험이 있어, Android 경로를 바꾸는 다음 릴리스 전에 별도 강화 대상으로 남긴다.
+운영 설정 되읽기 결과 GitHub Pages는 `legacy`, source `main /`, public 상태이고 main branch protection은 없다. 따라서 현재 CI는 자동 실행되지만 GitHub가 merge를 강제 차단하지 않으므로 릴리스 주체가 최신 개정의 `harness` 성공을 직접 확인해야 한다. Android workflow와 Quality의 직렬화는 별도 후속 과제이며, 0.67 감사에서 서명 비밀값 누락 시 debug APK를 공식 자산으로 발행하던 fallback은 fail-closed로 제거했다.
+
+## 2026-08-07 앱 0.67: 게이트 대조군 완전화와 앱·보안 감사
+
+| 항목 | 결정·검증 |
+|---|---|
+| note_type | `quality_governance` + `accessibility` + `security_fix` |
+| 게이트 문제 | 기존 Required 게이트는 개별 로직이 있었지만, 각 게이트가 정상 입력을 받고 통과하는지와 결함을 실제로 거부하는지를 같은 기준으로 증명하는 대조군 레지스트리가 없었다. 검사 구현이 실수로 무력화돼도 해당 검사 자체가 초록일 수 있는 구조였다. |
+| 대조군 설계 | `harness-check --list-required`/`--only`로 실제 모집단과 단일 게이트 실행을 제공하고, `scripts/tests/gate-controls.test.mjs`가 추적 파일을 임시 Git 저장소에 복제한다. 18개 known-good 경로와 19개 결함 주입을 실행해 19개 Required 전부를 덮는다. 자기 자신은 외부 실행의 정상 결과와 fixture에서 runner를 제거하는 음성 대조군으로 증명한다. 새 Required 게이트가 대조군 없이 추가되면 registry mismatch로 실패한다. |
+| 감사 발견·수정 | 앱 내 브라우저에서 개인 가계부 저장 성공 안내가 `사업자 정보`로 잘못 표시되는 문구 1건과, 세법 검색·장부 검색·유형·연도·업종 검색의 접근성 이름 누락 5건을 확인해 수정했다. JSON 백업은 행 내부 필드를 신뢰한 채 복원하므로, 증빙 `secure_url`에 `javascript:` scheme을 넣고 사용자가 링크를 누르면 같은 origin 스크립트 실행로 이어질 수 있는 경로도 발견했다. `Utils.safeHttpsUrl`을 추가해 증빙 링크·썸네일은 HTTPS만 허용하고 그 외 주소는 비활성 안내로 바꿨다. |
+| 재발 방지 | `scripts/tests/app-audit.test.mjs`의 23개 계약과 Required `app-audit` 게이트가 접근성 이름·저장 안내·HTTPS 증빙 URL, 서명 APK fail-closed, Android 백업 차단, 백업·XLSX 자원 상한, tenant-scoped RLS 마이그레이션 표식을 고정한다. 이 게이트도 결함 주입 대조군을 가진다. 릴리스 프로필에 `app-audit`와 `gate-sensitivity` 그룹을 등록했다. |
+| 브라우저 실측 | 412×915 개인 모드 전 화면과 사업자 전용 전표·가져오기를 탐색해 overflow 0·콘솔 error 0. 개인 거래 11,000원 저장·새로고침 영속, 사업자 비용 11,000원의 차변 소모품비 10,000 + 부가세대급금 1,000 / 대변 보통예금 11,000 균형을 확인했다. 최종 재검증에서 업종 검색까지 포함한 이름 없는 컨트롤 5개를 재현했고 수정 후 0개를 확인 대상으로 고정했다. |
+| 보안 감사 | 기준 커밋 `5c84d99`를 대상으로 표준 감사를 봉인했다. 검증 10건(High 4·Medium 4·Low 2) 중 9건은 현재 작업 트리에서 보완했다: tenant-scoped tombstone/canonical meta, DB 역할 강제, audit RPC, 원격 `sync_queue` 차단, 백업 URL·행 검증, XLSX 자원 상한, 서명 APK fail-closed, Android 백업 차단. GitHub Pages 공유 origin 1건은 전용 custom origin이 필요해 잔여 위험으로 남긴다. |
+| 데이터·배포 | 앱 표시 schema는 0.07, backup은 0.03이다. `20260807000900_harden_tenant_authorization_and_sync_boundaries.sql`을 준비했지만 운영 DB에는 적용하지 않았다. 원격 브랜치, Pages, APK도 쓰지 않았다. 봉인된 Codex Security scan artifact를 감사 SSOT로 삼는다. |
+| 버전 | 앱 0.66→0.67, `Sub_harness-quality-gate_0.07`, `Sub_harness-baseline_0.07`, `Sub_app-research-notes_0.86` |
 
 ## 2026-07-09 설계 시작
 

@@ -1,4 +1,4 @@
-> **Sub_harness-baseline_0.06** · 기록 2026-07-11
+> **Sub_harness-baseline_0.07** · 갱신 2026-08-07
 
 # Accounting Ledger Harness Baseline
 
@@ -6,13 +6,13 @@
 
 | 항목 | 관찰 결과 |
 |---|---|
-| 기준 커밋 | `3013904 feat: add Supabase connection diagnostics for app 0.02` 이후 앱 0.03 작업 트리 |
-| 앱 버전 | `0.03` |
-| 런타임 | 단일 `index.html` 업무 앱. IndexedDB, 회계 도메인, Supabase/Auth adapter, 공개 연결 진단, 설정 SSOT 기반 연결 가이드 포함 |
-| 패키지·스크립트 | `package.json`, `scripts/harness-check.mjs`, `npm run harness:check` |
+| 기준 커밋 | `5c84d99`에서 시작한 `codex/gate-controls-app-audit` 작업 트리 |
+| 앱 버전 | `0.67` |
+| 런타임 | 단일 `index.html` 업무 앱 + 별도 Capacitor Android 셸. IndexedDB, 복식부기, Supabase/Auth·RLS, canonical/tombstone, 외화·반복지출 포함 |
+| 패키지·스크립트 | `package.json`, `scripts/harness-check.mjs`, `scripts/tests/{logic,app-audit,gate-controls}.test.mjs` |
 | CI | `.github/workflows/harness.yml`에서 같은 하네스 실행 |
-| 테스트 | 런타임 정적 계약 Required. 브라우저 왕복은 현재 수동 실행 |
-| 데이터 | Supabase 초기 스키마와 로컬 migration 4개 존재 |
+| 테스트 | 19개 Required 게이트마다 정상·결함주입 대조군 보유. 브라우저 왕복은 Manual을 유지하되 0.67 앱 내 브라우저 실측 완료 |
+| 데이터 | Supabase migration 9개. schema 0.07 보안 마이그레이션은 로컬 준비 상태이며 운영 DB에는 미적용 |
 | 사용자 참고 파일 | Excel·PDF·ZIP 4개가 미추적 상태이며 커밋 제외 대상 |
 
 최초 설계 기준선에는 자동 검사가 없었다. 앱 0.01부터 런타임 계약은 Required로 승격했고, 실제 브라우저 왕복은 자동화 전까지 Manual 결과와 시나리오를 이 문서에 남긴다.
@@ -21,14 +21,11 @@
 
 | 게이트 | 등급 | 현재 상태 | 근거 |
 |---|---|---|---|
-| project-contract | Required | 활성 | 공통 지침, 하네스, CI, 핵심 설계 문서, 회계 도메인 Guardian, 코드 설계 Guardian 스킬 존재 확인 |
-| instruction-contract | Required | 활성 | AI 공통 규칙에 동기화·RLS·하네스·도메인 Guardian·코드 설계 Guardian 규칙이 있는지 확인 |
-| migration-contract | Required | 활성 | 초기 migration 4개와 RLS·canonical sync 표식 확인 |
-| tracked-scope-and-secrets | Required | 활성 | 참고 원본 커밋과 자격증명 형태의 값 차단 |
-| git-diff-integrity | Required | 활성 | staged/unstaged diff 공백 오류 차단 |
-| runtime-version-contract | Required | 활성 | `APP_INFO.version`, `UPDATE_HISTORY`, 정확한 버전 증가, 핵심 레이어·동기화·연결 가이드 SSOT·고정 의존성 표식 확인 |
-| browser-roundtrip | Manual | 실행 | Data API 정상, 익명 회계자료 차단, Google OAuth 사용 가능, owner 로그인·초기 동기화 완료. 가이드 1280px desktop·390x844 mobile, 메뉴 위치, 긴 값 overflow 없음, 복사 알림, console error 0건 확인 |
-| Supabase advisor/RLS 실측 | Manual | 실행 | 회계 테이블 RLS 유지, active owner allowlist 1건, Auth user 1명, Google identity 1건, 익명 `businesses` 0건. 기존 비회계 advisor 항목은 범위 밖으로 유지 |
+| Required 19개 | Required | 활성 | 파일·공급망·의존성·Action pin·지침·생성물·migration·비밀값·diff·버전·생명주기·로직·용어·법적 SSOT·개념·APK·설치문서·앱 감사·게이트 감도를 검사 |
+| gate-controls | Required | 활성 | 18개 known-good 실행 + 19개 격리 결함 주입으로 19개 Required 모집단 전부 덮음. 자기 자신은 외부 정상 실행과 runner 제거 음성 대조군으로 증명 |
+| app-audit | Required | 활성 | 접근성·저장 안내·HTTPS 증빙, 서명 APK, Android 백업, 백업/XLSX 자원 상한, tenant 보안 마이그레이션을 23개 정적 계약으로 고정 |
+| browser-roundtrip | Manual | 실행 | 412×915 개인·사업 모드 전 화면 overflow 0, 개인/사업 거래 저장·균형 전표·새로고침 영속, 수정 후 접근성 라벨·저장 안내 확인, 콘솔 error 0 |
+| Security standard scan | Manual/도구 | 완료 | 기준 커밋 `5c84d99` 전체 저장소를 독립 검토해 10건(High 4·Medium 4·Low 2)을 봉인. 9건은 작업 트리에서 보완, GitHub Pages 공유 origin 1건은 잔여 위험 |
 
 ## 공식 명령
 

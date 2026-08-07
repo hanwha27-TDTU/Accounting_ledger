@@ -1,4 +1,4 @@
-> **📌 Sub_mobile-apk-readiness_0.04** · 개정 2026-08-04
+> **📌 Sub_mobile-apk-readiness_0.05** · 개정 2026-08-07
 
 # Accounting Ledger Mobile/APK Readiness Skill
 
@@ -12,7 +12,7 @@
 | 웹 자산 번들링 | **안 함** — `capacitor.config.json`의 `server.url`이 배포된 GitHub Pages 주소를 그대로 가리킴. 웹을 고쳐도 APK 재빌드 불필요 |
 | TWA | **기각 확정**(후보 아님) — 이유는 아래 "OAuth·딥링크" 절 참고(TWA로는 시스템 브라우저 왕복을 앱 코드가 제어할 수 없음) |
 | appId / 앱명 | `io.github.hanwha27tdtu.bareunjangbu` / "바른장부"(GitHub 계정 기반 역도메인, AskUserQuestion으로 사용자와 확정) |
-| 서명 전략 | Claude가 keytool로 release keystore 생성 → 사용자에게 전달(세션 scratchpad에서만, Git에 절대 커밋 안 함) → 사용자가 GitHub Secrets 4종(`ANDROID_KEYSTORE_BASE64`/`ANDROID_KEYSTORE_PASSWORD`/`ANDROID_KEY_ALIAS`/`ANDROID_KEY_PASSWORD`) 등록 |
+| 서명 전략 | GitHub Secrets 4종(`ANDROID_KEYSTORE_BASE64`/`ANDROID_KEYSTORE_PASSWORD`/`ANDROID_KEY_ALIAS`/`ANDROID_KEY_PASSWORD`)이 모두 있을 때만 공식 APK 발행. 하나라도 없으면 fail-closed; debug APK를 `apk-latest`에 게시하지 않음 |
 | 다운로드 링크 | 고정 태그 `apk-latest`에 `gh release upload --clobber`로 계속 덮어씀(새 태그 생성 안 함) — 링크가 영구히 안 바뀜 |
 | 로컬 잠금(PIN/생체인증) | 여전히 범위 밖(0.02 결정 유지, 아직 아무도 요청 안 함) |
 | 실제 APK 빌드·배포 | **완료**(0.50~0.53에 걸쳐 GitHub Actions로 실제 빌드·서명·배포까지 검증됨) |
@@ -60,12 +60,14 @@
 | `NetworkStatusAdapter` | `navigator.onLine`/`online`·`offline` 이벤트 | 동일(Capacitor WebView도 표준 브라우저 API 그대로 동작) |
 | `CloudinaryUploadAdapter` | 제한된 unsigned upload | 동일, secret 금지(변경 없음) |
 
-## 모바일 불변조건 (기존 8개 + 신규 2개)
+## 모바일 불변조건 (기존 8개 + 신규 4개)
 
 1~8번은 0.02와 동일(회계 계산/세무 판정 로직 플랫폼 분리, wrapper 경유, secret 미포함, OAuth redirect 분리 가능, 오프라인 입력 허용, canonical sync 동일 적용, 증빙 이미지/PDF 지원, 공유 시 경고 표시).
 
 9. **Supabase 클라이언트는 항상 `flowType:'pkce'`로 생성한다.** 다른 이유로 `createClient()` 호출부를 건드릴 때 이 옵션을 실수로 빠뜨리면 안드로이드 로그인이 에러 없이 조용히 깨진다(위 함정 1).
 10. **`window.Capacitor`는 `CapacitorShell` 객체 한 곳에서만 참조한다.** 다른 코드가 `window.Capacitor`를 직접 찍어보면 셸 감지 로직이 여러 곳으로 흩어져 다음 네이티브 기능 추가 때 봉합점을 놓치기 쉽다.
+11. **공식 APK는 release-signed만 허용한다.** 서명 secret 4종이 완전하지 않으면 발행 전에 실패하고, 클라이언트도 release metadata의 `signed:false`를 업데이트로 제안하지 않는다.
+12. **금융 WebView 데이터의 Android 자동 백업을 허용하지 않는다.** `android:allowBackup="false"`를 유지하고, 사용자가 명시적으로 만든 JSON 백업만 복구 경로로 사용한다.
 
 ## 실기기 검증 체크리스트 (헤드리스로 못 잡는 것들)
 

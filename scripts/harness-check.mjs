@@ -5,7 +5,16 @@ import path from 'node:path';
 
 const root = process.cwd();
 const results = [];
+const registeredGates = [];
 let requiredFailures = 0;
+
+const cliArgs = process.argv.slice(2);
+const onlyIndex = cliArgs.indexOf('--only');
+if (onlyIndex >= 0 && !cliArgs[onlyIndex + 1]) {
+  throw new Error('--only requires a gate name');
+}
+const onlyGate = onlyIndex >= 0 ? cliArgs[onlyIndex + 1] : null;
+const listRequired = cliArgs.includes('--list-required');
 
 const expectedMigrations = [
   '20260709000100_accounting_v1_initial_schema.sql',
@@ -15,7 +24,8 @@ const expectedMigrations = [
   '20260712000500_accounting_v1_overseas_fields.sql',
   '20260802000600_accounting_v1_fixed_expenses.sql',
   '20260802000700_accounting_v1_fixed_expenses_account_index.sql',
-  '20260802000800_accounting_v1_multicurrency_daily_fx.sql'
+  '20260802000800_accounting_v1_multicurrency_daily_fx.sql',
+  '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql'
 ];
 
 const referenceAssets = new Set([
@@ -97,6 +107,8 @@ function textFiles(files) {
 }
 
 function addGate(name, tier, check) {
+  registeredGates.push({ name, tier });
+  if (listRequired || (onlyGate && onlyGate !== name)) return;
   try {
     const result = check() ?? {};
     const status = result.status ?? 'PASS';
@@ -128,6 +140,8 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/accounting-ledger-concept-ledger.md',
     'docs/skills/accounting-legal-basis-reference-skill.md',
     'scripts/tests/logic.test.mjs',
+    'scripts/tests/app-audit.test.mjs',
+    'scripts/tests/gate-controls.test.mjs',
     'docs/skills/accounting-domain-guardians-skill.md',
     'docs/skills/accounting-code-architecture-guardians-skill.md',
     'scripts/build-install-playbook.mjs',
@@ -243,6 +257,11 @@ addGate('migration-contract', 'REQUIRED', () => {
   const multicurrencySchema = readText(`supabase/migrations/${multicurrencyMigration}`);
   for (const marker of ['currency_code', 'original_amount', 'exchange_rate_to_krw', 'exchange_rate_date', 'exchange_rate_source', 'exchange_rate_manual']) {
     hasRequiredText(multicurrencySchema, marker, multicurrencyMigration);
+  }
+  const hardeningMigration = expectedMigrations.find(file => file.includes('harden_tenant_authorization'));
+  const hardeningSchema = readText(`supabase/migrations/${hardeningMigration}`);
+  for (const marker of ['accounting_can_write_ledgers()', 'owner_user_id = (select auth.uid())', 'primary key (owner_user_id, key)', 'revoke all on table public.sync_queue', 'accounting_log_access_event']) {
+    hasRequiredText(hardeningSchema, marker, hardeningMigration);
   }
   return { detail: `${expectedMigrations.length} migration files and sync/RLS markers verified` };
 });
@@ -587,6 +606,49 @@ addGate('install-playbook-sync', 'REQUIRED', () => {
   return { detail: 'docs/bareunjangbu-apk-install-playbook.md matches the in-app install guide (same app version)' };
 });
 
+addGate('app-audit', 'REQUIRED', () => {
+  const testPath = absolute('scripts/tests/app-audit.test.mjs');
+  if (!existsSync(testPath)) throw new Error('app audit regression suite is missing');
+  try {
+    const out = execFileSync(process.execPath, ['scripts/tests/app-audit.test.mjs'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const summary = out.match(/APP AUDIT: (\d+) passed, (\d+) failed/);
+    if (!summary) throw new Error('app audit output not recognized');
+    if (summary[2] !== '0') throw new Error(summary[0]);
+    return { detail: `${summary[1]} browser-audit regression contracts passed` };
+  } catch (error) {
+    const combined = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    const firstFail = combined.match(/FAIL:.*/);
+    const summary = combined.match(/APP AUDIT: \d+ passed, \d+ failed/);
+    throw new Error(summary ? `${summary[0]}${firstFail ? ` (${firstFail[0].trim()})` : ''}` : (error.message || 'app audit failed'));
+  }
+});
+
+addGate('gate-controls', 'REQUIRED', () => {
+  const testPath = absolute('scripts/tests/gate-controls.test.mjs');
+  if (!existsSync(testPath)) {
+    throw new Error('gate control suite is missing');
+  }
+  try {
+    const out = execFileSync(process.execPath, ['scripts/tests/gate-controls.test.mjs'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const summary = out.match(/GATE CONTROLS: (\d+) positive, (\d+) negative, (\d+) required gates covered/);
+    if (!summary) throw new Error('gate control output not recognized');
+    if (summary[2] !== summary[3]) throw new Error(`negative controls ${summary[2]} do not cover all ${summary[3]} Required gates`);
+    return { detail: `${summary[1]} known-good checks + ${summary[2]} injected failures cover ${summary[3]} Required gates` };
+  } catch (error) {
+    const combined = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    const firstFail = combined.match(/CONTROL FAIL:.*/);
+    throw new Error(firstFail ? firstFail[0].trim() : (error.message || 'gate controls failed'));
+  }
+});
+
 addGate('browser-roundtrip', 'MANUAL', () => {
   if (!existsSync(absolute('index.html'))) {
     return { status: 'MANUAL', detail: 'no runtime file or browser test runner exists yet' };
@@ -594,20 +656,27 @@ addGate('browser-roundtrip', 'MANUAL', () => {
   return { status: 'MANUAL', detail: 'run the browser round-trip checklist until a browser test runner is added' };
 });
 
-for (const [index, result] of results.entries()) {
-  const label = `[${index + 1}/${results.length}] ${result.name}`.padEnd(42, '.');
-  console.log(`${label} ${result.status} [${result.tier}] - ${result.detail}`);
-}
+if (listRequired) {
+  console.log(JSON.stringify(registeredGates.filter((gate) => gate.tier === 'REQUIRED').map((gate) => gate.name)));
+} else {
+  if (onlyGate && !registeredGates.some((gate) => gate.name === onlyGate)) {
+    console.error(`unknown gate: ${onlyGate}`);
+    process.exitCode = 2;
+  } else {
+    for (const [index, result] of results.entries()) {
+      const label = `[${index + 1}/${results.length}] ${result.name}`.padEnd(42, '.');
+      console.log(`${label} ${result.status} [${result.tier}] - ${result.detail}`);
+    }
 
-const counts = results.reduce((accumulator, result) => {
-  accumulator[result.status] = (accumulator[result.status] ?? 0) + 1;
-  return accumulator;
-}, {});
+    const counts = results.reduce((accumulator, result) => {
+      accumulator[result.status] = (accumulator[result.status] ?? 0) + 1;
+      return accumulator;
+    }, {});
 
-console.log('');
-console.log(`Required failures: ${requiredFailures}`);
-console.log(`Pass: ${counts.PASS ?? 0}, Baseline: ${counts.BASELINE ?? 0}, Manual: ${counts.MANUAL ?? 0}, Fail: ${counts.FAIL ?? 0}`);
+    console.log('');
+    console.log(`Required failures: ${requiredFailures}`);
+    console.log(`Pass: ${counts.PASS ?? 0}, Baseline: ${counts.BASELINE ?? 0}, Manual: ${counts.MANUAL ?? 0}, Fail: ${counts.FAIL ?? 0}`);
 
-if (requiredFailures > 0) {
-  process.exitCode = 1;
+    if (requiredFailures > 0) process.exitCode = 1;
+  }
 }

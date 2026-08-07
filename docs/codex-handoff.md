@@ -1,13 +1,13 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 개정 2026-08-07 · 기준 앱 버전 `0.66` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
+> 개정 2026-08-07 · 작업 트리 앱 버전 `0.67`(공개 배포 `0.66`) · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 > 전역 공용 스킬은 private 정본 승인 커밋 `268126d`에 고정되어 있다. 해시 잠금은 `schemas/codex-shared-skills-lock.json`, 프로젝트 릴리스 프로필은 `schemas/accounting-ledger-release-profile.json`이며 공개 저장소에는 스킬 본문을 커밋하지 않는다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **기준 앱은 0.66**(전 금액 입력 다중통화·CBU 일일환율, 반복 일정 자동 계산, 모바일 고정지출 잘림 수정, 제한 병렬·batch·single-flight 동기화)이며 자동 테스트 기준은 로직 240 assertions + 하네스 18개(17 REQUIRED + 1 MANUAL)다. 운영 DB migration은 0.06으로 유지한다. 412×915 모바일 overflow 0px와 BlueStacks Android 공개 v0.66을 확인했고, PR #3 merge `0795460`, Pages `31161599411`로 배포됐다.
+- **작업 트리는 0.67, 공개본은 0.66**이다. 0.67은 로직 248 assertions, 19 Required + 1 Manual, Required 19개 각각의 정상·결함주입 대조군, `app-audit` 23개 계약을 가진다. 보안 감사 10건 중 9건을 작업 트리에서 보완했고 schema 0.07 migration은 준비만 했으며 운영 DB에는 미적용이다. 공개 v0.66은 PR #3 merge `0795460`, Pages `31161599411` 상태다. GitHub Pages 공유 origin 위험은 전용 custom origin 선택 전까지 열려 있다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 

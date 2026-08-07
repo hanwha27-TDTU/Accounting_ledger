@@ -1,4 +1,4 @@
-> **Sub_harness-quality-gate_0.06** · 개정 2026-07-11
+> **Sub_harness-quality-gate_0.07** · 개정 2026-08-07
 
 # Accounting Ledger Harness Quality Gate Skill
 
@@ -26,12 +26,27 @@
 
 | 게이트 | 실제 검증 |
 |---|---|
-| project-contract | 하네스, 공통 지침, CI, 핵심 설계 파일, 회계 도메인 Guardian, 코드 설계 Guardian 스킬 존재 |
-| instruction-contract | AGENTS/CLAUDE에 canonical sync, RLS, 하네스, 도메인 Guardian, 코드 설계 Guardian 지침 존재 |
-| migration-contract | 초기 migration 4개와 RLS·canonical sync 표식 |
+| project-contract | 하네스, 공통 지침, CI, 핵심 설계·스킬·테스트 파일 존재 |
+| shared-skills-contract | 공용 스킬 고정 커밋·내용 해시·프로젝트 릴리스 프로필 |
+| browser-dependency-integrity | 브라우저 의존성 로컬 고정·SHA-256·CSP·공개 CDN 실행 차단 |
+| workflow-action-pins | 외부 GitHub Actions 7개가 불변 commit SHA인지 확인 |
+| instruction-contract | AGENTS/CLAUDE의 canonical sync·RLS·하네스·Guardian 지침 |
+| adapter-parity | CONSTITUTION에서 생성된 AGENTS/CLAUDE 바이트 일치 |
+| migration-contract | migration 9개와 RLS·tenant 역할·canonical·tombstone·고정지출·다중통화 표식 |
 | tracked-scope-and-secrets | 참고 원본의 추적 여부와 자격증명 형태 값 |
 | git-diff-integrity | staged/unstaged diff 공백 오류 |
 | runtime-version-contract | 앱 버전·업데이트 이력·핵심 런타임 레이어·동기화·Supabase 공개 연결/RLS/OAuth 진단·동적 연결 가이드 표식·고정 CDN 의존성 |
+| data-lifecycle-matrix | 모든 동기화 도메인이 생명주기 매트릭스에 존재 |
+| logic-tests | 회계·세무·동기화·외화·고정지출 순수 로직 회귀 |
+| term-ledger-contract | 세법 용어 코드와 용어대장 양방향 일치·설명 완결성 |
+| legal-ssot-contract | 법정 임계값·추계 배율과 법적 근거 SSOT 일치 |
+| concept-ledger-contract | 개념 원장 집행 앵커가 저장소에 실제 존재 |
+| apk-link-contract | APK 태그·자산·다운로드·업데이트 감지 계약 일치 |
+| install-playbook-sync | 앱 설치 안내와 생성 플레이북 바이트 일치 |
+| app-audit | 접근성·저장 안내·증빙 HTTPS, 서명 APK, Android 백업, 백업/XLSX 자원 상한, tenant 보안 마이그레이션 회귀 |
+| gate-controls | 모든 Required 게이트의 정상 대조군과 격리 결함 주입 대조군 |
+
+`gate-controls`는 `--list-required`에서 모집단을 동적으로 읽는다. Required 게이트를 추가하면서 결함 주입 대조군을 등록하지 않으면 이 게이트 자체가 실패하므로, 검사가 이름만 있고 실제로는 늘 초록인 상태를 허용하지 않는다.
 
 ## 런타임 도입 후 규칙
 

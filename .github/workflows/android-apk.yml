@@ -49,43 +49,43 @@ jobs:
         working-directory: android-shell
         run: npx cap sync android
 
-      - name: Check for release keystore secret
-        id: keystore
-        run: echo "present=${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}" >> "$GITHUB_OUTPUT"
+      - name: Require complete release signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::공식 APK는 release signing secret 4종이 모두 있어야 발행할 수 있습니다."
+            exit 1
+          fi
 
       # release.jks는 app/build.gradle의 signingConfigs.release가 file(RELEASE_STORE_FILE)로
       # app 모듈 기준 상대경로를 푸는 것과 맞춰 android-shell/android/app/ 밑에 써야 한다.
       - name: Decode release keystore
-        if: steps.keystore.outputs.present == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         working-directory: android-shell/android/app
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.jks
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 -d > release.jks
 
       # github.run_number는 이 워크플로가 돌 때마다 항상 1씩 늘어난다 — 셸을 다시 빌드할 때마다
       # versionCode가 자동으로 올라가므로, 이미 설치된 앱이 "셸 자체가 새로 나왔는지"를 이 숫자
       # 하나만 비교해서 판단할 수 있다(수동으로 버전을 관리할 필요가 없다).
       - name: Build release APK (signed)
-        if: steps.keystore.outputs.present == 'true'
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         working-directory: android-shell/android
         run: |
           ./gradlew assembleRelease \
             -PAPP_VERSION_CODE=${{ github.run_number }} \
             -PRELEASE_STORE_FILE=release.jks \
-            -PRELEASE_STORE_PASSWORD='${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' \
-            -PRELEASE_KEY_ALIAS='${{ secrets.ANDROID_KEY_ALIAS }}' \
-            -PRELEASE_KEY_PASSWORD='${{ secrets.ANDROID_KEY_PASSWORD }}'
+            "-PRELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD" \
+            "-PRELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" \
+            "-PRELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
           echo "APK_PATH=app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_ENV"
-
-      # 🔴 release keystore secret이 아직 없으면 debug 서명으로 폴백한다 — 사이드로드는 되지만
-      # CI 러너가 매번 새 debug 키를 만들어 SHA가 빌드마다 바뀔 수 있다. 그러면 기존 앱 위에
-      # 덮어설치가 거부돼 사용자가 지우고 재설치해야 한다(이 앱은 클라우드가 정본이라 계정 데이터는
-      # 대부분 복구되지만, 아직 동기화 안 된 로컬 전용 변경은 잃을 수 있다). android-shell/README.md
-      # 참고 — release keystore를 GitHub Secrets에 등록하면 이 경고가 없어진다.
-      - name: Build debug APK (fallback signing — see warning above)
-        if: steps.keystore.outputs.present != 'true'
-        working-directory: android-shell/android
-        run: |
-          ./gradlew assembleDebug -PAPP_VERSION_CODE=${{ github.run_number }}
-          echo "APK_PATH=app/build/outputs/apk/debug/app-debug.apk" >> "$GITHUB_ENV"
 
       - name: Rename to fixed asset filename
         working-directory: android-shell/android
@@ -96,7 +96,7 @@ jobs:
         run: |
           printf '{"versionCode": %s, "signed": %s}' \
             "${{ github.run_number }}" \
-            "${{ steps.keystore.outputs.present }}" \
+            "true" \
             > "$VERSION_ASSET_NAME"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -117,7 +117,7 @@ jobs:
         run: |
           NOTES="이 릴리스는 항상 최신 셸 빌드를 가리킵니다. 커밋마다 이 자산을 덮어쓰며 새 태그를 만들지 않습니다 — 다운로드 링크는 절대 바뀌지 않습니다.
 
-          <!-- shell-version: {\"versionCode\": ${{ github.run_number }}, \"signed\": ${{ steps.keystore.outputs.present }}} -->"
+          <!-- shell-version: {\"versionCode\": ${{ github.run_number }}, \"signed\": true} -->"
           if gh release view "$RELEASE_TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" \
               "android-shell/android/$APK_ASSET_NAME" \

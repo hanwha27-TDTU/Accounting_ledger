@@ -20,6 +20,16 @@
       "coverage": ["회계·외화·고정지출·동기화 순수 로직"]
     },
     {
+      "id": "gate-sensitivity",
+      "command": "npm run test:gate-controls",
+      "coverage": ["Required 게이트 전체 정상 대조군", "Required 게이트별 격리 결함 주입", "게이트 모집단 완전성"]
+    },
+    {
+      "id": "app-audit",
+      "command": "npm run test:app-audit",
+      "coverage": ["검색·필터 접근성 이름", "장부 유형 중립 저장 안내", "증빙 외부 URL HTTPS 제한"]
+    },
+    {
       "id": "quality-harness",
       "command": "npm run harness:check",
       "coverage": ["필수 파일·보안·지시문·스키마·버전·데이터 생명주기·설치 안내·공급망 전체 게이트"]
@@ -125,7 +135,7 @@
     "AGENTS.md와 CLAUDE.md는 docs/CONSTITUTION.md 생성물이며 데이터 안전·RLS·버전·배포 승인 규칙이 공통 기본값보다 우선한다.",
     "GitHub Pages는 main 전체 변경에 자동 반응하지만 Android APK는 android-shell 경로 변경에만, Supabase는 마이그레이션 변경과 별도 승인에만 반응한다.",
     "2026-08-07 현재 main은 branch protection이 없으므로 Quality Harness는 정책상 필수 검사지만 GitHub가 merge를 강제 차단하지는 않는다. 릴리스 주체가 최신 PR 개정의 harness 성공을 직접 확인한 뒤에만 merge한다.",
-    "Android APK workflow는 signing secret이 없거나 실패하면 debug 서명으로 fallback하고 Quality Harness와 직렬화되지 않는다. 이번 변경은 android-shell 비영향이라 실행하지 않으며, 차기 Android 릴리스 전 별도 안전 강화가 필요하다.",
+    "Android APK workflow는 release signing secret 4종 중 하나라도 없으면 공식 자산 발행 전에 실패하며 debug APK를 고정 apk-latest에 게시하지 않는다. Quality Harness와의 직렬화는 여전히 별도 후속 과제다.",
     "index.html이 바뀌지 않는 릴리스 거버넌스 변경은 앱 버전을 올리지 않는다."
   ]
 }
