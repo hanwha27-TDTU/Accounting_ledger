@@ -167,7 +167,7 @@ jobs:
           fi
 ```
 
-> debug 폴백의 대가: CI 러너가 빌드마다 새 debug 키를 만들 수 있어 서명이 달라지면 **덮어설치가 거부**된다. 실사용 배포 전에 반드시 release keystore를 등록할 것.
+> 공식 릴리스는 fail-closed여야 한다. release keystore 비밀값이 하나라도 없으면 작업을 실패시키고, debug APK가 필요하면 고정 운영 태그가 아닌 별도 CI artifact로만 제공한다.
 
 ## 5. 자동 업데이트 (웹앱 쪽 코드)
 

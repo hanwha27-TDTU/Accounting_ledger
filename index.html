@@ -729,8 +729,8 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.66',
-      schemaVersion: '0.06',
+      version: '0.67',
+      schemaVersion: '0.07',
       backupSchemaVersion: '0.03',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
@@ -744,7 +744,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.66', date: '2026-08-07', label: '최신 · 모바일 고정지출 잘림·동기화 속도 개선', detail: '휴대폰의 고정지출현황에서 외화 금액과 환율 기준일이 카드 밖으로 잘리지 않도록 금액 영역을 독립 행으로 재배치하고, 모달 제목을 스크롤 중에도 고정했습니다. 동기화는 중복 실행을 하나로 합치고 여러 테이블을 제한 병렬 조회하며 대기 변경을 테이블 단위로 묶어 전송해, 정본·삭제·최신 수정 우선 규칙을 유지하면서 체감 대기 시간을 줄였습니다.' },
+      { version: '0.67', date: '2026-08-07', label: '최신 · 품질 대조군·앱 보안 감사 보완', detail: '모든 필수 품질 게이트에 정상·실패 대조군을 붙였습니다. 검색·필터 접근성과 장부 저장 안내를 바로잡고, 백업 복원값과 Excel 압축 크기를 검증하며 증빙은 HTTPS 주소만 사용합니다. 차단·열람자 권한, 삭제 신호, 최종본 버전을 사용자별로 격리하는 DB 마이그레이션도 준비했고, Android 백업과 미서명 공식 APK 발행을 차단했습니다.' },
+      { version: '0.66', date: '2026-08-07', label: '모바일 고정지출 잘림·동기화 속도 개선', detail: '휴대폰의 고정지출현황에서 외화 금액과 환율 기준일이 카드 밖으로 잘리지 않도록 금액 영역을 독립 행으로 재배치하고, 모달 제목을 스크롤 중에도 고정했습니다. 동기화는 중복 실행을 하나로 합치고 여러 테이블을 제한 병렬 조회하며 대기 변경을 테이블 단위로 묶어 전송해, 정본·삭제·최신 수정 우선 규칙을 유지하면서 체감 대기 시간을 줄였습니다.' },
       { version: '0.65', date: '2026-08-04', label: '모바일 고정지출 요약', detail: '모바일 상단의 고정지출현황 버튼도 데스크톱처럼 기능명과 월 환산액·활성 건수를 함께 표시합니다. 작은 화면에서는 상단바를 두 줄로 배치해 다른 주요 버튼과 겹치거나 화면 밖으로 밀리지 않도록 했습니다.' },
       { version: '0.64', date: '2026-08-04', label: '거래 입력 필드 정렬', detail: '계정과목 선택 가이드를 별도 줄에서 계정과목 라벨 오른쪽으로 옮겨 거래일·거래처·계정과목 선택 필드의 윗선을 맞췄습니다. 가이드 기능과 접근성은 그대로 유지하면서 입력 화면의 시각적 흐름을 정돈했습니다.' },
       { version: '0.63', date: '2026-08-04', label: '데이터 관리 카드 정렬', detail: '데이터 관리 화면의 2열 카드에 일반 패널용 세로 여백이 중복 적용되어 두 번째 카드부터 윗선이 내려가던 문제를 수정했습니다. 같은 행의 로컬 캐시·클라우드 동기화 카드와 이후 백업·복원, 삭제 카드가 같은 윗선과 높이로 정렬되고 모바일 1열에서는 그리드 간격만 일정하게 유지됩니다.' },
@@ -1200,7 +1201,28 @@
     // 간편장부 Excel(.xlsx) 리더 — 하드룰(무 CDN)에 따라 브라우저 내장 API만 사용한다.
     // ZIP 중앙디렉터리 파싱 + DecompressionStream('deflate-raw')로 압축 해제. 외부 라이브러리 없음.
     const XlsxReader = Object.freeze({
+      MAX_FILE_BYTES: 15 * 1024 * 1024,
+      MAX_ENTRY_COUNT: 2048,
+      MAX_ENTRY_BYTES: 25 * 1024 * 1024,
+      MAX_TOTAL_OUTPUT_BYTES: 50 * 1024 * 1024,
+      async readLimited(stream, maxBytes) {
+        const reader = stream.getReader();
+        const chunks = [];
+        let total = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > maxBytes) { await reader.cancel(); throw new Error('Excel 압축 해제 항목이 25MB를 초과합니다.'); }
+          chunks.push(value);
+        }
+        const output = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) { output.set(chunk, offset); offset += chunk.byteLength; }
+        return output;
+      },
       async read(buffer) {
+        if (!(buffer instanceof ArrayBuffer) || buffer.byteLength > this.MAX_FILE_BYTES) throw new Error('Excel 파일은 15MB 이하만 읽을 수 있습니다.');
         const dv = new DataView(buffer);
         const bytes = new Uint8Array(buffer);
         let eocd = -1;
@@ -1208,6 +1230,7 @@
         for (let i = buffer.byteLength - 22; i >= min; i--) { if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; } }
         if (eocd < 0) throw new Error('올바른 xlsx(zip) 파일이 아닙니다.');
         const count = dv.getUint16(eocd + 10, true);
+        if (count > this.MAX_ENTRY_COUNT) throw new Error('Excel 압축 항목이 너무 많습니다.');
         let p = dv.getUint32(eocd + 16, true);
         const entries = {};
         const dec = new TextDecoder();
@@ -1215,15 +1238,17 @@
           if (dv.getUint32(p, true) !== 0x02014b50) break;
           const method = dv.getUint16(p + 10, true);
           const compSize = dv.getUint32(p + 20, true);
+          const uncompSize = dv.getUint32(p + 24, true);
           const fnLen = dv.getUint16(p + 28, true);
           const extraLen = dv.getUint16(p + 30, true);
           const commentLen = dv.getUint16(p + 32, true);
           const localOff = dv.getUint32(p + 42, true);
           const name = dec.decode(bytes.subarray(p + 46, p + 46 + fnLen));
-          entries[name] = { method, compSize, localOff };
+          if (uncompSize > this.MAX_ENTRY_BYTES) throw new Error('Excel 압축 해제 항목이 25MB를 초과합니다.');
+          entries[name] = { method, compSize, uncompSize, localOff };
           p += 46 + fnLen + extraLen + commentLen;
         }
-        return { dv, bytes, entries };
+        return { dv, bytes, entries, decompressedBytes: 0 };
       },
       async text(ctx, name) {
         const e = ctx.entries[name];
@@ -1232,14 +1257,18 @@
         const lo = e.localOff;
         if (dv.getUint32(lo, true) !== 0x04034b50) throw new Error('zip 로컬 헤더 오류');
         const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
+        if (start < 0 || start + e.compSize > bytes.byteLength) throw new Error('zip 항목 범위 오류');
         const comp = bytes.subarray(start, start + e.compSize);
-        if (e.method === 0) return new TextDecoder().decode(comp);
+        let output;
+        if (e.method === 0) output = comp;
         if (e.method === 8) {
           if (typeof DecompressionStream === 'undefined') throw new Error('이 브라우저는 Excel 압축 해제 기능(DecompressionStream)을 지원하지 않습니다. 최신 Chrome·Edge·Safari로 다시 시도해 주세요.');
           const stream = new Response(comp).body.pipeThrough(new DecompressionStream('deflate-raw'));
-          return new TextDecoder().decode(new Uint8Array(await new Response(stream).arrayBuffer()));
+          output = await this.readLimited(stream, this.MAX_ENTRY_BYTES);
         }
-        throw new Error('지원하지 않는 압축 방식(zip method ' + e.method + ')입니다.');
+        if (!output) throw new Error('지원하지 않는 압축 방식(zip method ' + e.method + ')입니다.');
+        if (output.byteLength > this.MAX_ENTRY_BYTES || (ctx.decompressedBytes += output.byteLength) > this.MAX_TOTAL_OUTPUT_BYTES) throw new Error('Excel 압축 해제 크기 제한을 초과했습니다.');
+        return new TextDecoder().decode(output);
       }
     });
 
@@ -1322,7 +1351,7 @@
         const parser = new DOMParser();
         const shared = [];
         const ss = await XlsxReader.text(ctx, 'xl/sharedStrings.xml');
-        if (ss) { const doc = parser.parseFromString(ss, 'application/xml'); for (const si of doc.getElementsByTagName('si')) { let s = ''; for (const t of si.getElementsByTagName('t')) s += t.textContent; shared.push(s); } }
+        if (ss) { const doc = parser.parseFromString(ss, 'application/xml'); const items = doc.getElementsByTagName('si'); if (items.length > 50000) throw new Error('Excel 공유 문자열이 50,000개를 초과합니다.'); for (const si of items) { let s = ''; for (const t of si.getElementsByTagName('t')) s += t.textContent; if (s.length > 10000) throw new Error('Excel 셀 문자열이 너무 깁니다.'); shared.push(s); } }
         const wbDoc = parser.parseFromString(await XlsxReader.text(ctx, 'xl/workbook.xml'), 'application/xml');
         let rid = null;
         for (const sh of wbDoc.getElementsByTagName('sheet')) {
@@ -1349,7 +1378,7 @@
             cells[col] = (t === 's') ? (shared[parseInt(v.textContent, 10)] ?? '') : v.textContent;
           }
           const norm = this.normalizeRow(cells, year, rnum);
-          if (norm) rows.push(norm);
+          if (norm) { rows.push(norm); if (rows.length > 50000) throw new Error('Excel 거래 행은 50,000건 이하만 가져올 수 있습니다.'); }
         }
         const totals = rows.reduce((a, r) => { a.income += r.income; a.expense += r.expense; a.asset += r.asset; return a; }, { income: 0, expense: 0, asset: 0 });
         const counts = rows.reduce((a, r) => { a[r.kind] = (a[r.kind] || 0) + 1; return a; }, {});
@@ -1556,6 +1585,15 @@
       },
       number: value => Number(String(value ?? '').replace(/[^0-9.-]/g, '')) || 0,
       escape: value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])),
+      safeHttpsUrl(value) {
+        try {
+          const url = new URL(String(value || ''));
+          if (url.protocol !== 'https:') return '';
+          return url.href;
+        } catch {
+          return '';
+        }
+      },
       normalizeEmail: value => String(value || '').trim().toLowerCase(),
       isSecretKey: value => /(?:service[_-]?role|sb_secret_|cloudinary:\/\/[^:]+:|oauth.{0,8}secret)/i.test(String(value || '')),
       latestByUpdatedAt(local, remote) {
@@ -1574,16 +1612,58 @@
     const SyncAlgorithms = Object.freeze({
       restoreScope(localStores, backupTables) {
         const recordsByStore = {};
+        let totalRows = 0;
         for (const store of localStores) {
           const rows = backupTables[store];
           if (rows === undefined) continue;
           if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
-          recordsByStore[store] = rows;
+          if (rows.length > 50000 || (totalRows += rows.length) > 200000) throw new Error('BACKUP_ROW_LIMIT_EXCEEDED');
+          recordsByStore[store] = rows.map(row => this.validateBackupRow(store, row));
         }
         return recordsByStore;
       },
+      validateBackupRow(store, row) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error(`BACKUP_ROW_INVALID:${store}`);
+        const blockedKeys = new Set(['__proto__', 'prototype', 'constructor']);
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const date = /^\d{4}-\d{2}-\d{2}$/;
+        const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+        const visit = (value, key, depth) => {
+          if (depth > 8) throw new Error(`BACKUP_VALUE_DEPTH:${store}.${key}`);
+          if (value == null || typeof value === 'boolean') return value;
+          if (typeof value === 'number') {
+            if (!Number.isFinite(value)) throw new Error(`BACKUP_NUMBER_INVALID:${store}.${key}`);
+            return value;
+          }
+          if (typeof value === 'string') {
+            if (value.length > 100000 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(value)) throw new Error(`BACKUP_STRING_INVALID:${store}.${key}`);
+            if ((key === 'id' || (/_id$/.test(key) && key !== 'cloudinary_public_id')) && value && !uuid.test(value)) throw new Error(`BACKUP_ID_INVALID:${store}.${key}`);
+            if ((/_at$/.test(key) || key === 'createdAt') && value && !timestamp.test(value)) throw new Error(`BACKUP_TIMESTAMP_INVALID:${store}.${key}`);
+            if ((/_date$/.test(key) || /_on$/.test(key) || ['period_start','period_end'].includes(key)) && value && !date.test(value)) throw new Error(`BACKUP_DATE_INVALID:${store}.${key}`);
+            return value;
+          }
+          if (Array.isArray(value)) {
+            if (value.length > 50000) throw new Error(`BACKUP_ARRAY_LIMIT:${store}.${key}`);
+            return value.map(item => visit(item, key, depth + 1));
+          }
+          if (typeof value !== 'object') throw new Error(`BACKUP_OBJECT_INVALID:${store}.${key}`);
+          const clean = {};
+          for (const [childKey, child] of Object.entries(value)) {
+            if (blockedKeys.has(childKey) || childKey.length > 80) throw new Error(`BACKUP_KEY_INVALID:${store}.${childKey}`);
+            clean[childKey] = visit(child, childKey, depth + 1);
+          }
+          return clean;
+        };
+        return visit(row, 'row', 0);
+      },
       resolveTombstoneBusinessId(explicitBusinessId, activeBusinessId) {
         return explicitBusinessId !== undefined ? explicitBusinessId : (activeBusinessId || null);
+      },
+      scopeTombstonesForOwner(rows, ownerUserId) {
+        if (!ownerUserId) return [];
+        return (rows || [])
+          .map(row => row.owner_user_id ? row : { ...row, owner_user_id: ownerUserId })
+          .filter(row => row.owner_user_id === ownerUserId);
       },
       assertCanonicalCloudSafe(localBusinesses, cloudBusinesses) {
         if (localBusinesses.some(row => !row.deleted_at) && cloudBusinesses.length === 0) throw new Error('EMPTY_CLOUD_GUARD');
@@ -1633,12 +1713,12 @@
         const page = Math.min(totalPages, Math.max(1, Number(requestedPage) || 1));
         return { page, totalPages, totalRows: rows.length, rows: rows.slice((page - 1) * pageSize, page * pageSize) };
       },
-      planTombstoneConvergence(localTombstones, cloudTombstones, rowsByStore) {
+      planTombstoneConvergence(localTombstones, cloudTombstones, rowsByStore, currentOwnerUserId = null) {
         const cloudIds = new Set(cloudTombstones.map(row => row.id));
         const localIds = new Set(localTombstones.map(row => row.id));
         const latestByEntity = new Map();
         for (const stone of [...localTombstones, ...cloudTombstones]) {
-          if (!SYNC_TABLE_ORDER.includes(stone.entity_type)) continue;
+          if (!SYNC_TABLE_ORDER.includes(stone.entity_type) || !stone.owner_user_id) continue;
           const key = `${stone.entity_type}:${stone.entity_id}`;
           const current = latestByEntity.get(key);
           if (!current || Date.parse(stone.deleted_at || 0) > Date.parse(current.deleted_at || 0)) latestByEntity.set(key, stone);
@@ -1647,6 +1727,10 @@
         for (const stone of latestByEntity.values()) {
           const row = (rowsByStore[stone.entity_type] || []).find(item => item.id === stone.entity_id);
           if (!row || row.deleted_at) continue;
+          const targetBusinessId = stone.entity_type === 'businesses' ? row.id : row.business_id;
+          const targetBusiness = (rowsByStore.businesses || []).find(item => item.id === targetBusinessId);
+          const targetOwnerUserId = targetBusiness?.owner_user_id || currentOwnerUserId;
+          if (!stone.owner_user_id || !targetOwnerUserId || stone.owner_user_id !== targetOwnerUserId) continue;
           const rowChangedAt = Date.parse(row.updated_at || row.created_at || 0);
           const deletedAt = Date.parse(stone.deleted_at || 0);
           // 복원·canonical 지정으로 tombstone보다 나중에 갱신된 활성 행은 되살린 최종본이다.
@@ -1654,12 +1738,12 @@
           (updatesByStore[stone.entity_type] ||= []).push({ ...row, deleted_at: stone.deleted_at, updated_at: stone.deleted_at });
         }
         return {
-          toPush: localTombstones.filter(row => !cloudIds.has(row.id)),
+          toPush: localTombstones.filter(row => row.owner_user_id && !cloudIds.has(row.id)),
           newFromCloud: cloudTombstones.filter(row => !localIds.has(row.id)),
           updatesByStore
         };
       },
-      planCanonicalReconciliation({ localByTable, cloudByTable, now, deviceId, nextCanonical }) {
+      planCanonicalReconciliation({ localByTable, cloudByTable, now, deviceId, ownerUserId, nextCanonical }) {
         const upsertsByTable = {};
         const deletesByTable = {};
         const generatedTombstones = [];
@@ -1682,6 +1766,7 @@
               // 제거될 business를 가리키면 RLS상 그 business 삭제 직후 tombstone도 안 보인다.
               // 가계부 전체 제거 신호는 null scope(허용 사용자 전용 정책)로 남겨 이후에도 읽게 한다.
               business_id: table === 'businesses' || (row.business_id && !desiredBusinessIds.has(row.business_id)) ? null : (row.business_id || null),
+              owner_user_id: ownerUserId,
               deleted_at: now,
               deleted_by_device_id: deviceId,
               reason: 'canonical_prune',
@@ -2322,12 +2407,16 @@
         return null;
       }
       async syncMeta() {
-        const rows = await this.raw('accounting_sync_meta?select=key,value,updated_at');
+        const ownerId = state.session?.user?.id;
+        if (!ownerId) return {};
+        const rows = await this.raw(`accounting_sync_meta?select=key,value,updated_at&owner_user_id=eq.${encodeURIComponent(ownerId)}`);
         return Object.fromEntries((rows || []).map(row => [row.key, row]));
       }
-      // Only the bootstrap owner can write accounting_sync_meta (RLS). Used to bump canonical_version.
+      // Owner-scoped metadata prevents one user's canonical action from superseding another user's queue.
       async setSyncMeta(key, value) {
-        return this.raw('accounting_sync_meta?on_conflict=key', { method: 'POST', body: [{ key, value: String(value), updated_at: Utils.now() }], prefer: 'resolution=merge-duplicates,return=minimal' });
+        const ownerId = state.session?.user?.id;
+        if (!ownerId) throw new Error('AUTH_REQUIRED');
+        return this.raw('accounting_sync_meta?on_conflict=owner_user_id,key', { method: 'POST', body: [{ owner_user_id: ownerId, key, value: String(value), updated_at: Utils.now() }], prefer: 'resolution=merge-duplicates,return=minimal' });
       }
       async pullTombstones() {
         return this.pullPaged('tombstones', 'deleted_at');
@@ -2352,7 +2441,7 @@
       }
       // Best-effort audit; never blocks the admin action it records.
       async logAccessEvent(entry) {
-        try { await this.raw('auth_access_logs', { method: 'POST', body: [entry], prefer: 'return=minimal' }); }
+        try { await this.raw('rpc/accounting_log_access_event', { method: 'POST', body: { p_action: entry.action, p_target_email: entry.target_email, p_result: entry.result || 'success' } }); }
         catch { /* audit logging is best-effort */ }
       }
       // Authenticated round-trip that proves businesses CRUD and RLS with the owner's own session.
@@ -2469,7 +2558,7 @@
           if (!response.ok) return;
           const release = await response.json();
           const remote = this.parseShellVersionFromReleaseBody(release.body);
-          if (!remote) return;
+          if (!remote || !remote.signed) return;
           const remoteBuild = remote.versionCode;
           if (!Number.isFinite(remoteBuild) || !Number.isFinite(installedBuild) || remoteBuild <= installedBuild) return;
           // [나중에]로 닫은 빌드는 이번 세션 동안만 조용히 둔다 — 저장하지 않으므로 앱을 다시
@@ -2612,6 +2701,9 @@
     }
 
     const AppService = Object.freeze({
+      assertWritable() {
+        if (state.session && !['owner', 'editor'].includes(state.allowedUser?.role)) throw new Error('LEDGER_VIEWER_READ_ONLY');
+      },
       async reload() {
         const [businesses, sites, accounts, transactions, counterparties, fixedExpenses, journals, journalLines, evidenceFiles, auditLogs, closings, queue] = await Promise.all([
           storage.getAll('businesses'), storage.getAll('business_sites'), storage.getAll('accounts'), storage.getAll('source_transactions'),
@@ -2643,6 +2735,7 @@
       },
 
       async setupBusiness(input) {
+        this.assertWritable();
         const now = Utils.now();
         const businessId = state.business?.id || Utils.uuid();
         const siteId = state.site?.id || Utils.uuid();
@@ -2717,6 +2810,7 @@
       // 가계부(사업자) 추가 — setupBusiness는 "지금 활성 가계부"를 고치는 것이고, 이건 완전히 새로운
       // 가계부(businesses 행 + 계정과목 세트)를 만들어 활성 가계부로 전환한다. 기존 가계부 자료는 건드리지 않는다.
       async createLedger({ name, mode }) {
+        this.assertWritable();
         const trimmedName = String(name || '').trim();
         if (!trimmedName) throw new Error('LEDGER_NAME_REQUIRED');
         if (!['personal', 'business'].includes(mode)) throw new Error('LEDGER_MODE_INVALID');
@@ -2773,6 +2867,7 @@
       // audit_logs는 append-only라 그대로 둔다(가계부가 존재했던 기록 자체는 남아야 함).
       // 활성 가계부를 지우면 reload()의 pickActiveBusiness가 자동으로 다음 가계부(또는 없음)를 고른다.
       async deleteLedger(businessId) {
+        this.assertWritable();
         const business = state.businesses.find(row => row.id === businessId);
         if (!business) throw new Error('LEDGER_NOT_FOUND');
         const now = Utils.now();
@@ -2816,6 +2911,7 @@
       // 계정과목 CRUD — 개인·사업자 모드 공통으로 쓰는 확장 지점. 템플릿에 없는 카테고리를
       // 사용자가 직접 추가/비활성화할 수 있다. 삭제는 소프트삭제(과거 거래의 계정명은 그대로 보임).
       async createAccount(input) {
+        this.assertWritable();
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
         const name = String(input.name || '').trim();
         if (!name) throw new Error('ACCOUNT_NAME_REQUIRED');
@@ -2837,6 +2933,7 @@
       },
 
       async deactivateAccount(accountId) {
+        this.assertWritable();
         const account = state.accounts.find(row => row.id === accountId && !row.deleted_at);
         if (!account) throw new Error('ACCOUNT_NOT_FOUND');
         const now = Utils.now();
@@ -2852,6 +2949,7 @@
       // 거래처 소프트삭제 — deactivateAccount와 동일 패턴. 과거 거래에 남은 거래처명은 그대로 보이고,
       // 목록·자동완성에서만 사라진다(counterpartyName()이 deleted_at 여부로 걸러내지 않고 id로 이름을 찾으므로 과거 표시는 유지됨).
       async deactivateCounterparty(counterpartyId) {
+        this.assertWritable();
         const counterparty = state.counterparties.find(row => row.id === counterpartyId && !row.deleted_at);
         if (!counterparty) throw new Error('COUNTERPARTY_NOT_FOUND');
         const now = Utils.now();
@@ -2870,6 +2968,7 @@
       },
 
       async saveFixedExpense(input) {
+        this.assertWritable();
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
         const existing = input.id ? state.fixedExpenses.find(row => row.id === input.id) : null;
         if (input.id && !existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
@@ -2922,6 +3021,7 @@
       },
 
       async setFixedExpenseStatus(id, status) {
+        this.assertWritable();
         const existing = state.fixedExpenses.find(row => row.id === id && !row.deleted_at);
         if (!existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
         if (!['active', 'paused', 'ended'].includes(status)) throw new Error('FIXED_EXPENSE_STATUS_INVALID');
@@ -2938,6 +3038,7 @@
       },
 
       async deleteFixedExpense(id) {
+        this.assertWritable();
         const existing = state.fixedExpenses.find(row => row.id === id && !row.deleted_at);
         if (!existing) throw new Error('FIXED_EXPENSE_NOT_FOUND');
         const now = Utils.now();
@@ -2959,6 +3060,7 @@
       },
 
       async saveTransaction(input) {
+        this.assertWritable();
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
         const linkedFixedExpense = input.fixedExpenseId ? state.fixedExpenses.find(row => row.id === input.fixedExpenseId && !row.deleted_at) : null;
         if (input.fixedExpenseId && !linkedFixedExpense) throw new Error('FIXED_EXPENSE_NOT_FOUND');
@@ -3035,6 +3137,7 @@
       // 간편장부 가져오기 → 복식부기 원장 전기. 결정적 id(내용 기반)로 같은 파일 재반영 시 덮어써서
       // 중복(좀비)을 막는다. 각 행은 기존 buildPosting/validateJournal 엔진으로 균형 전표를 만든다.
       async importSimpleBook(rows) {
+        this.assertWritable();
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
         const businessId = state.business.id;
         const now = Utils.now();
@@ -3107,12 +3210,13 @@
 
       tombstone(entityType, entityId, businessId) {
         const now = Utils.now();
-        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: SyncAlgorithms.resolveTombstoneBusinessId(businessId, state.business?.id), deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
+        return { id: Utils.uuid(), entity_type: entityType, entity_id: entityId, business_id: SyncAlgorithms.resolveTombstoneBusinessId(businessId, state.business?.id), owner_user_id: state.session?.user?.id || state.business?.owner_user_id || null, deleted_at: now, deleted_by_device_id: this.deviceId(), reason: 'user_delete', created_at: now };
       },
 
       // Soft delete a source transaction with its journal entry and lines, keeping an audit trail,
       // tombstones for delete sync, and sync-queue upserts so the cloud row is also marked deleted.
       async deleteTransaction(transactionId) {
+        this.assertWritable();
         const transaction = state.transactions.find(row => row.id === transactionId && !row.deleted_at);
         if (!transaction) throw new Error('TRANSACTION_NOT_FOUND');
         if (AccountingDomain.isDateClosed(state.closings, transaction.transaction_date)) throw new Error('PERIOD_CLOSED');
@@ -3151,6 +3255,7 @@
       // 월 마감 — "영구"가 아니라 되돌릴 수 있는 기간 잠금이다. 마감하면 그 달 안의 거래는 새로
       // 만들거나 지울 수 없다(AccountingDomain.isDateClosed가 저장·삭제 시 막는다). 가계부별로 분리된다.
       async closePeriod({ year, month, reason }) {
+        this.assertWritable();
         if (!state.business) throw new Error('BUSINESS_REQUIRED');
         const y = Number(year), m = Number(month);
         if (!y || !m || m < 1 || m > 12) throw new Error('CLOSING_PERIOD_INVALID');
@@ -3175,6 +3280,7 @@
       // 마감 해제 — 잠갔던 기간을 다시 열어 거래를 저장·삭제할 수 있게 한다. closed_at은 그대로 두고
       // reopened_at만 남겨, "언제 마감했다가 언제 다시 열었는지" 감사 기록이 사라지지 않는다.
       async reopenPeriod(closingId, reason) {
+        this.assertWritable();
         const closing = state.closings.find(row => row.id === closingId && !row.deleted_at);
         if (!closing) throw new Error('CLOSING_NOT_FOUND');
         if (closing.status !== 'closed') throw new Error('CLOSING_ALREADY_OPEN');
@@ -3189,6 +3295,7 @@
 
       // Bulk delete: clear every ledger store on this device. Connection settings and device id (localStorage) stay.
       async clearLocalData() {
+        this.assertWritable();
         await storage.clearAll();
         state.config.canonicalVersion = 0;
         state.config.lastSyncAt = null;
@@ -3199,6 +3306,7 @@
       // Store the metadata for an already-uploaded Cloudinary file and mark the transaction as attached.
       // The audit trail keeps the public_id, not the full URL (Data Privacy Guardian).
       async attachEvidence(transactionId, uploadResult, file) {
+        this.assertWritable();
         const transaction = state.transactions.find(row => row.id === transactionId && !row.deleted_at);
         if (!transaction) throw new Error('TRANSACTION_NOT_FOUND');
         const now = Utils.now();
@@ -3227,6 +3335,7 @@
       // transaction has no other evidence, mark it not_attached. The Cloudinary original is not deleted here
       // (that needs a signed API); we flag it as unlinked for a future server-side cleanup.
       async removeEvidence(evidenceId) {
+        this.assertWritable();
         const evidence = state.evidenceFiles.find(row => row.id === evidenceId && !row.deleted_at);
         if (!evidence) throw new Error('EVIDENCE_NOT_FOUND');
         const now = Utils.now();
@@ -3266,6 +3375,7 @@
       // 백업 파일 안에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes 같은 이 기기
       // 전용 인프라 테이블)는 건드리지 않는다 — 없다고 그냥 비우면 아직 못 올린 로컬 변경이 사라질 수 있다.
       async restoreBackup(backup) {
+        this.assertWritable();
         if (!backup || !['0.01', '0.02', APP_INFO.backupSchemaVersion].includes(backup.backupSchemaVersion) || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
         const recordsByStore = SyncAlgorithms.restoreScope(LOCAL_STORES, backup.tables);
         for (const store of Object.keys(recordsByStore)) await storage.replaceStore(store, recordsByStore[store]);
@@ -3429,14 +3539,23 @@
       // RLS hides soft-deleted rows from pullTable, so tombstones are the only cross-device delete signal.
       async convergeTombstones() {
         const cloud = (await remote.pullTombstones()) || [];
-        const local = await storage.getAll('tombstones');
+        const businesses = await storage.getAll('businesses');
+        const ownerByBusiness = new Map(businesses.map(row => [row.id, row.owner_user_id || state.session?.user?.id]).filter(([, owner]) => owner));
+        const localRaw = await storage.getAll('tombstones');
+        const local = localRaw.map(stone => {
+          if (stone.owner_user_id) return stone;
+          const targetBusinessId = stone.entity_type === 'businesses' ? stone.entity_id : stone.business_id;
+          const ownerUserId = ownerByBusiness.get(targetBusinessId);
+          return ownerUserId ? { ...stone, owner_user_id: ownerUserId } : stone;
+        });
         const entityTypes = [...new Set([...local, ...cloud].map(row => row.entity_type).filter(table => SYNC_TABLE_ORDER.includes(table)))];
-        const rowsByStore = {};
+        const rowsByStore = { businesses };
         for (const table of entityTypes) rowsByStore[table] = await storage.getAll(table);
-        const plan = SyncAlgorithms.planTombstoneConvergence(local, cloud, rowsByStore);
+        const plan = SyncAlgorithms.planTombstoneConvergence(local, cloud, rowsByStore, state.session?.user?.id || null);
         if (plan.toPush.length) await remote.pushTombstones(plan.toPush);
         const payload = { ...plan.updatesByStore };
-        if (plan.newFromCloud.length) payload.tombstones = plan.newFromCloud;
+        const normalizedLocal = local.filter((row, index) => row !== localRaw[index]);
+        if (plan.newFromCloud.length || normalizedLocal.length) payload.tombstones = [...normalizedLocal, ...plan.newFromCloud];
         if (Object.keys(payload).length) await storage.putMany(payload);
       },
 
@@ -3496,7 +3615,7 @@
             [localByTable[table], cloudByTable[table]] = await Promise.all([storage.getAll(table), remote.pullTable(table)]);
           }
           const plan = SyncAlgorithms.planCanonicalReconciliation({
-            localByTable, cloudByTable, now, deviceId: AppService.deviceId(), nextCanonical
+            localByTable, cloudByTable, now, deviceId: AppService.deviceId(), ownerUserId: state.session.user.id, nextCanonical
           });
           const visibleBusinessIds = new Set([
             ...(cloudByTable.businesses || []).map(row => row.id),
@@ -3513,7 +3632,10 @@
           }
 
           // business를 지우기 전에 tombstone을 먼저 저장해야 business-scoped RLS를 통과한다.
-          const localTombstones = (await storage.getAll('tombstones')).filter(row => row.business_id == null || visibleBusinessIds.has(row.business_id));
+          const localTombstones = SyncAlgorithms.scopeTombstonesForOwner(
+            await storage.getAll('tombstones'),
+            state.session.user.id
+          ).filter(row => row.business_id == null || visibleBusinessIds.has(row.business_id));
           const tombstones = [...new Map([...localTombstones, ...plan.generatedTombstones].map(row => [row.id, row])).values()];
           await remote.pushTombstones(tombstones);
 
@@ -3526,7 +3648,7 @@
 
           const localUpdates = {};
           for (const table of SYNC_TABLE_ORDER) if (plan.upsertsByTable[table].length) localUpdates[table] = plan.upsertsByTable[table];
-          if (plan.generatedTombstones.length) localUpdates.tombstones = plan.generatedTombstones;
+          if (tombstones.length) localUpdates.tombstones = tombstones;
           if (Object.keys(localUpdates).length) await storage.putMany(localUpdates);
 
           // 마지막 커밋 표식. 이 전 단계가 실패하면 다른 기기는 불완전한 상태를 canonical로 소비하지 않는다.
@@ -3618,6 +3740,7 @@
       const code = String(error?.message || error);
       if (code.includes('SUPABASE_NOT_CONFIGURED')) return 'Supabase URL과 publishable key를 먼저 설정해 주세요.';
       if (code.includes('AUTH_REQUIRED')) return 'Google 로그인이 필요합니다.';
+      if (code.includes('LEDGER_VIEWER_READ_ONLY')) return '열람자 계정은 장부를 바꿀 수 없습니다. 소유자에게 편집자 권한을 요청해 주세요.';
       if (code.includes('AUTH_EMAIL_NOT_ALLOWED')) return '허용되지 않은 Google 계정입니다. owner가 허용 목록에 추가해야 합니다.';
       if (code.includes('GOOGLE_PROVIDER_DISABLED') || /unsupported provider|provider is not enabled/i.test(code)) return 'Supabase에서 Google 로그인 제공자가 아직 활성화되지 않았습니다. Google Client ID와 Secret 설정이 필요합니다.';
       if (code.includes('ANONYMOUS_DATA_EXPOSED')) return '로그인하지 않은 상태에서 회계 데이터가 조회되어 연결을 중단했습니다. RLS를 점검해 주세요.';
@@ -3729,7 +3852,7 @@
         </div>
         <section class="panel card-panel">
           <div class="panel-head"><div><h2 class="section-title">세법 용어 검색</h2><p class="section-help">모르는 세법 용어를 검색하면 법적 정의와 초등학생 눈높이 설명을 보여드립니다.</p></div><button class="button small" type="button" data-open-guide-topic="tax-terms">${icon('book-a')}전체 용어 보기</button></div>
-          <input class="input" id="termSearch" type="search" autocomplete="off" placeholder="예: 필요경비, 복식부기, 부가가치세, 경비율, 원천징수">
+          <input class="input" id="termSearch" type="search" autocomplete="off" aria-label="세법 용어 검색" placeholder="예: 필요경비, 복식부기, 부가가치세, 경비율, 원천징수">
           <div id="termSearchResults" class="term-results"></div>
         </section>
         <div class="layout-two">
@@ -3990,7 +4113,7 @@
       const years = [...new Set(activeTransactions().map(row => row.transaction_date.slice(0,4)))].sort().reverse();
       return `
         ${pageHeader('장부', `국세청 간편장부 열 구조로 보는 원천거래입니다. 내부 기준은 ${term('복식부기')} 원장입니다.`, `<button class="button primary" type="button" data-route="transactions">${icon('plus')}거래 입력</button>`)}
-        <div class="filter-bar"><input class="input" id="ledgerQuery" type="search" placeholder="내용·거래처 검색" value="${Utils.escape(state.filters.query)}"><select class="select" id="ledgerType"><option value="all">전체 유형</option><option value="income" ${state.filters.type==='income'?'selected':''}>수입</option><option value="expense" ${state.filters.type==='expense'?'selected':''}>비용</option><option value="asset_purchase" ${state.filters.type==='asset_purchase'?'selected':''}>자산</option></select><select class="select" id="ledgerYear"><option value="all">전체 연도</option>${years.map(year=>`<option value="${year}" ${state.filters.year===year?'selected':''}>${year}년</option>`).join('')}</select></div>
+        <div class="filter-bar"><input class="input" id="ledgerQuery" type="search" aria-label="장부 내용·거래처 검색" placeholder="내용·거래처 검색" value="${Utils.escape(state.filters.query)}"><select class="select" id="ledgerType" aria-label="장부 거래 유형"><option value="all">전체 유형</option><option value="income" ${state.filters.type==='income'?'selected':''}>수입</option><option value="expense" ${state.filters.type==='expense'?'selected':''}>비용</option><option value="asset_purchase" ${state.filters.type==='asset_purchase'?'selected':''}>자산</option></select><select class="select" id="ledgerYear" aria-label="장부 연도"><option value="all">전체 연도</option>${years.map(year=>`<option value="${year}" ${state.filters.year===year?'selected':''}>${year}년</option>`).join('')}</select></div>
         <div class="table-wrap"><table><thead><tr><th>일자</th><th>계정과목</th><th>거래내용</th><th>거래처</th><th class="number">수입</th><th class="number">비용</th><th class="number">자산</th><th>상태</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.transaction_date}</td><td><button class="term-button" type="button" data-account-id="${row.account_id}">${Utils.escape(accountName(row.account_id))}</button></td><td>${Utils.escape(row.description)}${transactionMoneyTagHtml(row)}</td><td>${Utils.escape(counterpartyName(row.counterparty_id))}</td><td class="number amount-positive">${row.transaction_type==='income'?Utils.won(row.total_amount):''}</td><td class="number amount-negative">${row.transaction_type==='expense'?Utils.won(row.total_amount):''}</td><td class="number">${row.transaction_type==='asset_purchase'?Utils.won(row.total_amount):''}</td><td>${row.review_status==='normal'?badge('정상','success'):badge('검토 필요','warning')}</td></tr>`).join('')}</tbody></table>${result.totalRows?'':emptyState('book-open','표시할 거래가 없습니다','검색 조건을 바꾸거나 새 거래를 입력하세요.')}</div>${pager('ledger', result)}`;
     }
 
@@ -4015,11 +4138,14 @@
     }
 
     function evidenceThumb(file) {
-      const url = Utils.escape(file.secure_url || '');
-      if (file.resource_type === 'image' && (file.thumbnail_url || file.secure_url)) {
-        return `<a class="evidence-thumb" href="${url}" target="_blank" rel="noopener" title="${Utils.escape(file.original_filename || '증빙')}"><img src="${Utils.escape(file.thumbnail_url || file.secure_url)}" alt="${Utils.escape(file.original_filename || '증빙')}" loading="lazy"></a>`;
+      const originalUrl = Utils.safeHttpsUrl(file.secure_url);
+      const thumbnailUrl = Utils.safeHttpsUrl(file.thumbnail_url || file.secure_url);
+      const title = Utils.escape(file.original_filename || '증빙');
+      if (!originalUrl) return `<span class="button small" aria-disabled="true">${icon('file-warning')}${title} · 안전하지 않은 주소</span>`;
+      if (file.resource_type === 'image' && thumbnailUrl) {
+        return `<a class="evidence-thumb" href="${Utils.escape(originalUrl)}" target="_blank" rel="noopener" title="${title}"><img src="${Utils.escape(thumbnailUrl)}" alt="${title}" loading="lazy"></a>`;
       }
-      return `<a class="button small" href="${url}" target="_blank" rel="noopener">${icon('file-text')}${Utils.escape(file.original_filename || 'PDF 증빙')}</a>`;
+      return `<a class="button small" href="${Utils.escape(originalUrl)}" target="_blank" rel="noopener">${icon('file-text')}${Utils.escape(file.original_filename || 'PDF 증빙')}</a>`;
     }
 
     function renderEvidence() {
@@ -4734,7 +4860,7 @@
             <div class="field third"><label for="openedOn">${personal ? '시작일' : '개업일'}</label><input class="input" id="openedOn" type="date" value="${Utils.escape(s.opened_on || '')}"></div>
             <div class="field third" ${personal ? 'hidden' : ''}><label for="broadIndustry">큰 업종</label><select class="select" id="broadIndustry"><option value="">선택하세요</option>${['의료','자문·전문직','프리랜서','농업·임업·어업','크리에이터','도소매','제조','부동산','교육·강의','기타 서비스'].map(value=>`<option value="${value}" ${state.config.broadIndustry===value?'selected':''}>${value}</option>`).join('')}</select></div>
             <div class="field full" ${personal ? 'hidden' : ''}><span class="field-label">국세청 업종코드</span>
-              <input class="input" id="industrySearch" type="search" autocomplete="off" placeholder="업종명·코드로 검색 (예: 경영 컨설팅, 의원, 741)">
+              <input class="input" id="industrySearch" type="search" autocomplete="off" aria-label="업종명·코드 검색" placeholder="업종명·코드로 검색 (예: 경영 컨설팅, 의원, 741)">
               <div id="industryResults" class="industry-results" hidden></div>
               <div class="industry-picked" id="industryPicked">${industryPickedHtml(s.main_industry_code, s.main_industry_name || IndustryCodes.find(s.main_industry_code)?.name || '')}</div>
               <div class="form-grid" style="margin-top:8px">
@@ -5114,6 +5240,7 @@
           status.innerHTML = `<div class="notice">${icon('loader')}<div>${Utils.escape(file.name)} 읽는 중…</div></div>`;
           preview.innerHTML = '';
           try {
+            if (file.size > XlsxReader.MAX_FILE_BYTES) throw new Error('Excel 파일은 15MB 이하만 읽을 수 있습니다.');
             const res = await SimpleBookImport.parse(await file.arrayBuffer());
             if (!res.rows.length) { state.importReview = null; status.innerHTML = `<div class="notice">${icon('info')}<div>「장부」 시트에서 읽을 거래 행을 찾지 못했습니다(4행부터 확인).</div></div>`; return; }
             state.importReview = { rows: res.rows, fileName: file.name };
@@ -5318,7 +5445,7 @@
           await AppService.setupBusiness({ businessType:el('businessType').value, businessName:el('businessName').value, representativeName:el('representativeName').value, registrationNumber:registration, siteName:el('siteName').value, openedOn:el('openedOn').value, broadIndustry:el('broadIndustry').value, industryCode:el('industryCode').value, industryName:el('industryName').value, vatPayerType:el('vatPayerType').value, ledgerStartYear:el('ledgerStartYear').value, address:el('address').value });
           state.config.ledgerStartYear = el('ledgerStartYear').value;
           ConfigAdapter.save(state.config);
-          toast('사업자 정보를 이 기기에 저장했습니다.', 'success'); render();
+          toast('장부 정보를 이 기기에 저장했습니다.', 'success'); render();
         } catch (error) { diagnostic(error); }
       });
 
@@ -5436,7 +5563,7 @@
       el('dataRestoreFile')?.addEventListener('change', async event => {
         const file = event.target.files?.[0]; if (!file) return;
         if (!confirm('이 기기의 로컬 데이터를 백업 파일 내용으로 교체합니다(이 기기만, 다른 기기·클라우드는 그대로). 계속하시겠습니까?')) return;
-        try { await AppService.restoreBackup(JSON.parse(await file.text())); toast('이 기기에 백업을 복원했습니다.','success'); render(); }
+        try { if (file.size > 25 * 1024 * 1024) throw new Error('백업 파일은 25MB 이하만 복원할 수 있습니다.'); await AppService.restoreBackup(JSON.parse(await file.text())); toast('이 기기에 백업을 복원했습니다.','success'); render(); }
         catch(error){ diagnostic(error); }
         finally { event.target.value = ''; }
       });
@@ -5445,6 +5572,7 @@
         const file = event.target.files?.[0]; if (!file) return;
         if (!confirm('이 백업 내용으로 이 기기를 복원한 뒤, 클라우드 최종본으로 지정합니다. 다른 모든 기기는 다음 동기화에서 이 내용으로 맞춰지고, 각 기기의 로컬 전용 변경은 버려집니다. 계속하시겠습니까?')) return;
         try {
+          if (file.size > 25 * 1024 * 1024) throw new Error('백업 파일은 25MB 이하만 복원할 수 있습니다.');
           await AppService.restoreBackup(JSON.parse(await file.text()));
           const v = await SyncService.designateCanonical();
           toast(`백업을 복원하고 모든 기기의 최종본(canonical v${v})으로 지정했습니다.`,'success'); render();

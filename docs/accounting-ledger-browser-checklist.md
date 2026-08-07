@@ -1,6 +1,6 @@
 # Accounting Ledger 브라우저 수동 체크리스트
 
-> 개정 2026-08-07 · 대상 앱 버전 `0.66`
+> 개정 2026-08-07 · 대상 앱 버전 `0.67`
 
 이 문서는 하네스의 `browser-roundtrip`(MANUAL) 게이트와 `CLAUDE.md` 검증 절차 6단계가 가리키는 **반복 실행용 시나리오 목록**이다. 자동 브라우저 러너가 도입되기 전까지, `index.html`을 실제로 바꾼 릴리스에서는 아래를 데스크톱과 모바일 폭에서 실행하고 결과(통과/실패/미확인)를 `docs/accounting-ledger-harness-baseline.md`에 남긴다.
 
@@ -347,3 +347,14 @@ owner(`hanwha27@gmail.com`)로 로그인:
 - [x] 모달 제목은 내부 스크롤 중 상단에 남도록 `position: sticky`가 적용된다.
 - [x] 테이블 pull은 최대 4개 동시 실행, 중복 동기화는 single-flight, 대기 변경은 테이블·삭제상태별 batch로 계획된다. **로직 240 assertions로 순서와 상한 검증.**
 - [x] 배포된 공개 v0.66을 BlueStacks Android Chrome에서 열어 버전을 확인한다. **Pie64 Android 9, 1920×1080·240 DPI 가로에서 `Accounting Ledger v0.66` 확인. 세로 모바일 레이아웃은 412×915 Chromium 실측으로 별도 검증.**
+
+## 18. 앱 감사 접근성·저장·증빙 URL (0.67)
+
+- [x] 412×915에서 개인 가계부의 대시보드·거래·장부·증빙·리포트·설정·개발자·데이터·가이드·재산세 화면을 모두 열고 document 가로 overflow 0, 콘솔 error 0을 확인했다.
+- [x] 개인 가계부 거래 `감사 테스트 식사` 11,000원을 저장해 장부 표시와 새로고침 후 IndexedDB 영속을 확인했다.
+- [x] 사업자 장부 거래 `감사 문구 구입` 11,000원을 저장해 소모품비 10,000원 + 부가세대급금 1,000원 = 보통예금 11,000원 균형 전표를 확인했다.
+- [x] `termSearch`, `ledgerQuery`, `ledgerType`, `ledgerYear`, `industrySearch`에 각각 화면 의미와 일치하는 접근성 이름이 있고, 화면 전체의 표시 중인 이름 없는 입력·선택 컨트롤이 0개다.
+- [x] 개인 가계부 설정 저장 안내가 사업자 정보라고 오표시하지 않고 `장부 정보를 이 기기에 저장했습니다.`로 나타난다.
+- [x] 백업에서 복원될 수 있는 증빙 주소는 HTTPS만 클릭 가능한 링크·이미지로 사용하며, 그 외 scheme은 비활성 안전 안내로 표시한다. 자동 `app-audit` 23개 계약이 이 경로와 서명 APK·Android 백업·백업/XLSX 상한·tenant 보안 마이그레이션까지 고정한다.
+- [x] 기준 커밋 `5c84d99` 보안 표준 감사 10건(High 4·Medium 4·Low 2)을 봉인했다. 9건은 작업 트리에서 보완했고, GitHub Pages 공유 origin은 전용 custom origin이 필요한 잔여 위험으로 분리했다.
+- [ ] 운영 Supabase 로그인·RLS·다기기 canonical 왕복과 Cloudinary 실제 파일 업로드는 자격증명·복수 기기·외부 서비스가 필요한 별도 수동 검증으로 유지한다.

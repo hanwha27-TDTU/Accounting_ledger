@@ -295,14 +295,22 @@ if (api) {
 // ---- Part B: real sync/delete algorithms used by SyncService/AppService ----
 const SyncAlgorithms = api.SyncAlgorithms;
 {
-  const rows = { source_transactions: [{ id: 't1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', deleted_at: null }] };
-  const res = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', deleted_at: '2026-01-02T00:00:00.000Z' }], rows);
+  const scopedStones = SyncAlgorithms.scopeTombstonesForOwner([{ id: 'legacy' }, { id: 'own', owner_user_id: 'owner-1' }, { id: 'foreign', owner_user_id: 'owner-2' }], 'owner-1');
+  ok(scopedStones.length === 2 && scopedStones.every(row => row.owner_user_id === 'owner-1'), 'tombstone scope: canonical upload adopts legacy rows and rejects foreign-owner rows');
+  ok(SyncAlgorithms.scopeTombstonesForOwner([{ id: 'legacy' }], null).length === 0, 'tombstone scope: no authenticated owner means no remote deletion upload');
+  const rows = { businesses: [{ id: 'b1', owner_user_id: 'owner-1' }], source_transactions: [{ id: 't1', business_id: 'b1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', deleted_at: null }] };
+  const res = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', owner_user_id: 'owner-1', deleted_at: '2026-01-02T00:00:00.000Z' }], rows);
   ok(res.updatesByStore.source_transactions[0].deleted_at === '2026-01-02T00:00:00.000Z', 'converge: cloud tombstone soft-deletes an older local row');
-  const res2 = SyncAlgorithms.planTombstoneConvergence([{ id: 'ts9', entity_type: 'source_transactions', entity_id: 'x', deleted_at: '2026-01-02T00:00:00.000Z' }], [], { source_transactions: [] });
+  const res2 = SyncAlgorithms.planTombstoneConvergence([{ id: 'ts9', entity_type: 'source_transactions', entity_id: 'x', owner_user_id: 'owner-1', deleted_at: '2026-01-02T00:00:00.000Z' }], [], { businesses: [], source_transactions: [] });
   ok(res2.toPush.length === 1, 'converge: local-only tombstone is pushed');
-  const restored = { source_transactions: [{ id: 't1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-03T00:00:00.000Z', deleted_at: null }] };
-  const res3 = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', deleted_at: '2026-01-02T00:00:00.000Z' }], restored);
+  const restored = { businesses: [{ id: 'b1', owner_user_id: 'owner-1' }], source_transactions: [{ id: 't1', business_id: 'b1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-03T00:00:00.000Z', deleted_at: null }] };
+  const res3 = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts1', entity_type: 'source_transactions', entity_id: 't1', owner_user_id: 'owner-1', deleted_at: '2026-01-02T00:00:00.000Z' }], restored);
   ok(!res3.updatesByStore.source_transactions, 'converge: a row restored after the tombstone stays active');
+  const poisoned = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts-bad', entity_type: 'source_transactions', entity_id: 't1', owner_user_id: 'attacker', deleted_at: '2026-01-04T00:00:00.000Z' }], rows);
+  ok(!poisoned.updatesByStore.source_transactions, 'converge: a tombstone from another owner cannot delete the local row');
+  const legacyOwner = { businesses: [{ id: 'b1', owner_user_id: null }], source_transactions: [{ id: 't1', business_id: 'b1', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', deleted_at: null }] };
+  const legacyPlan = SyncAlgorithms.planTombstoneConvergence([], [{ id: 'ts-legacy', entity_type: 'source_transactions', entity_id: 't1', owner_user_id: 'owner-1', deleted_at: '2026-01-02T00:00:00.000Z' }], legacyOwner, 'owner-1');
+  ok(legacyPlan.updatesByStore.source_transactions?.length === 1, 'converge: the authenticated owner safely adopts legacy local rows that predate owner_user_id');
 }
 
 {
@@ -341,17 +349,18 @@ const SyncAlgorithms = api.SyncAlgorithms;
     source_transactions: [{ id: 'tx-B', business_id: 'B', updated_at: '2026-01-01T00:00:00.000Z' }],
     audit_logs: [{ id: 'audit-B', business_id: 'B', created_at: '2026-01-01T00:00:00.000Z' }]
   };
-  const plan = SyncAlgorithms.planCanonicalReconciliation({ localByTable, cloudByTable, now, deviceId: 'device-A', nextCanonical: 4 });
+  const plan = SyncAlgorithms.planCanonicalReconciliation({ localByTable, cloudByTable, now, deviceId: 'device-A', ownerUserId: 'owner-1', nextCanonical: 4 });
   ok(plan.upsertsByTable.businesses.length === 1 && plan.upsertsByTable.businesses[0].id === 'A', 'canonical: local active rows are the exact desired set');
   ok(plan.deletesByTable.businesses.some(row => row.id === 'B' && row.deleted_at === now), 'canonical: cloud-only business B is soft-deleted');
   ok(plan.deletesByTable.source_transactions.some(row => row.id === 'tx-B'), 'canonical: cloud-only child rows are soft-deleted');
   ok(plan.generatedTombstones.some(row => row.entity_type === 'businesses' && row.entity_id === 'B'), 'canonical: cloud-only business gets a tombstone');
   ok(plan.generatedTombstones.some(row => row.entity_type === 'source_transactions' && row.entity_id === 'tx-B'), 'canonical: cloud-only child gets a tombstone');
   ok(plan.generatedTombstones.filter(row => row.entity_id === 'B' || row.business_id === 'B').every(row => row.business_id === null), 'canonical: a removed ledger uses null-scope tombstones that remain readable after its business row is hidden');
+  ok(plan.generatedTombstones.every(row => row.owner_user_id === 'owner-1'), 'canonical: every generated tombstone retains immutable owner scope');
   ok(plan.deletesByTable.audit_logs === undefined, 'canonical: append-only audit logs are never deleted');
   ok(plan.upsertsByTable.businesses[0].updated_at === now, 'canonical: active final rows receive the canonical change timestamp');
   ok(api.SYNC_DELETE_ORDER.at(-1) === 'businesses', 'canonical: businesses are deleted last so child RLS remains usable');
-  const retry = SyncAlgorithms.planCanonicalReconciliation({ localByTable, cloudByTable, now: '2026-08-02T00:01:00.000Z', deviceId: 'device-A', nextCanonical: 4 });
+  const retry = SyncAlgorithms.planCanonicalReconciliation({ localByTable, cloudByTable, now: '2026-08-02T00:01:00.000Z', deviceId: 'device-A', ownerUserId: 'owner-1', nextCanonical: 4 });
   ok(retry.generatedTombstones[0].id === plan.generatedTombstones[0].id, 'canonical: retry uses deterministic tombstone ids until the version commit succeeds');
 }
 
@@ -442,7 +451,7 @@ function removeEvidence(evidenceFiles, transactions, id) {
 // and wiping those on restore would silently discard unsynced local changes.
 {
   const stores = ['businesses', 'sync_queue', 'app_research_notes'];
-  const cloudShaped = { businesses: [{ id: 'b1' }] }; // omits sync_queue/app_research_notes entirely
+  const cloudShaped = { businesses: [{ id: '00000000-0000-4000-8000-000000000001' }] }; // omits sync_queue/app_research_notes entirely
   const scoped = SyncAlgorithms.restoreScope(stores, cloudShaped);
   ok('businesses' in scoped, 'restoreScope: replaces a store present in the backup');
   ok(!('sync_queue' in scoped), 'restoreScope: does NOT touch a store absent from the backup (local-only infra survives a cloud backup restore)');
@@ -455,6 +464,14 @@ function removeEvidence(evidenceFiles, transactions, id) {
   let threw = false;
   try { SyncAlgorithms.restoreScope(stores, { businesses: 'not-an-array' }); } catch (e) { threw = e.message.includes('BACKUP_TABLE_INVALID'); }
   ok(threw, 'restoreScope: rejects a malformed (non-array) table instead of silently accepting it');
+  let badId = false;
+  try { SyncAlgorithms.restoreScope(stores, { businesses: [{ id: '\"><img src=x onerror=alert(1)>' }] }); } catch (e) { badId = e.message.includes('BACKUP_ID_INVALID'); }
+  ok(badId, 'restoreScope: rejects an HTML-breaking identifier before it reaches data attributes');
+  let badDate = false;
+  try { SyncAlgorithms.restoreScope(['source_transactions'], { source_transactions: [{ id: '00000000-0000-4000-8000-000000000002', transaction_date: '2026-01-01</td><script>alert(1)</script>' }] }); } catch (e) { badDate = e.message.includes('BACKUP_DATE_INVALID'); }
+  ok(badDate, 'restoreScope: rejects an HTML-breaking transaction date before IndexedDB replacement');
+  const offsetTimestamp = SyncAlgorithms.restoreScope(['businesses'], { businesses: [{ id: '00000000-0000-4000-8000-000000000003', created_at: '2026-08-07T12:34:56.123456+00:00' }] });
+  ok(offsetTimestamp.businesses.length === 1, 'restoreScope: accepts PostgreSQL timestamptz offsets in legitimate cloud backups');
 }
 
 // tombstone business_id — the same helper called by AppService.tombstone:
