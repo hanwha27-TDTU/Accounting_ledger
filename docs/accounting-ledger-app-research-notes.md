@@ -1,8 +1,20 @@
-> **📌 Sub_app-research-notes_0.86** · 개정 2026-08-07
+> **📌 Sub_app-research-notes_0.87** · 개정 2026-08-07
 
 # Accounting Ledger App Research Notes
 
 이 문서는 회계장부 앱의 개발, 설계, 업데이트 이력을 남기는 연구노트다. 거래나 세무 판단 근거는 이 문서가 아니라 앱 내부 `decision_notes`에 남긴다.
+
+## 2026-08-07 폐기·운영 검증·세션 종료 스킬 보강
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `index.html` 미변경이므로 `0.67` 유지 |
+| note_type | `skill_update` + `migration_review` |
+| 배경 | 불필요 자산 정리에서 브랜치 포인터·빈 임시 폴더·잘못된 Android 템플릿 테스트는 제거했지만, 오프라인 공급망 vendor와 Actions 증거는 보존했다. 원격 `sync_queue`는 이름만 보고 지우지 않고 행·참조·정책·GRANT·앱 경로를 확인한 뒤 퇴역했다. |
+| 스킬 반영 | 개발 거버넌스에 후보 분류, squash merge 확인, DB 폐기 전 증명, fail-closed/no-CASCADE migration, 운영 read-back, 세션 종료 조건을 추가했다. 하네스 스킬에는 migration 최종 상태 검사와 Advisor 한계, 경로 기반 산출물 재검증 규칙을 추가했다. 연구노트 스킬에는 migration 결과와 후속 read-back 결과를 분리해 기록하는 규칙을 추가했다. |
+| 운영 근거 | 원격 migration `20260807115909` 적용 뒤 `sync_queue` 부재, schema 0.07, tombstone read와 audit RPC 권한 유지, 관련 Advisor 알림 소멸을 확인했다. 최초 read-back의 잘못된 metadata 테이블 조회 실패는 migration 실패가 아니며, 올바른 `accounting_sync_meta`와 migration history로 독립 재확인했다. |
+| 세션 종료 기준 | 앱 런타임·schema·APK 계약은 바꾸지 않는다. 문서 변경의 Required 하네스와 최신 GitHub CI·Pages 결과를 확인한 뒤 `main == origin/main`, clean worktree, 작업 브랜치 정리 상태로 마감한다. |
+| 스킬 버전 | `Sub_development-governance_0.10`, `Sub_harness-quality-gate_0.08`, `Sub_app-research-notes_0.78`; 연구노트 문서 `Sub_app-research-notes_0.87` |
 
 ## 2026-08-07 전역 공용 스킬 소비자 등록
 
