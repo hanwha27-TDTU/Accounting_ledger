@@ -310,6 +310,24 @@ const SyncAlgorithms = api.SyncAlgorithms;
   try { SyncAlgorithms.assertCanonicalCloudSafe([{ id: 'b', deleted_at: null }], []); } catch (e) { blocked = e.message === 'EMPTY_CLOUD_GUARD'; }
   ok(blocked, 'empty-cloud guard: aborts wipe when cloud empty but local has a business');
   ok(SyncAlgorithms.assertCanonicalCloudSafe([], [{ id: 'b' }]) === true, 'empty-cloud guard: fresh device adopts cloud');
+
+  let active = 0, peak = 0;
+  const mapped = await SyncAlgorithms.mapWithConcurrency([1, 2, 3, 4, 5], 2, async value => {
+    active += 1; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 2));
+    active -= 1;
+    return value * 10;
+  });
+  ok(JSON.stringify(mapped) === '[10,20,30,40,50]' && peak === 2, 'sync concurrency: 입력 순서를 보존하면서 동시 요청 수를 설정값으로 제한');
+
+  const queueBatches = SyncAlgorithms.planQueueBatches([
+    { id: 'q-delete-business', entity_type: 'businesses', payload: { id: 'b1', deleted_at: '2026-08-07T00:00:00.000Z' } },
+    { id: 'q-account-1', entity_type: 'accounts', payload: { id: 'a1', deleted_at: null } },
+    { id: 'q-business', entity_type: 'businesses', payload: { id: 'b1', deleted_at: null } },
+    { id: 'q-account-2', entity_type: 'accounts', payload: { id: 'a2', deleted_at: null } }
+  ]);
+  ok(queueBatches.length === 3 && queueBatches[0].entityType === 'businesses' && queueBatches[1].entityType === 'accounts' && queueBatches[1].items.length === 2, 'sync batching: 부모 우선 upsert를 유지하며 같은 테이블 변경을 한 요청으로 묶음');
+  ok(queueBatches[2].deleting === true && queueBatches[2].entityType === 'businesses', 'sync batching: 삭제는 upsert 뒤·자식 우선 순서로 분리');
 }
 
 // Exact canonical reconciliation: cloud A+B plus local A must end as A, not A+B.

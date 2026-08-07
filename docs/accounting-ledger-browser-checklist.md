@@ -1,6 +1,6 @@
 # Accounting Ledger 브라우저 수동 체크리스트
 
-> 개정 2026-08-04 · 대상 앱 버전 `0.65`
+> 개정 2026-08-07 · 대상 앱 버전 `0.66`
 
 이 문서는 하네스의 `browser-roundtrip`(MANUAL) 게이트와 `CLAUDE.md` 검증 절차 6단계가 가리키는 **반복 실행용 시나리오 목록**이다. 자동 브라우저 러너가 도입되기 전까지, `index.html`을 실제로 바꾼 릴리스에서는 아래를 데스크톱과 모바일 폭에서 실행하고 결과(통과/실패/미확인)를 `docs/accounting-ledger-harness-baseline.md`에 남긴다.
 
@@ -339,3 +339,11 @@ owner(`hanwha27@gmail.com`)로 로그인:
 - [x] 360px·390px·560px·780px에서 `scrollWidth === clientWidth`이고 390px 고정지출 버튼을 눌러 모달이 열린다.
 - [x] 모바일 메뉴가 열린 상태에서도 `topbar 36 > scrim 35`이며, 사이드바가 덮지 않는 빠른 입력 버튼 중심의 hit-test가 `quickAddButton`을 반환한다.
 - [x] BlueStacks Pie64 Android Chrome에서 호스트의 로컬 수정본과 공개 배포본을 열었다. **1920×1080·240 DPI 가로 모드에서 공개 `Accounting Ledger v0.65` 정상 렌더를 확인. 세로 모바일 판정은 위 10절 항목대로 미완료 처리.**
+
+## 17. 모바일 고정지출 잘림·동기화 성능 (0.66)
+
+- [x] 412×915에서 외화 금액·원화 환산액·환율 기준일이 카드 안에서 모두 보이고 가로 스크롤이 생기지 않는다. **document/modal/body/row/amount overflow 모두 0px.**
+- [x] 모바일 금액 영역은 설명 영역 다음 행에 배치되고 보조 환산문구는 줄바꿈할 수 있다. **금액 top 498px, 설명 bottom 489px.**
+- [x] 모달 제목은 내부 스크롤 중 상단에 남도록 `position: sticky`가 적용된다.
+- [x] 테이블 pull은 최대 4개 동시 실행, 중복 동기화는 single-flight, 대기 변경은 테이블·삭제상태별 batch로 계획된다. **로직 240 assertions로 순서와 상한 검증.**
+- [ ] 배포된 공개 v0.66을 BlueStacks Android Chrome에서 열어 버전·모달 표시를 확인한다.
