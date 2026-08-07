@@ -729,9 +729,9 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.67',
-      schemaVersion: '0.07',
-      backupSchemaVersion: '0.03',
+      version: '0.68',
+      schemaVersion: '0.08',
+      backupSchemaVersion: '0.04',
       postingRuleVersion: 'posting-0.01',
       ownerEmail: 'hanwha27@gmail.com',
       googleCloudProjectName: 'Accounting Ledger',
@@ -744,7 +744,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.67', date: '2026-08-07', label: '최신 · 품질 대조군·앱 보안 감사 보완', detail: '모든 필수 품질 게이트에 정상·실패 대조군을 붙였습니다. 검색·필터 접근성과 장부 저장 안내를 바로잡고, 백업 복원값과 Excel 압축 크기를 검증하며 증빙은 HTTPS 주소만 사용합니다. 차단·열람자 권한, 삭제 신호, 최종본 버전을 사용자별로 격리하는 DB 마이그레이션도 준비했고, Android 백업과 미서명 공식 APK 발행을 차단했습니다.' },
+      { version: '0.68', date: '2026-08-07', label: '최신 · 원자 복원·서버 LWW·정본 트랜잭션', detail: '백업은 생성과 복원에 같은 용량·행 제한과 SHA-256 무결성 검사를 적용하고, 필수 필드·참조·복식부기 균형을 모두 확인한 뒤 하나의 IndexedDB 트랜잭션으로만 복원합니다. 이 기기 복원은 동기화 대기열을 격리하고 적용 전 건수 차이를 보여줍니다. 일반 동기화는 클라우드를 먼저 비교하며 서버가 오래된 updated_at 쓰기를 거부하고, 최종본 지정은 canonical version CAS를 포함한 단일 DB 트랜잭션으로 발행합니다. 클라우드 백업도 단일 DB 스냅샷이며 익명 테이블 권한을 명시적으로 회수했습니다.' },
+      { version: '0.67', date: '2026-08-07', label: '품질 대조군·앱 보안 감사 보완', detail: '모든 필수 품질 게이트에 정상·실패 대조군을 붙였습니다. 검색·필터 접근성과 장부 저장 안내를 바로잡고, 백업 복원값과 Excel 압축 크기를 검증하며 증빙은 HTTPS 주소만 사용합니다. 차단·열람자 권한, 삭제 신호, 최종본 버전을 사용자별로 격리하는 DB 마이그레이션도 준비했고, Android 백업과 미서명 공식 APK 발행을 차단했습니다.' },
       { version: '0.66', date: '2026-08-07', label: '모바일 고정지출 잘림·동기화 속도 개선', detail: '휴대폰의 고정지출현황에서 외화 금액과 환율 기준일이 카드 밖으로 잘리지 않도록 금액 영역을 독립 행으로 재배치하고, 모달 제목을 스크롤 중에도 고정했습니다. 동기화는 중복 실행을 하나로 합치고 여러 테이블을 제한 병렬 조회하며 대기 변경을 테이블 단위로 묶어 전송해, 정본·삭제·최신 수정 우선 규칙을 유지하면서 체감 대기 시간을 줄였습니다.' },
       { version: '0.65', date: '2026-08-04', label: '모바일 고정지출 요약', detail: '모바일 상단의 고정지출현황 버튼도 데스크톱처럼 기능명과 월 환산액·활성 건수를 함께 표시합니다. 작은 화면에서는 상단바를 두 줄로 배치해 다른 주요 버튼과 겹치거나 화면 밖으로 밀리지 않도록 했습니다.' },
       { version: '0.64', date: '2026-08-04', label: '거래 입력 필드 정렬', detail: '계정과목 선택 가이드를 별도 줄에서 계정과목 라벨 오른쪽으로 옮겨 거래일·거래처·계정과목 선택 필드의 윗선을 맞췄습니다. 가이드 기능과 접근성은 그대로 유지하면서 입력 화면의 시각적 흐름을 정돈했습니다.' },
@@ -1532,6 +1533,7 @@
     ]);
     const SYNC_DELETE_ORDER = Object.freeze(SYNC_TABLE_ORDER.filter(table => table !== 'audit_logs').slice().reverse());
     const LOCAL_STORES = Object.freeze([...SYNC_TABLE_ORDER, 'sync_queue', 'tombstones', 'app_research_notes']);
+    const BACKUP_LIMITS = Object.freeze({ maxBytes: 25 * 1024 * 1024, maxRowsPerStore: 50000, maxRowsTotal: 200000 });
     const CURRENCIES = Object.freeze([
       { code: 'KRW', name: '원', locale: 'ko-KR', fractionDigits: 0 },
       { code: 'UZS', name: '우즈베키스탄 숨', locale: 'uz-UZ', fractionDigits: 0 },
@@ -1596,6 +1598,20 @@
       },
       normalizeEmail: value => String(value || '').trim().toLowerCase(),
       isSecretKey: value => /(?:service[_-]?role|sb_secret_|cloudinary:\/\/[^:]+:|oauth.{0,8}secret)/i.test(String(value || '')),
+      stableStringify(value) {
+        const normalize = item => {
+          if (Array.isArray(item)) return item.map(normalize);
+          if (item && typeof item === 'object') return Object.fromEntries(Object.keys(item).sort().map(key => [key, normalize(item[key])]));
+          return item;
+        };
+        return JSON.stringify(normalize(value));
+      },
+      async sha256Hex(value) {
+        const encoded = unescape(encodeURIComponent(String(value)));
+        const bytes = Uint8Array.from(encoded, char => char.charCodeAt(0));
+        const hash = await crypto.subtle.digest('SHA-256', bytes);
+        return [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      },
       latestByUpdatedAt(local, remote) {
         if (!local) return remote;
         if (!remote) return local;
@@ -1617,7 +1633,7 @@
           const rows = backupTables[store];
           if (rows === undefined) continue;
           if (!Array.isArray(rows)) throw new Error(`BACKUP_TABLE_INVALID:${store}`);
-          if (rows.length > 50000 || (totalRows += rows.length) > 200000) throw new Error('BACKUP_ROW_LIMIT_EXCEEDED');
+          if (rows.length > BACKUP_LIMITS.maxRowsPerStore || (totalRows += rows.length) > BACKUP_LIMITS.maxRowsTotal) throw new Error('BACKUP_ROW_LIMIT_EXCEEDED');
           recordsByStore[store] = rows.map(row => this.validateBackupRow(store, row));
         }
         return recordsByStore;
@@ -1654,7 +1670,101 @@
           }
           return clean;
         };
-        return visit(row, 'row', 0);
+        const clean = visit(row, 'row', 0);
+        if (!clean.id) throw new Error(`BACKUP_ID_REQUIRED:${store}`);
+        return clean;
+      },
+      validateBackupRelations(recordsByStore, fallbackByStore = {}) {
+        const rows = store => recordsByStore[store] || fallbackByStore[store] || [];
+        const ids = store => new Set(rows(store).map(row => row.id));
+        const businessIds = ids('businesses');
+        const refs = [
+          ['business_sites', 'business_id', businessIds], ['ledger_period_settings', 'business_id', businessIds],
+          ['accounts', 'business_id', businessIds], ['counterparties', 'business_id', businessIds],
+          ['fixed_expenses', 'business_id', businessIds], ['source_transactions', 'business_id', businessIds],
+          ['journal_entries', 'business_id', businessIds], ['journal_entry_lines', 'business_id', businessIds],
+          ['evidence_files', 'business_id', businessIds], ['period_closings', 'business_id', businessIds],
+          ['journal_entry_lines', 'journal_entry_id', ids('journal_entries')],
+          ['journal_entry_lines', 'account_id', ids('accounts')]
+        ];
+        for (const [store, key, targetIds] of refs) {
+          for (const row of rows(store)) if (row[key] && !targetIds.has(row[key])) throw new Error(`BACKUP_REFERENCE_INVALID:${store}.${key}`);
+        }
+        const optionalRefs = [
+          ['source_transactions', 'business_site_id', 'business_sites'],
+          ['source_transactions', 'counterparty_id', 'counterparties'],
+          ['source_transactions', 'account_id', 'accounts'],
+          ['journal_entries', 'source_transaction_id', 'source_transactions'],
+          ['evidence_files', 'source_transaction_id', 'source_transactions']
+        ];
+        for (const [store, key, target] of optionalRefs) {
+          const targetIds = ids(target);
+          for (const row of rows(store)) if (row[key] && !targetIds.has(row[key])) throw new Error(`BACKUP_REFERENCE_INVALID:${store}.${key}`);
+        }
+        const seenByStore = new Map();
+        for (const [store, storeRows] of Object.entries(recordsByStore)) {
+          const seen = new Set(); seenByStore.set(store, seen);
+          for (const row of storeRows) {
+            if (seen.has(row.id)) throw new Error(`BACKUP_DUPLICATE_ID:${store}`);
+            seen.add(row.id);
+          }
+        }
+        const totals = new Map();
+        for (const line of rows('journal_entry_lines').filter(row => !row.deleted_at)) {
+          const debit = Number(line.debit_amount || 0), credit = Number(line.credit_amount || 0);
+          if (debit < 0 || credit < 0 || (debit > 0) === (credit > 0)) throw new Error('BACKUP_JOURNAL_LINE_INVALID');
+          const total = totals.get(line.journal_entry_id) || { debit: 0, credit: 0 };
+          total.debit += debit; total.credit += credit; totals.set(line.journal_entry_id, total);
+        }
+        for (const total of totals.values()) if (Math.abs(total.debit - total.credit) > 0.005) throw new Error('BACKUP_JOURNAL_UNBALANCED');
+        return true;
+      },
+      validateBackupEnvelope(backup, fallbackByStore = {}) {
+        const supported = ['0.01', '0.02', '0.03', APP_INFO.backupSchemaVersion];
+        if (!backup || typeof backup !== 'object' || Array.isArray(backup) || !supported.includes(backup.backupSchemaVersion) || !backup.tables || typeof backup.tables !== 'object' || Array.isArray(backup.tables)) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
+        for (const store of Object.keys(backup.tables)) if (!LOCAL_STORES.includes(store)) throw new Error(`BACKUP_TABLE_UNKNOWN:${store}`);
+        const canonicalVersion = Number(backup.canonicalVersion || 0);
+        if (!Number.isSafeInteger(canonicalVersion) || canonicalVersion < 0) throw new Error('BACKUP_CANONICAL_INVALID');
+        if (backup.backupSchemaVersion === APP_INFO.backupSchemaVersion) {
+          if (!['local', 'cloud'].includes(backup.source) || !/^\d+\.\d{2}$/.test(String(backup.appVersion || '')) || !/^\d+\.\d{2}$/.test(String(backup.schemaVersion || '')) || !/^\d{4}-\d{2}-\d{2}T/.test(String(backup.createdAt || ''))) throw new Error('BACKUP_METADATA_INVALID');
+        }
+        const recordsByStore = this.restoreScope(LOCAL_STORES, backup.tables);
+        if (backup.backupSchemaVersion === APP_INFO.backupSchemaVersion) {
+          for (const [store, storeRows] of Object.entries(recordsByStore)) {
+            for (const row of storeRows) {
+              if (!row.created_at && !row.createdAt) throw new Error(`BACKUP_CREATED_AT_REQUIRED:${store}`);
+              if (!['audit_logs', 'tombstones'].includes(store) && !row.updated_at) throw new Error(`BACKUP_UPDATED_AT_REQUIRED:${store}`);
+            }
+          }
+        }
+        this.validateBackupRelations(recordsByStore, fallbackByStore);
+        return { recordsByStore, canonicalVersion };
+      },
+      async verifyBackupChecksum(backup) {
+        if (backup.backupSchemaVersion !== APP_INFO.backupSchemaVersion) return true;
+        if (!/^[0-9a-f]{64}$/i.test(String(backup.checksum || ''))) throw new Error('BACKUP_CHECKSUM_MISSING');
+        const { checksum, ...payload } = backup;
+        const actual = await Utils.sha256Hex(Utils.stableStringify(payload));
+        if (actual !== checksum.toLowerCase()) throw new Error('BACKUP_CHECKSUM_MISMATCH');
+        return true;
+      },
+      async sealBackup(payload) {
+        const checksum = await Utils.sha256Hex(Utils.stableStringify(payload));
+        const backup = { ...payload, checksum };
+        if (new Blob([JSON.stringify(backup)]).size > BACKUP_LIMITS.maxBytes) throw new Error('BACKUP_SIZE_LIMIT_EXCEEDED');
+        this.validateBackupEnvelope(backup);
+        return backup;
+      },
+      previewRestore(recordsByStore, currentByStore) {
+        const stores = [];
+        for (const [store, incoming] of Object.entries(recordsByStore)) {
+          if (store === 'sync_queue') continue;
+          const current = currentByStore[store] || [];
+          const currentIds = new Set(current.map(row => row.id));
+          const incomingIds = new Set(incoming.map(row => row.id));
+          stores.push({ store, before: current.length, after: incoming.length, added: incoming.filter(row => !currentIds.has(row.id)).length, removed: current.filter(row => !incomingIds.has(row.id)).length });
+        }
+        return { stores, totalBefore: stores.reduce((sum, item) => sum + item.before, 0), totalAfter: stores.reduce((sum, item) => sum + item.after, 0) };
       },
       resolveTombstoneBusinessId(explicitBusinessId, activeBusinessId) {
         return explicitBusinessId !== undefined ? explicitBusinessId : (activeBusinessId || null);
@@ -1707,6 +1817,18 @@
           }
         }
         return batches;
+      },
+      planQueueAgainstCloud(items, cloudRows) {
+        const cloudById = new Map((cloudRows || []).map(row => [row.id, row]));
+        const latestPayloadById = new Map();
+        const supersededIds = new Set();
+        for (const item of items || []) {
+          const payload = item.payload;
+          const cloudRow = cloudById.get(payload?.id);
+          if (cloudRow && Utils.latestByUpdatedAt(payload, cloudRow) === cloudRow) supersededIds.add(item.id);
+          else latestPayloadById.set(payload.id, Utils.latestByUpdatedAt(latestPayloadById.get(payload.id), payload));
+        }
+        return { rowsToPush: [...latestPayloadById.values()], supersededIds };
       },
       page(rows, requestedPage, pageSize = 100) {
         const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -2175,7 +2297,8 @@
           tx.oncomplete = () => resolve(result);
           tx.onerror = () => reject(tx.error || new Error('IDB_TRANSACTION_FAILED'));
           tx.onabort = () => reject(tx.error || new Error('IDB_TRANSACTION_ABORTED'));
-          result = executor(tx);
+          try { result = executor(tx); }
+          catch (error) { try { tx.abort(); } catch { /* already inactive */ } reject(error); }
         });
       }
       async getAll(storeName) {
@@ -2208,10 +2331,18 @@
         });
       }
       async replaceStore(storeName, rows) {
-        return this.transaction([storeName], 'readwrite', tx => {
-          const store = tx.objectStore(storeName);
-          store.clear();
-          for (const row of rows) store.put(row);
+        return this.replaceStoresAtomic({ [storeName]: rows });
+      }
+      async replaceStoresAtomic(recordsByStore) {
+        const names = Object.keys(recordsByStore);
+        if (!names.length) return;
+        if (names.some(name => !LOCAL_STORES.includes(name))) throw new Error('IDB_STORE_INVALID');
+        return this.transaction(names, 'readwrite', tx => {
+          for (const [storeName, rows] of Object.entries(recordsByStore)) {
+            const store = tx.objectStore(storeName);
+            store.clear();
+            for (const row of rows) store.put(row);
+          }
         });
       }
       async clearAll() {
@@ -2220,9 +2351,18 @@
         });
       }
       async snapshot() {
-        const tables = {};
-        for (const store of LOCAL_STORES) tables[store] = await this.getAll(store);
-        return tables;
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction([...LOCAL_STORES], 'readonly');
+          const tables = {};
+          tx.oncomplete = () => resolve(tables);
+          tx.onerror = () => reject(tx.error || new Error('IDB_SNAPSHOT_FAILED'));
+          tx.onabort = () => reject(tx.error || new Error('IDB_SNAPSHOT_ABORTED'));
+          for (const storeName of LOCAL_STORES) {
+            const request = tx.objectStore(storeName).getAll();
+            request.onsuccess = () => { tables[storeName] = request.result || []; };
+          }
+        });
       }
     }
 
@@ -2417,6 +2557,21 @@
         const ownerId = state.session?.user?.id;
         if (!ownerId) throw new Error('AUTH_REQUIRED');
         return this.raw('accounting_sync_meta?on_conflict=owner_user_id,key', { method: 'POST', body: [{ owner_user_id: ownerId, key, value: String(value), updated_at: Utils.now() }], prefer: 'resolution=merge-duplicates,return=minimal' });
+      }
+      async exportSnapshot() {
+        return this.raw('rpc/accounting_export_snapshot', { method: 'POST', body: {} });
+      }
+      async publishCanonical({ expectedVersion, deviceId, upsertsByTable, deletesByTable, tombstones }) {
+        return this.raw('rpc/accounting_publish_canonical', {
+          method: 'POST',
+          body: {
+            p_expected_version: expectedVersion,
+            p_device_id: deviceId,
+            p_upserts: upsertsByTable,
+            p_deletes: deletesByTable,
+            p_tombstones: tombstones
+          }
+        });
       }
       async pullTombstones() {
         return this.pullPaged('tombstones', 'deleted_at');
@@ -3359,7 +3514,7 @@
       // 이 기기 로컬 캐시 스냅샷 — "정본"이 아니라 오프라인 대비·이 기기 복구용 보조 백업이다.
       async exportBackup() {
         const tables = await storage.snapshot();
-        return {
+        return SyncAlgorithms.sealBackup({
           backupSchemaVersion: APP_INFO.backupSchemaVersion,
           appVersion: APP_INFO.version,
           schemaVersion: APP_INFO.schemaVersion,
@@ -3368,20 +3523,36 @@
           deviceId: this.deviceId(),
           canonicalVersion: Number(state.config.canonicalVersion || 0),
           tables,
-          warnings: ['이 파일에는 거래처와 세무자료가 포함될 수 있습니다. 공개 저장소나 공유 폴더에 올리지 마세요.']
-        };
+          evidenceArchive: { originalsIncluded: false, provider: 'cloudinary', manifestRows: (tables.evidence_files || []).length },
+          warnings: [
+            '이 파일에는 거래처와 세무자료가 포함될 수 있습니다. 공개 저장소나 공유 폴더에 올리지 마세요.',
+            '증빙 원본 파일은 Cloudinary에 별도 보관되며, 이 JSON에는 원본 링크·public_id·해시 등 증빙대장 메타데이터만 포함됩니다.'
+          ]
+        });
       },
 
       // 백업 파일 안에 없는 저장소(예: 클라우드 백업엔 없는 sync_queue·app_research_notes 같은 이 기기
       // 전용 인프라 테이블)는 건드리지 않는다 — 없다고 그냥 비우면 아직 못 올린 로컬 변경이 사라질 수 있다.
       async restoreBackup(backup) {
         this.assertWritable();
-        if (!backup || !['0.01', '0.02', APP_INFO.backupSchemaVersion].includes(backup.backupSchemaVersion) || !backup.tables) throw new Error('BACKUP_SCHEMA_UNSUPPORTED');
-        const recordsByStore = SyncAlgorithms.restoreScope(LOCAL_STORES, backup.tables);
-        for (const store of Object.keys(recordsByStore)) await storage.replaceStore(store, recordsByStore[store]);
-        state.config.canonicalVersion = Number(backup.canonicalVersion || 0);
-        ConfigAdapter.save(state.config);
+        const currentByStore = await storage.snapshot();
+        const { recordsByStore } = SyncAlgorithms.validateBackupEnvelope(backup, currentByStore);
+        await SyncAlgorithms.verifyBackupChecksum(backup);
+        const atomicReplacement = Object.fromEntries(Object.entries(recordsByStore).filter(([store]) => store !== 'sync_queue'));
+        const quarantinedAt = Utils.now();
+        atomicReplacement.sync_queue = (currentByStore.sync_queue || []).map(row => row.status === 'pending'
+          ? { ...row, status: 'quarantined_by_restore', last_error: '로컬 복원으로 자동 전송이 차단되었습니다.', updated_at: quarantinedAt }
+          : row);
+        await storage.replaceStoresAtomic(atomicReplacement);
         await this.reload();
+        return SyncAlgorithms.previewRestore(recordsByStore, currentByStore);
+      },
+
+      async previewBackup(backup) {
+        const currentByStore = await storage.snapshot();
+        const { recordsByStore } = SyncAlgorithms.validateBackupEnvelope(backup, currentByStore);
+        await SyncAlgorithms.verifyBackupChecksum(backup);
+        return SyncAlgorithms.previewRestore(recordsByStore, currentByStore);
       },
 
       deviceId() {
@@ -3451,59 +3622,74 @@
         state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
         const syncStartedAt = Utils.now();
         try {
-          const meta = await remote.syncMeta();
-          const cloudCanonical = Number(meta.canonical_version?.value || 0);
+          const cloudSnapshot = await remote.exportSnapshot();
+          const cloudCanonical = Number(cloudSnapshot?.canonical_version || 0);
           const localCanonical = Number(state.config.canonicalVersion || 0);
           if (cloudCanonical > localCanonical) {
-            const cloudPairs = await SyncAlgorithms.mapWithConcurrency(SYNC_TABLE_ORDER, 4, async table => [table, (await remote.pullTable(table)) || []]);
-            const cloudByTable = Object.fromEntries(cloudPairs);
+            const cloudByTable = cloudSnapshot.tables || {};
             // Empty-cloud guard: a real canonical final always carries the owner's business. If the pull
             // returns no business while we hold one locally, treat it as an RLS/auth failure and refuse to
             // wipe local data (protects against a broken empty response silently deleting everything).
             const localBusinesses = await storage.getAll('businesses');
-            SyncAlgorithms.assertCanonicalCloudSafe(localBusinesses, cloudByTable.businesses);
-            for (const table of SYNC_TABLE_ORDER) await storage.replaceStore(table, cloudByTable[table]);
+            SyncAlgorithms.assertCanonicalCloudSafe(localBusinesses, cloudByTable.businesses || []);
             // canonical 변경은 클라우드 정본을 내려받기만 한다. 이 기기의 오래된 tombstone을 다시
             // 올리면 방금 받은 최종본을 오염시키므로 클라우드 tombstone으로 통째 교체한다.
-            await storage.replaceStore('tombstones', (await remote.pullTombstones()) || []);
             const pending = await storage.getAll('sync_queue');
             const completedAt = Utils.now();
-            await storage.replaceStore('sync_queue', pending.map(row => ({ ...row, status: 'superseded_by_canonical', updated_at: completedAt })));
+            await storage.replaceStoresAtomic({
+              ...Object.fromEntries(SYNC_TABLE_ORDER.map(table => [table, cloudByTable[table] || []])),
+              tombstones: cloudByTable.tombstones || [],
+              sync_queue: pending.map(row => row.status === 'pending' ? { ...row, status: 'superseded_by_canonical', updated_at: completedAt } : row)
+            });
             state.config.canonicalVersion = cloudCanonical;
           } else {
+            // 먼저 한 DB 스냅샷으로 클라우드를 읽어 로컬과 합친다. 오래된 대기 payload를 먼저
+            // 전송하면 더 최신인 클라우드 행을 덮을 수 있으므로 pull-before-push 순서를 지킨다.
+            const localSnapshot = await storage.snapshot();
+            const cloudByTable = cloudSnapshot.tables || {};
+            const mergedByTable = Object.fromEntries(SYNC_TABLE_ORDER.map(table => [
+              table, SyncAlgorithms.mergeRows(localSnapshot[table] || [], cloudByTable[table] || [])
+            ]));
+            await storage.replaceStoresAtomic(mergedByTable);
+
             // 삭제 대상 business가 아직 활성일 때 tombstone을 먼저 올려 RLS를 통과시킨다.
             await this.convergeTombstones();
             const queue = (await storage.getAll('sync_queue')).filter(row => row.status === 'pending' && !row.deleted_at);
             for (const batch of SyncAlgorithms.planQueueBatches(queue)) {
               try {
-                const latestPayloadById = new Map();
-                for (const item of batch.items) {
-                  const payload = batch.entityType === 'accounts' ? AppService.remoteSafeAccount(item.payload) : item.payload;
-                  latestPayloadById.set(payload.id, Utils.latestByUpdatedAt(latestPayloadById.get(payload.id), payload));
-                }
-                await remote.upsertMany(batch.entityType, [...latestPayloadById.values()]);
+                const normalizedItems = batch.items.map(item => ({ ...item, payload: batch.entityType === 'accounts' ? AppService.remoteSafeAccount(item.payload) : item.payload }));
+                const queuePlan = SyncAlgorithms.planQueueAgainstCloud(normalizedItems, cloudByTable[batch.entityType] || []);
+                if (queuePlan.rowsToPush.length) await remote.upsertMany(batch.entityType, queuePlan.rowsToPush);
                 const completedAt = Utils.now();
-                await storage.putMany({ sync_queue: batch.items.map(item => ({ ...item, status: 'complete', updated_at: completedAt, last_error: null })) });
+                await storage.putMany({ sync_queue: batch.items.map(item => ({ ...item, status: queuePlan.supersededIds.has(item.id) ? 'superseded_by_remote' : 'complete', updated_at: completedAt, last_error: null })) });
               } catch (error) {
                 const failedAt = Utils.now();
                 await storage.putMany({ sync_queue: batch.items.map(item => ({ ...item, retry_count: Number(item.retry_count || 0) + 1, last_error: error.message, updated_at: failedAt })) });
                 throw error;
               }
             }
-            const previousSync = Date.parse(state.config.lastSyncAt || 0);
-            const changedSince = Number.isFinite(previousSync) && previousSync > 0
-              ? new Date(previousSync - 5 * 60 * 1000).toISOString()
-              : null;
-            const syncPairs = await SyncAlgorithms.mapWithConcurrency(SYNC_TABLE_ORDER, 4, async table => {
-              const [localRows, cloudRows] = await Promise.all([storage.getAll(table), remote.pullTable(table, { since: changedSince })]);
-              return [table, localRows, cloudRows];
-            });
-            for (const [table, localRows, cloudRows] of syncPairs) {
-              await storage.replaceStore(table, SyncAlgorithms.mergeRows(localRows, cloudRows));
+            // 서버 trigger가 경합 중 들어온 더 최신 행도 보호한다. 최종 서버 결과를 다시 한 번
+            // 원자 스냅샷으로 읽어 이 기기 캐시를 실제 커밋 결과와 맞춘다.
+            const finalSnapshot = await remote.exportSnapshot();
+            const finalCanonical = Number(finalSnapshot?.canonical_version || cloudCanonical);
+            const afterPush = await storage.snapshot();
+            if (finalCanonical > localCanonical) {
+              const pending = afterPush.sync_queue || [];
+              const completedAt = Utils.now();
+              await storage.replaceStoresAtomic({
+                ...Object.fromEntries(SYNC_TABLE_ORDER.map(table => [table, finalSnapshot.tables?.[table] || []])),
+                tombstones: finalSnapshot.tables?.tombstones || [],
+                sync_queue: pending.map(row => row.status === 'pending' ? { ...row, status: 'superseded_by_canonical', updated_at: completedAt } : row)
+              });
+            } else {
+              await storage.replaceStoresAtomic(Object.fromEntries(SYNC_TABLE_ORDER.map(table => [
+                table, SyncAlgorithms.mergeRows(afterPush[table] || [], finalSnapshot.tables?.[table] || [])
+              ])));
             }
+            state.config.canonicalVersion = finalCanonical;
           }
           state.config.lastSyncAt = syncStartedAt;
-          state.config.canonicalVersion = cloudCanonical;
+          if (state.config.canonicalVersion == null) state.config.canonicalVersion = cloudCanonical;
           ConfigAdapter.save(state.config);
           state.syncStatus = 'complete';
           await AppService.reload();
@@ -3607,12 +3793,14 @@
         if (!isBootstrapOwner()) throw new Error('CANONICAL_OWNER_ONLY');
         state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
         try {
-          const meta = await remote.syncMeta();
-          const nextCanonical = Math.max(Number(meta.canonical_version?.value || 0), Number(state.config.canonicalVersion || 0)) + 1;
+          const cloudSnapshot = await remote.exportSnapshot();
+          const expectedCanonical = Number(cloudSnapshot?.canonical_version || 0);
+          const nextCanonical = expectedCanonical + 1;
           const now = Utils.now();
           const localByTable = {}, cloudByTable = {};
           for (const table of SYNC_TABLE_ORDER) {
-            [localByTable[table], cloudByTable[table]] = await Promise.all([storage.getAll(table), remote.pullTable(table)]);
+            localByTable[table] = await storage.getAll(table);
+            cloudByTable[table] = cloudSnapshot.tables?.[table] || [];
           }
           const plan = SyncAlgorithms.planCanonicalReconciliation({
             localByTable, cloudByTable, now, deviceId: AppService.deviceId(), ownerUserId: state.session.user.id, nextCanonical
@@ -3622,45 +3810,43 @@
             ...(plan.upsertsByTable.businesses || []).map(row => row.id)
           ]);
 
-          // 부모부터 활성 최종본을 올린다. 감사로그는 append-only라 클라우드 전용 로그를 지우지 않는다.
+          // 감사로그의 business scope도 RPC 입력 전에 좁힌다. 실제 부모→자식 upsert, tombstone,
+          // 자식→부모 삭제, canonical CAS는 서버 함수 한 트랜잭션 안에서 처리된다.
           for (const table of SYNC_TABLE_ORDER) {
             const rows = table === 'audit_logs'
               ? plan.upsertsByTable[table].filter(row => row.business_id == null || visibleBusinessIds.has(row.business_id))
               : plan.upsertsByTable[table];
-            const safe = table === 'accounts' ? rows.map(row => AppService.remoteSafeAccount(row)) : rows;
-            await remote.upsertMany(table, safe);
+            plan.upsertsByTable[table] = table === 'accounts' ? rows.map(row => AppService.remoteSafeAccount(row)) : rows;
+            if (table === 'accounts') plan.deletesByTable[table] = (plan.deletesByTable[table] || []).map(row => AppService.remoteSafeAccount(row));
           }
 
-          // business를 지우기 전에 tombstone을 먼저 저장해야 business-scoped RLS를 통과한다.
           const localTombstones = SyncAlgorithms.scopeTombstonesForOwner(
             await storage.getAll('tombstones'),
             state.session.user.id
           ).filter(row => row.business_id == null || visibleBusinessIds.has(row.business_id));
           const tombstones = [...new Map([...localTombstones, ...plan.generatedTombstones].map(row => [row.id, row])).values()];
-          await remote.pushTombstones(tombstones);
-
-          // 자식부터 삭제하고 businesses를 마지막에 처리하면 RLS 검사에 필요한 부모가 끝까지 살아 있다.
-          for (const table of SYNC_DELETE_ORDER) {
-            const rows = plan.deletesByTable[table] || [];
-            const safe = table === 'accounts' ? rows.map(row => AppService.remoteSafeAccount(row)) : rows;
-            await remote.upsertMany(table, safe);
-          }
+          const result = await remote.publishCanonical({
+            expectedVersion: expectedCanonical,
+            deviceId: AppService.deviceId(),
+            upsertsByTable: plan.upsertsByTable,
+            deletesByTable: plan.deletesByTable,
+            tombstones
+          });
+          const committedCanonical = Number(result?.canonical_version);
+          if (committedCanonical !== nextCanonical) throw new Error('CANONICAL_COMMIT_INVALID');
 
           const localUpdates = {};
           for (const table of SYNC_TABLE_ORDER) if (plan.upsertsByTable[table].length) localUpdates[table] = plan.upsertsByTable[table];
           if (tombstones.length) localUpdates.tombstones = tombstones;
-          if (Object.keys(localUpdates).length) await storage.putMany(localUpdates);
-
-          // 마지막 커밋 표식. 이 전 단계가 실패하면 다른 기기는 불완전한 상태를 canonical로 소비하지 않는다.
-          await remote.setSyncMeta('canonical_version', nextCanonical);
           const pending = await storage.getAll('sync_queue');
-          await storage.replaceStore('sync_queue', pending.map(row => ({ ...row, status: 'superseded_by_canonical', updated_at: now })));
-          state.config.canonicalVersion = nextCanonical;
+          localUpdates.sync_queue = pending.map(row => row.status === 'pending' ? { ...row, status: 'superseded_by_canonical', updated_at: now } : row);
+          await storage.putMany(localUpdates);
+          state.config.canonicalVersion = committedCanonical;
           state.config.lastSyncAt = now;
           ConfigAdapter.save(state.config);
           state.syncStatus = 'complete';
           await AppService.reload();
-          return nextCanonical;
+          return committedCanonical;
         } catch (error) {
           state.syncStatus = 'error'; state.syncError = error.message; throw error;
         } finally {
@@ -3672,21 +3858,23 @@
       // 진짜로 들고 있는 값"을 그대로 담는다. tombstones까지 포함해 삭제 상태도 정확히 복원할 수 있다.
       async exportCloudBackup() {
         if (!state.session) throw new Error('AUTH_REQUIRED');
-        const tables = {};
-        for (const table of SYNC_TABLE_ORDER) tables[table] = (await remote.pullTable(table)) || [];
-        tables.tombstones = (await remote.pullTombstones()) || [];
-        const meta = await remote.syncMeta();
-        return {
+        const snapshot = await remote.exportSnapshot();
+        const tables = snapshot.tables || {};
+        return SyncAlgorithms.sealBackup({
           backupSchemaVersion: APP_INFO.backupSchemaVersion,
           appVersion: APP_INFO.version,
           schemaVersion: APP_INFO.schemaVersion,
           source: 'cloud',
-          createdAt: Utils.now(),
+          createdAt: snapshot.captured_at || Utils.now(),
           deviceId: AppService.deviceId(),
-          canonicalVersion: Number(meta.canonical_version?.value || 0),
+          canonicalVersion: Number(snapshot.canonical_version || 0),
           tables,
-          warnings: ['이 파일에는 거래처와 세무자료가 포함될 수 있습니다. 공개 저장소나 공유 폴더에 올리지 마세요.']
-        };
+          evidenceArchive: { originalsIncluded: false, provider: 'cloudinary', manifestRows: (tables.evidence_files || []).length },
+          warnings: [
+            '이 파일에는 거래처와 세무자료가 포함될 수 있습니다. 공개 저장소나 공유 폴더에 올리지 마세요.',
+            '증빙 원본 파일은 Cloudinary에 별도 보관되며, 이 JSON에는 원본 링크·public_id·해시 등 증빙대장 메타데이터만 포함됩니다.'
+          ]
+        });
       },
 
       // 클라우드(정본) 기준으로 이 기기 로컬 캐시를 강제로 다시 맞춘다 — canonical_version이 같아도
@@ -3696,15 +3884,16 @@
         if (!state.session) throw new Error('AUTH_REQUIRED');
         state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
         try {
-          const cloudByTable = {};
-          for (const table of SYNC_TABLE_ORDER) cloudByTable[table] = (await remote.pullTable(table)) || [];
+          const snapshot = await remote.exportSnapshot();
+          const cloudByTable = snapshot.tables || {};
           const localBusinesses = await storage.getAll('businesses');
-          SyncAlgorithms.assertCanonicalCloudSafe(localBusinesses, cloudByTable.businesses);
-          for (const table of SYNC_TABLE_ORDER) await storage.replaceStore(table, cloudByTable[table]);
-          await storage.replaceStore('tombstones', (await remote.pullTombstones()) || []);
-          await storage.replaceStore('sync_queue', []);
-          const meta = await remote.syncMeta();
-          state.config.canonicalVersion = Number(meta.canonical_version?.value || 0);
+          SyncAlgorithms.assertCanonicalCloudSafe(localBusinesses, cloudByTable.businesses || []);
+          await storage.replaceStoresAtomic({
+            ...Object.fromEntries(SYNC_TABLE_ORDER.map(table => [table, cloudByTable[table] || []])),
+            tombstones: cloudByTable.tombstones || [],
+            sync_queue: []
+          });
+          state.config.canonicalVersion = Number(snapshot.canonical_version || 0);
           state.config.lastSyncAt = Utils.now();
           ConfigAdapter.save(state.config);
           state.syncStatus = 'complete';
@@ -3723,6 +3912,11 @@
     const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
     const term = name => `<button type="button" class="term-button" data-term="${Utils.escape(name)}">${Utils.escape(name)}</button>`;
     const badge = (text, kind = '') => `<span class="badge ${kind}">${Utils.escape(text)}</span>`;
+    const restorePreviewText = (preview, canonical = false) => {
+      const changed = preview.stores.filter(item => item.before !== item.after || item.added || item.removed).slice(0, 12)
+        .map(item => `${item.store}: ${item.before}→${item.after}건 (+${item.added}/-${item.removed})`).join('\n');
+      return `복원 사전검사를 통과했습니다.\n전체 ${preview.totalBefore}→${preview.totalAfter}건\n${changed || '건수 변화 없음'}\n\n동기화 대기열은 자동 전송되지 않도록 격리됩니다.${canonical ? '\n복원 뒤 이 내용을 모든 기기의 최종본으로 발행합니다.' : '\n클라우드는 바꾸지 않습니다.'}\n\n계속하시겠습니까?`;
+    };
     const currentYear = new Date().getFullYear();
 
     function pager(view, result) {
@@ -4918,13 +5112,13 @@
             badge(connected ? '연결됨 · 자동 동기화' : '로그인 필요', connected ? 'success' : 'warning'),
             `마지막 동기화 ${lastSync} · canonical v${Number(state.config.canonicalVersion || 0)}<br>${connected ? '로그인·화면 복귀·온라인 복귀 시 자동으로 맞춰집니다. 지금 바로 반영하려면 아래 버튼을 누르세요.' : '설정에서 Google 로그인 후 사용할 수 있습니다.'}${owner ? '<br><strong>최종본 지정</strong>은 다른 기기의 로컬 전용 변경을 이 기기 기준으로 덮어씁니다.' : ''}`,
             `<button class="button primary" id="dataSyncButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud')}지금 동기화</button><button class="button" id="dataResetFromCloudButton" type="button" ${connected ? '' : 'disabled'}>${icon('rotate-ccw')}클라우드 기준으로 새로고침</button>${owner ? `<button class="button danger" id="dataCanonicalButton" type="button" ${connected ? '' : 'disabled'}>${icon('crown')}이 기기를 최종본으로</button>` : ''}`)}
-          ${dataCard('백업', '암호화되지 않은 파일이므로 안전한 위치에 보관하세요.',
+          ${dataCard('장부 데이터 백업', '암호화되지 않은 JSON이므로 안전한 위치에 보관하세요.',
             state.config.lastBackupAt ? badge(new Date(state.config.lastBackupAt).toLocaleString('ko-KR'), 'success') : badge('백업 없음', 'warning'),
-            `<strong>클라우드에서 백업</strong>은 정본(Supabase)에서 직접 내려받아 이 기기 캐시 상태와 무관하게 가장 정확합니다.<br>이 기기 백업은 오프라인이거나 로그인 전에도 만들 수 있는 보조 백업입니다.`,
+            `<strong>클라우드에서 백업</strong>은 정본(Supabase)의 단일 DB 스냅샷에서 만듭니다. 두 백업 모두 복원 한도(25MB·테이블당 5만·전체 20만 행)와 SHA-256 무결성 검사를 통과해야 생성됩니다.<br>증빙 원본은 Cloudinary에 별도 보관되며 JSON에는 링크·public_id·해시를 포함한 증빙대장만 들어갑니다.`,
             `<button class="button primary" id="dataCloudBackupButton" type="button" ${connected ? '' : 'disabled'}>${icon('cloud-download')}클라우드에서 백업</button><button class="button" id="dataBackupButton" type="button">${icon('download')}이 기기 백업</button>`)}
           ${dataCard('복원', '백업 파일로 데이터를 되돌립니다.',
             badge('주의', 'warning'),
-            '"이 기기만 복원"은 이 기기 캐시만 바꾸고, 다음 자동 동기화 때 클라우드 값으로 다시 덮일 수 있습니다.' + (owner ? ' 다른 기기에도 반영하려면 "복원 후 모든 기기에 반영"을 쓰세요(최종본 지정과 같은 효과).' : ''),
+            '파일의 필수값·참조·복식부기 균형·SHA-256을 먼저 검사하고 변경 건수를 보여준 뒤, 모든 저장소를 한 번에 교체합니다. "이 기기만 복원"은 대기열을 격리해 클라우드에 업로드하지 않습니다.' + (owner ? ' 다른 기기에도 반영하려면 "복원 후 모든 기기에 반영"을 쓰세요.' : ''),
             `<button class="button" id="dataRestoreButton" type="button">${icon('upload')}이 기기만 복원</button><input id="dataRestoreFile" type="file" accept="application/json,.json" hidden>${owner ? `<button class="button danger" id="dataRestoreCanonicalButton" type="button">${icon('upload-cloud')}복원 후 모든 기기에 반영</button><input id="dataRestoreCanonicalFile" type="file" accept="application/json,.json" hidden>` : ''}`)}
           ${dataCard('부분 삭제', '거래 한 건을 소프트 삭제합니다.',
             badge(`${activeCount}건`, activeCount ? 'info' : ''),
@@ -5562,18 +5756,25 @@
       el('dataRestoreButton')?.addEventListener('click', () => el('dataRestoreFile').click());
       el('dataRestoreFile')?.addEventListener('change', async event => {
         const file = event.target.files?.[0]; if (!file) return;
-        if (!confirm('이 기기의 로컬 데이터를 백업 파일 내용으로 교체합니다(이 기기만, 다른 기기·클라우드는 그대로). 계속하시겠습니까?')) return;
-        try { if (file.size > 25 * 1024 * 1024) throw new Error('백업 파일은 25MB 이하만 복원할 수 있습니다.'); await AppService.restoreBackup(JSON.parse(await file.text())); toast('이 기기에 백업을 복원했습니다.','success'); render(); }
+        try {
+          if (file.size > BACKUP_LIMITS.maxBytes) throw new Error('BACKUP_SIZE_LIMIT_EXCEEDED');
+          const backup = JSON.parse(await file.text());
+          const preview = await AppService.previewBackup(backup);
+          if (!confirm(restorePreviewText(preview, false))) return;
+          await AppService.restoreBackup(backup); toast('이 기기에 원자적으로 복원했습니다. 동기화 대기열은 격리되었습니다.','success'); render();
+        }
         catch(error){ diagnostic(error); }
         finally { event.target.value = ''; }
       });
       el('dataRestoreCanonicalButton')?.addEventListener('click', () => el('dataRestoreCanonicalFile').click());
       el('dataRestoreCanonicalFile')?.addEventListener('change', async event => {
         const file = event.target.files?.[0]; if (!file) return;
-        if (!confirm('이 백업 내용으로 이 기기를 복원한 뒤, 클라우드 최종본으로 지정합니다. 다른 모든 기기는 다음 동기화에서 이 내용으로 맞춰지고, 각 기기의 로컬 전용 변경은 버려집니다. 계속하시겠습니까?')) return;
         try {
-          if (file.size > 25 * 1024 * 1024) throw new Error('백업 파일은 25MB 이하만 복원할 수 있습니다.');
-          await AppService.restoreBackup(JSON.parse(await file.text()));
+          if (file.size > BACKUP_LIMITS.maxBytes) throw new Error('BACKUP_SIZE_LIMIT_EXCEEDED');
+          const backup = JSON.parse(await file.text());
+          const preview = await AppService.previewBackup(backup);
+          if (!confirm(restorePreviewText(preview, true))) return;
+          await AppService.restoreBackup(backup);
           const v = await SyncService.designateCanonical();
           toast(`백업을 복원하고 모든 기기의 최종본(canonical v${v})으로 지정했습니다.`,'success'); render();
         } catch(error){ diagnostic(error); }
@@ -5688,7 +5889,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, SupabaseAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, SupabaseAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>

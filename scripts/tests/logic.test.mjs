@@ -472,6 +472,51 @@ function removeEvidence(evidenceFiles, transactions, id) {
   ok(badDate, 'restoreScope: rejects an HTML-breaking transaction date before IndexedDB replacement');
   const offsetTimestamp = SyncAlgorithms.restoreScope(['businesses'], { businesses: [{ id: '00000000-0000-4000-8000-000000000003', created_at: '2026-08-07T12:34:56.123456+00:00' }] });
   ok(offsetTimestamp.businesses.length === 1, 'restoreScope: accepts PostgreSQL timestamptz offsets in legitimate cloud backups');
+  let missingId = false;
+  try { SyncAlgorithms.restoreScope(['business_sites'], { business_sites: [{}] }); } catch (e) { missingId = e.message.includes('BACKUP_ID_REQUIRED'); }
+  ok(missingId, 'restoreScope: rejects a row without a key before any IndexedDB clear can run');
+
+  const backupNow = '2026-08-07T12:34:56.000Z';
+  const backupPayload = {
+    backupSchemaVersion: api.APP_INFO.backupSchemaVersion,
+    appVersion: api.APP_INFO.version,
+    schemaVersion: api.APP_INFO.schemaVersion,
+    source: 'local',
+    createdAt: backupNow,
+    deviceId: '00000000-0000-4000-8000-000000000099',
+    canonicalVersion: 4,
+    tables: { businesses: [{ id: '00000000-0000-4000-8000-000000000010', name: '검증 장부', created_at: backupNow, updated_at: backupNow }] },
+    evidenceArchive: { originalsIncluded: false, provider: 'cloudinary', manifestRows: 0 },
+    warnings: []
+  };
+  const validBackup = { ...backupPayload, checksum: await api.Utils.sha256Hex(api.Utils.stableStringify(backupPayload)) };
+  ok(SyncAlgorithms.validateBackupEnvelope(validBackup).canonicalVersion === 4, 'backup envelope: validates version, metadata, row contract, and canonical integer');
+  ok(await SyncAlgorithms.verifyBackupChecksum(validBackup), 'backup envelope: accepts its SHA-256 checksum');
+  let tampered = false;
+  try { await SyncAlgorithms.verifyBackupChecksum({ ...validBackup, canonicalVersion: 5 }); } catch (e) { tampered = e.message.includes('BACKUP_CHECKSUM_MISMATCH'); }
+  ok(tampered, 'backup envelope: rejects metadata or table tampering after export');
+  const preview = SyncAlgorithms.previewRestore(validBackup.tables, { businesses: [{ id: '00000000-0000-4000-8000-000000000011' }] });
+  ok(preview.totalBefore === 1 && preview.totalAfter === 1 && preview.stores[0].added === 1 && preview.stores[0].removed === 1, 'backup preview: reports exact before/after/add/remove counts');
+
+  const unbalanced = {
+    businesses: backupPayload.tables.businesses,
+    accounts: [{ id: '00000000-0000-4000-8000-000000000020', business_id: '00000000-0000-4000-8000-000000000010', created_at: backupNow, updated_at: backupNow }],
+    journal_entries: [{ id: '00000000-0000-4000-8000-000000000030', business_id: '00000000-0000-4000-8000-000000000010', created_at: backupNow, updated_at: backupNow }],
+    journal_entry_lines: [{ id: '00000000-0000-4000-8000-000000000040', business_id: '00000000-0000-4000-8000-000000000010', journal_entry_id: '00000000-0000-4000-8000-000000000030', account_id: '00000000-0000-4000-8000-000000000020', debit_amount: 100, credit_amount: 0, created_at: backupNow, updated_at: backupNow }]
+  };
+  let unbalancedRejected = false;
+  try { SyncAlgorithms.validateBackupRelations(unbalanced); } catch (e) { unbalancedRejected = e.message.includes('BACKUP_JOURNAL_UNBALANCED'); }
+  ok(unbalancedRejected, 'backup semantics: rejects an unbalanced journal before restore');
+
+  const syncEntityId = '00000000-0000-4000-8000-000000000050';
+  const queuePlan = SyncAlgorithms.planQueueAgainstCloud([
+    { id: 'queue-stale', payload: { id: syncEntityId, updated_at: '2026-08-07T10:00:00.000Z', name: 'stale-local' } },
+    { id: 'queue-new', payload: { id: '00000000-0000-4000-8000-000000000051', updated_at: '2026-08-07T12:00:00.000Z', name: 'new-local' } }
+  ], [
+    { id: syncEntityId, updated_at: '2026-08-07T11:00:00.000Z', name: 'new-cloud' }
+  ]);
+  ok(queuePlan.supersededIds.has('queue-stale') && !queuePlan.rowsToPush.some(row => row.id === syncEntityId), 'sync queue: a stale local payload is superseded after cloud-first comparison');
+  ok(queuePlan.rowsToPush.some(row => row.id === '00000000-0000-4000-8000-000000000051'), 'sync queue: a genuinely local-only latest row remains eligible for upload');
 }
 
 // tombstone business_id — the same helper called by AppService.tombstone:

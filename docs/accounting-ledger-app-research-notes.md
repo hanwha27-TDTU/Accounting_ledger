@@ -1,8 +1,20 @@
-> **📌 Sub_app-research-notes_0.87** · 개정 2026-08-07
+> **📌 Sub_app-research-notes_0.88** · 개정 2026-08-07
 
 # Accounting Ledger App Research Notes
 
 이 문서는 회계장부 앱의 개발, 설계, 업데이트 이력을 남기는 연구노트다. 거래나 세무 판단 근거는 이 문서가 아니라 앱 내부 `decision_notes`에 남긴다.
+
+## 2026-08-07 앱 0.68: 저장·백업·복원 전수감사 일괄 수정
+
+| 항목 | 결정·검증 |
+|---|---|
+| 감사 발견 | store별 순차 복원의 부분 wipe, push-before-pull stale overwrite, 비원자 canonical, 복원 queue 재활성화, 생성/복원 상한 비대칭, local/cloud torn snapshot, 관계·전표·checksum·preview 부재, Cloudinary 원본 경계 불명확, legacy anon grant를 확인했다. |
+| 로컬 계약 | backup 0.04. 하나의 readonly snapshot, 생성/복원 공통 25MB·store 5만·전체 20만 행, stable JSON SHA-256, metadata/id/timestamp/reference/double-entry 검증, diff preview 후 하나의 readwrite restore transaction. 로컬 복원은 pending queue를 `quarantined_by_restore`로 격리하고 backup canonical version을 로컬 설정에 덮지 않는다. |
+| 동기화 계약 | 일반 sync는 statement snapshot pull→LWW queue 분류→최신 local만 push→서버 snapshot read-back 순서다. DB trigger는 동일·오래된 `updated_at` UPDATE를 무시한다. canonical RPC는 expected version row를 `FOR UPDATE`로 잠그고 전체 표·tombstone·version을 한 transaction으로 commit한다. |
+| 백업·증빙 | cloud backup은 `accounting_export_snapshot()` 한 statement에서 표·tombstone·version을 받는다. JSON은 증빙대장 링크/public_id/hash를 담되 Cloudinary 원본 자체는 포함하지 않으며 `evidenceArchive.originalsIncluded=false`와 UI에서 명시한다. |
+| 보안·마이그레이션 | `20260807130000_atomic_sync_backup_restore.sql`, schema 0.08. RPC는 authenticated만 실행하고 호출자 UID·이메일·역할을 시작 시 캡처하며, canonical은 owner/admin·owner scope·행 상한·CAS를 검증한다. public accounting 표의 anon 권한은 명시적으로 회수한다. 전체 SQL은 운영 프로젝트에서 `BEGIN…ROLLBACK`으로 컴파일하고 LWW·snapshot·CAS 충돌/성공·비인증 차단까지 실증했다. |
+| 자동검증 | 로직 256 assertions, app-audit 27 계약, migration-contract 12개 migration PASS(중간 결과). 최종 하네스·헤드리스 원자성·운영 적용/되읽기·Pages 검증은 릴리스 단계에서 기록한다. |
+| 버전 | 앱 0.67→0.68, schema 0.07→0.08, backup 0.03→0.04, `Sub_import-export_0.04`, `Sub_app-research-notes_0.88` |
 
 ## 2026-08-07 폐기·운영 검증·세션 종료 스킬 보강
 

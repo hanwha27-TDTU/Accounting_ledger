@@ -27,7 +27,8 @@ const expectedMigrations = [
   '20260802000800_accounting_v1_multicurrency_daily_fx.sql',
   '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql',
   '20260807113200_index_tombstones_owner_scope.sql',
-  '20260807114500_drop_unused_remote_sync_queue.sql'
+  '20260807114500_drop_unused_remote_sync_queue.sql',
+  '20260807130000_atomic_sync_backup_restore.sql'
 ];
 
 const referenceAssets = new Set([
@@ -271,6 +272,11 @@ addGate('migration-contract', 'REQUIRED', () => {
   hasRequiredText(queueRetirementSchema, 'drop table if exists public.sync_queue', queueRetirementMigration);
   if (/drop\s+table[\s\S]*?public\.sync_queue[\s\S]*?cascade/i.test(queueRetirementSchema)) {
     throw new Error(`${queueRetirementMigration}: remote queue retirement must not use CASCADE`);
+  }
+  const atomicSyncMigration = expectedMigrations.find(file => file.includes('atomic_sync_backup_restore'));
+  const atomicSyncSchema = readText(`supabase/migrations/${atomicSyncMigration}`);
+  for (const marker of ['old.updated_at >= new.updated_at', 'accounting_publish_canonical', 'p_expected_version', 'for update', 'accounting_export_snapshot', "revoke all on table public.%I from anon"]) {
+    hasRequiredText(atomicSyncSchema, marker, atomicSyncMigration);
   }
   return { detail: `${expectedMigrations.length} migration files and sync/RLS markers verified` };
 });
