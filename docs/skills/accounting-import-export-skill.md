@@ -1,4 +1,4 @@
-> **📌 Sub_import-export_0.03** · 개정 2026-07-09
+> **📌 Sub_import-export_0.04** · 개정 2026-08-07
 
 # Accounting Ledger Import/Export Skill
 
@@ -139,6 +139,16 @@ C:\네이버박스 백업\나의 소중한 자료들(네이버박스)\1. 개인�
 8. 간이과세자와 면세사업자는 확정 세무유형에 맞춰 금액/VAT 칸을 조정한다.
 9. `통계` 시트 합계와 내부 원장 합계를 비교한다.
 10. 소득 종류 또는 사업장이 여러 개면 별도 장부/시트/파일로 구분한다.
+
+## JSON 백업·복원 규칙
+
+1. 로컬 백업은 모든 IndexedDB store를 하나의 readonly transaction에서 읽고, 클라우드 백업은 하나의 Postgres RPC statement snapshot에서 읽는다.
+2. 생성과 복원은 같은 상한(25MB, store당 50,000행, 전체 200,000행)을 사용한다. 앱이 스스로 복원할 수 없는 백업을 만들지 않는다.
+3. backup schema 0.04부터 top-level metadata와 tables 전체를 정렬 직렬화한 SHA-256을 저장하고 적용 전에 재계산한다.
+4. 모든 행의 `id`와 신규 포맷의 `created_at`·`updated_at`을 검사하고, business·journal·account 참조와 전표 차변/대변 균형을 적용 전에 검증한다.
+5. 복원은 변경 건수 미리보기를 보여준 뒤 대상 store 전체를 단일 readwrite transaction으로 교체한다. 한 행이라도 실패하면 전부 rollback한다.
+6. 로컬 복원은 백업에 들어 있던 queue를 활성화하지 않고 현재 pending queue도 `quarantined_by_restore`로 격리한다. 클라우드 반영은 owner가 별도 canonical 발행을 확인한 경우에만 한다.
+7. JSON에는 Cloudinary 원본 파일 자체가 아니라 `secure_url`, `cloudinary_public_id`, 파일명·해시 등 증빙대장이 들어간다. UI와 파일의 `evidenceArchive.originalsIncluded=false`로 이 경계를 숨기지 않는다.
 
 ## 검증 체크리스트
 

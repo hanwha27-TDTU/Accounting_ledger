@@ -9,6 +9,7 @@ const androidWorkflow = readFileSync(path.join(root, '.github', 'workflows', 'an
 const androidManifest = readFileSync(path.join(root, 'android-shell', 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
 const securityMigration = readFileSync(path.join(root, 'supabase', 'migrations', '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql'), 'utf8');
 const queueRetirementMigration = readFileSync(path.join(root, 'supabase', 'migrations', '20260807114500_drop_unused_remote_sync_queue.sql'), 'utf8');
+const atomicSyncMigration = readFileSync(path.join(root, 'supabase', 'migrations', '20260807130000_atomic_sync_backup_restore.sql'), 'utf8');
 let passed = 0;
 let failed = 0;
 
@@ -47,9 +48,13 @@ ok(!androidWorkflow.includes('assembleDebug'), 'the official Android release has
 ok(androidWorkflow.includes('Require complete release signing secrets'), 'the Android release fails closed when signing secrets are incomplete');
 ok(androidManifest.includes('android:allowBackup="false"'), 'Android platform backup is disabled for financial WebView data');
 ok(html.includes('BACKUP_ID_INVALID') && html.includes('BACKUP_ROW_LIMIT_EXCEEDED'), 'backup restore validates identifiers and resource limits before IndexedDB writes');
+ok(html.includes('replaceStoresAtomic') && html.includes('BACKUP_CHECKSUM_MISMATCH') && html.includes('quarantined_by_restore'), 'backup restore is checksummed, atomic across stores, and cannot reactivate a pending queue');
+ok(html.includes('previewBackup') && html.includes('BACKUP_JOURNAL_UNBALANCED'), 'backup restore previews changes and validates accounting relationships before writes');
 ok(html.includes('MAX_TOTAL_OUTPUT_BYTES') && html.includes('Excel 거래 행은 50,000건 이하'), 'XLSX parsing enforces compressed-data and row limits');
 ok(securityMigration.includes('owner_user_id = (select auth.uid())') && securityMigration.includes('accounting_can_write_ledgers()'), 'tenant RLS migration enforces owner scope and write roles');
 ok(queueRetirementMigration.includes('if exists (select 1 from public.sync_queue limit 1)') && queueRetirementMigration.includes('drop table if exists public.sync_queue') && !/drop\s+table[\s\S]*?public\.sync_queue[\s\S]*?cascade/i.test(queueRetirementMigration), 'unused remote sync queue is retired only when empty and without CASCADE');
+ok(atomicSyncMigration.includes('old.updated_at >= new.updated_at') && atomicSyncMigration.includes('accounting_publish_canonical') && atomicSyncMigration.includes('for update'), 'server rejects stale LWW writes and canonical publication uses a locked CAS transaction');
+ok(atomicSyncMigration.includes('accounting_export_snapshot') && atomicSyncMigration.includes('revoke all on table public.%I from anon'), 'cloud backup is a database snapshot and anonymous accounting grants are revoked');
 
 console.log(`APP AUDIT: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exitCode = 1;

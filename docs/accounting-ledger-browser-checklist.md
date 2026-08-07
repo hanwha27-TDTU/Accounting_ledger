@@ -1,6 +1,6 @@
 # Accounting Ledger 브라우저 수동 체크리스트
 
-> 개정 2026-08-07 · 대상 앱 버전 `0.67`
+> 개정 2026-08-07 · 대상 앱 버전 `0.68`
 
 이 문서는 하네스의 `browser-roundtrip`(MANUAL) 게이트와 `CLAUDE.md` 검증 절차 6단계가 가리키는 **반복 실행용 시나리오 목록**이다. 자동 브라우저 러너가 도입되기 전까지, `index.html`을 실제로 바꾼 릴리스에서는 아래를 데스크톱과 모바일 폭에서 실행하고 결과(통과/실패/미확인)를 `docs/accounting-ledger-harness-baseline.md`에 남긴다.
 
@@ -358,3 +358,13 @@ owner(`hanwha27@gmail.com`)로 로그인:
 - [x] 백업에서 복원될 수 있는 증빙 주소는 HTTPS만 클릭 가능한 링크·이미지로 사용하며, 그 외 scheme은 비활성 안전 안내로 표시한다. 자동 `app-audit` 23개 계약이 이 경로와 서명 APK·Android 백업·백업/XLSX 상한·tenant 보안 마이그레이션까지 고정한다.
 - [x] 기준 커밋 `5c84d99` 보안 표준 감사 10건(High 4·Medium 4·Low 2)을 봉인했다. 9건은 작업 트리에서 보완했고, GitHub Pages 공유 origin은 전용 custom origin이 필요한 잔여 위험으로 분리했다.
 - [ ] 운영 Supabase 로그인·RLS·다기기 canonical 왕복과 Cloudinary 실제 파일 업로드는 자격증명·복수 기기·외부 서비스가 필요한 별도 수동 검증으로 유지한다.
+
+## 19. 원자 복원·cloud-first LWW·정본 RPC (0.68)
+
+- [x] 두 store 백업에서 두 번째 store의 키 없는 행을 주입하면 사전검증에서 복원을 차단하고 첫 store의 `ORIGINAL-ATOMIC` 장부가 그대로 남는다. **실제 파일 chooser·IndexedDB 앱 경로 검증됨.**
+- [ ] 정상 backup 0.04는 SHA-256을 검증하고 적용 전 store별 `이전→이후 (+추가/-제거)` 미리보기를 표시한다.
+- [x] checksum·참조·전표 균형 중 하나를 바꾸면 IndexedDB 쓰기 전에 복원을 차단한다. **missing id는 브라우저, checksum 변조·불균형 전표는 실제 앱 순수 로직 테스트로 검증됨.**
+- [x] “이 기기만 복원” 뒤 기존 pending queue는 `quarantined_by_restore`이며 자동 동기화가 복원 내용을 클라우드로 전송하지 않는다. **pending 표시 27건→복원 후 0건, 원본 장부명 유지, 성공 toast를 브라우저에서 확인.**
+- [ ] 클라우드 백업은 `accounting_export_snapshot` 결과를 쓰고 증빙 원본 미포함 경계를 화면과 JSON `evidenceArchive`에서 확인할 수 있다.
+- [x] 더 최신 cloud row와 오래된 local queue payload가 충돌하면 cloud 값이 유지되고 queue는 `superseded_by_remote`가 된다. **실제 `SyncAlgorithms.planQueueAgainstCloud` 회귀 테스트로 검증됨; 운영 로그인 왕복은 별도.**
+- [ ] canonical expected version이 어긋난 동시 발행은 `CANONICAL_VERSION_CONFLICT`로 전체 rollback되며, 정상 발행은 version과 모든 표 변경이 한 번에 보인다.
