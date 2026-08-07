@@ -10,7 +10,7 @@
 | 앱 버전 | `0.69` |
 | 런타임 | 단일 `index.html` 업무 앱 + 별도 Capacitor Android 셸. IndexedDB, 복식부기, Supabase/Auth·RLS, canonical/tombstone, 외화·반복지출 포함 |
 | 패키지·스크립트 | `package.json`/lock, `scripts/harness-check.mjs`, `scripts/tests/{logic,app-audit,gate-controls,browser-roundtrip}.test.mjs` |
-| CI | `.github/workflows/harness.yml`에서 `npm ci`와 Playwright Chromium 설치 후 같은 하네스 실행 |
+| CI | `harness.yml`은 `npm ci`와 Playwright Chromium 설치 후 같은 하네스를 실행한다. `pages.yml`은 index와 고정 vendor 2개만 Node 24 기반 pinned Action으로 배포하며 legacy Pages의 저장소 외부 Node 20 경고를 제거한다. |
 | 테스트 | 20개 Required 게이트마다 결함주입 대조군 보유. 268 로직 assertion·27 app-audit 계약·15 실제 Chromium 증빙 원본 왕복 assertion. |
 | 데이터 | Supabase migration 12개. schema 0.08 migration은 서버 LWW trigger, canonical CAS RPC, cloud snapshot RPC, anon grant 회수를 정의한다. 운영 프로젝트의 `BEGIN…ROLLBACK` 검증에서 컴파일과 LWW·snapshot·CAS 충돌/성공·비인증 차단을 통과했다. 최종 운영 적용 결과는 릴리스 read-back으로 확정한다. |
 | 사용자 참고 파일 | Excel·PDF·ZIP 4개가 미추적 상태이며 커밋 제외 대상 |

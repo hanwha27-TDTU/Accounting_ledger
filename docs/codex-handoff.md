@@ -7,7 +7,7 @@
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **작업 릴리스는 0.69**다. 0.68의 원자 JSON backup 0.04·cloud-first LWW·canonical CAS는 유지한다. 여기에 장부 JSON과 분리된 AES-256-GCM 증빙 원본 `.bjea` 백업과 검증 후 Cloudinary 재업로드 복원을 추가했다. 실제 Chromium 왕복 15 assertions가 `browser-roundtrip` Required 게이트로 실행되며 전체 Required는 20개다. schema 0.08·backup 0.04는 그대로이고 migration은 없다.
+- **작업 릴리스는 0.69**다. 0.68의 원자 JSON backup 0.04·cloud-first LWW·canonical CAS는 유지한다. 여기에 장부 JSON과 분리된 AES-256-GCM 증빙 원본 `.bjea` 백업과 검증 후 Cloudinary 재업로드 복원을 추가했다. 실제 Chromium 왕복 15 assertions가 `browser-roundtrip` Required 게이트로 실행되며 전체 Required는 20개다. GitHub Pages는 저장소 소유 Node 24 pinned workflow가 index와 vendor 2개만 배포한다. schema 0.08·backup 0.04는 그대로이고 migration은 없다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 
@@ -54,7 +54,7 @@
 | project-contract | 필수 프로젝트·테스트·lock 파일 존재(헌법·생성기·플레이북·공급망 잠금 포함) |
 | shared-skills-contract | 승인된 공통 커밋·내용 해시·프로젝트 릴리스 프로필·주입증명 |
 | browser-dependency-integrity | 로컬 vendor 2개 SHA-256·CSP 고정, CDN 실행 금지 |
-| workflow-action-pins | GitHub Actions 참조를 40자리 commit SHA로 고정 |
+| workflow-action-pins | Quality·Android·Pages의 외부 Action 11개를 40자리 commit SHA로 고정 |
 | instruction-contract | AGENTS.md/CLAUDE.md에 동기화·보안·하네스 핵심 문구 존재 |
 | adapter-parity | CLAUDE.md·AGENTS.md가 `docs/CONSTITUTION.md` 생성 결과와 바이트 일치 |
 | migration-contract | 마이그레이션 history + RLS/tenant 역할/canonical·tombstone·원격 queue 퇴역·고정지출·다중통화 마커 |

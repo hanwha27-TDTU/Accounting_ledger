@@ -12,7 +12,7 @@
 | 복원 | 장부 JSON을 먼저 복원해 동일 증빙 ID가 존재하는 경우만 허용한다. 비밀번호·암호문·개별 해시·개수·용량을 검증한 뒤 현재 제한형 unsigned preset으로 재업로드하고, 모두 성공한 경우에만 `evidence_files` 메타데이터·감사로그·동기화 큐를 하나의 IndexedDB transaction으로 갱신한다. 브라우저에서 이미 올라간 Cloudinary 파일은 rollback할 수 없으므로 중간 업로드 실패 시 장부는 보존하고 orphan 가능성을 명시한다. |
 | 자원·보안 경계 | 이미지/PDF만 허용하고 개별 20MB, 전체 원본 100MB, 이중 base64 오버헤드를 포함한 암호화 파일 190MB, 최대 500개로 제한한다. Cloudinary delivery fetch를 위해 CSP `connect-src`에 `res.cloudinary.com`을 명시하고, source URL은 자격증명·비표준 포트·redirect가 없는 HTTPS Cloudinary upload 경로로 제한한다. 신규 첨부도 SHA-256을 기록한다. |
 | 실브라우저 게이트 | Playwright Chromium이 실제 IndexedDB·Web Crypto·Blob download·파일 input을 사용해 export, 평문 비노출, 틀린 비밀번호/암호문 변조 무업로드 차단, 정상 재업로드와 원자 메타 갱신을 15 assertions로 검증한다. `browser-roundtrip`을 Manual에서 20번째 Required로 승격하고 gate-controls가 19 positive·20 negative로 전 Required를 덮는다. |
-| CI 공급망 | Quality workflow는 `npm ci`와 Chromium 설치 후 하네스를 실행한다. checkout/setup-node/upload-artifact를 공식 Node 24 기반 v7 immutable SHA로 갱신했다. Android workflow 변경으로 main 반영 시 서명 APK 재발행 표면도 함께 검증한다. |
+| CI 공급망 | Quality workflow는 `npm ci`와 Chromium 설치 후 하네스를 실행한다. checkout/setup-node/upload-artifact를 공식 Node 24 기반 v7 immutable SHA로 갱신했다. GitHub 관리형 legacy Pages가 저장소 밖 v4 Action 경고를 계속 내므로, `pages.yml`에서 index와 고정 vendor 2개만 별도 artifact로 만드는 Node 24·immutable SHA 배포로 전환한다. Android workflow 변경으로 main 반영 시 서명 APK 재발행 표면도 함께 검증한다. |
 | 버전·스키마 | 앱 0.68→0.69. schema 0.08·backup 0.04는 그대로이며 Supabase migration은 없다. `Sub_import-export_0.05`, `Sub_evidence-archive_0.02`, `Sub_harness-quality-gate_0.09`, `Sub_harness-baseline_0.09`, `Sub_app-research-notes_0.89`. |
 
 ## 2026-08-07 앱 0.68: 저장·백업·복원 전수감사 일괄 수정
