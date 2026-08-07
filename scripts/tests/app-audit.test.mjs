@@ -8,6 +8,7 @@ const html = readFileSync(path.join(root, 'index.html'), 'utf8');
 const androidWorkflow = readFileSync(path.join(root, '.github', 'workflows', 'android-apk.yml'), 'utf8');
 const androidManifest = readFileSync(path.join(root, 'android-shell', 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
 const securityMigration = readFileSync(path.join(root, 'supabase', 'migrations', '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql'), 'utf8');
+const queueRetirementMigration = readFileSync(path.join(root, 'supabase', 'migrations', '20260807114500_drop_unused_remote_sync_queue.sql'), 'utf8');
 let passed = 0;
 let failed = 0;
 
@@ -48,7 +49,7 @@ ok(androidManifest.includes('android:allowBackup="false"'), 'Android platform ba
 ok(html.includes('BACKUP_ID_INVALID') && html.includes('BACKUP_ROW_LIMIT_EXCEEDED'), 'backup restore validates identifiers and resource limits before IndexedDB writes');
 ok(html.includes('MAX_TOTAL_OUTPUT_BYTES') && html.includes('Excel 거래 행은 50,000건 이하'), 'XLSX parsing enforces compressed-data and row limits');
 ok(securityMigration.includes('owner_user_id = (select auth.uid())') && securityMigration.includes('accounting_can_write_ledgers()'), 'tenant RLS migration enforces owner scope and write roles');
-ok(securityMigration.includes('revoke all on table public.sync_queue from anon, authenticated'), 'unused remote sync queue is removed from the Data API roles');
+ok(queueRetirementMigration.includes('if exists (select 1 from public.sync_queue limit 1)') && queueRetirementMigration.includes('drop table if exists public.sync_queue') && !/drop\s+table[\s\S]*?public\.sync_queue[\s\S]*?cascade/i.test(queueRetirementMigration), 'unused remote sync queue is retired only when empty and without CASCADE');
 
 console.log(`APP AUDIT: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exitCode = 1;
