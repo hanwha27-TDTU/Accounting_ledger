@@ -29,7 +29,7 @@
 | project-contract | 하네스, 공통 지침, CI, 핵심 설계·스킬·테스트 파일 존재 |
 | shared-skills-contract | 공용 스킬 고정 커밋·내용 해시·프로젝트 릴리스 프로필 |
 | browser-dependency-integrity | 브라우저 의존성 로컬 고정·SHA-256·CSP·공개 CDN 실행 차단 |
-| workflow-action-pins | 외부 GitHub Actions 7개가 불변 commit SHA인지 확인 |
+| workflow-action-pins | Quality·Android·Pages의 외부 GitHub Actions 11개가 불변 commit SHA인지 확인 |
 | instruction-contract | AGENTS/CLAUDE의 canonical sync·RLS·하네스·Guardian 지침 |
 | adapter-parity | CONSTITUTION에서 생성된 AGENTS/CLAUDE 바이트 일치 |
 | migration-contract | migration 11개와 RLS·tenant 역할·canonical·tombstone·원격 queue 퇴역·고정지출·다중통화 표식 |
@@ -49,7 +49,7 @@
 
 `gate-controls`는 `--list-required`에서 모집단을 동적으로 읽는다. Required 게이트를 추가하면서 결함 주입 대조군을 등록하지 않으면 이 게이트 자체가 실패하므로, 검사가 이름만 있고 실제로는 늘 초록인 상태를 허용하지 않는다.
 
-Quality CI는 `npm ci` 후 Playwright Chromium을 설치하고 같은 하네스를 실행한다. 공식 JavaScript Action은 immutable commit SHA에 고정하고, Node 24 런타임 기반 action 세대를 사용한다.
+Quality CI는 `npm ci` 후 Playwright Chromium을 설치하고 같은 하네스를 실행한다. 공식 JavaScript Action은 immutable commit SHA에 고정하고, Node 24 런타임 기반 action 세대를 사용한다. Pages도 GitHub 관리형 legacy build에 맡기지 않고 저장소의 `pages.yml`이 index와 고정 vendor만 별도 artifact로 만들어 배포한다.
 
 ## 폐기 변경 게이트
 

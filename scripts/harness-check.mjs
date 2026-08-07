@@ -136,6 +136,7 @@ addGate('project-contract', 'REQUIRED', () => {
     'package-lock.json',
     'scripts/harness-check.mjs',
     '.github/workflows/harness.yml',
+    '.github/workflows/pages.yml',
     'docs/accounting-ledger-harness-baseline.md',
     'docs/claude-handoff.md',
     'docs/accounting-ledger-v1-detailed-design.md',
@@ -199,16 +200,26 @@ addGate('browser-dependency-integrity', 'REQUIRED', () => {
 });
 
 addGate('workflow-action-pins', 'REQUIRED', () => {
-  const workflows = ['.github/workflows/harness.yml', '.github/workflows/android-apk.yml'];
+  const workflows = ['.github/workflows/harness.yml', '.github/workflows/android-apk.yml', '.github/workflows/pages.yml'];
+  const deprecatedNode20Pins = [
+    '11d5960a326750d5838078e36cf38b85af677262',
+    '49933ea5288caeca8642d1e84afbd3f7d6820020',
+    'ea165f8d65b6e75b540449e92b4886f43607fa02'
+  ];
   let count = 0;
   for (const file of workflows) {
     const source = readText(file);
-    for (const match of source.matchAll(/^\s*-\s+uses:\s+([^\s#]+)@([^\s#]+)/gm)) {
+    if (deprecatedNode20Pins.some((sha) => source.includes(sha))) throw new Error(`${file} still uses a deprecated Node 20 action pin`);
+    for (const match of source.matchAll(/^\s*(?:-\s+)?uses:\s+([^\s#]+)@([^\s#]+)/gm)) {
       count += 1;
       if (!/^[a-f0-9]{40}$/i.test(match[2])) throw new Error(`${file} has a mutable action reference: ${match[1]}@${match[2]}`);
     }
   }
-  if (count !== 7) throw new Error(`expected 7 external Action references across release workflows, found ${count}`);
+  if (count !== 11) throw new Error(`expected 11 external Action references across release workflows, found ${count}`);
+  const pages = readText('.github/workflows/pages.yml');
+  for (const marker of ['cp index.html _site/index.html', 'cp vendor/lucide-0.468.0.min.js', 'cp vendor/supabase-js-2.110.2.js', 'path: _site']) {
+    hasRequiredText(pages, marker, '.github/workflows/pages.yml');
+  }
   return { detail: `${count} GitHub Actions references pinned to immutable commit SHAs` };
 });
 
