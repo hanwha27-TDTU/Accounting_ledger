@@ -1,4 +1,4 @@
-> **📌 Sub_evidence-archive_0.01** · 개정 2026-07-09
+> **📌 Sub_evidence-archive_0.02** · 개정 2026-08-07
 
 # Accounting Ledger Evidence Archive Skill
 
@@ -63,6 +63,17 @@ evidence_files (
 5. 거래 1건에는 여러 증빙 파일을 붙일 수 있다.
 6. 증빙 1건이 여러 거래와 관련될 수 있으므로 연결 테이블 확장을 열어둔다.
 7. 삭제는 hard delete가 아니라 `deleted_at`, `delete_status`, Cloudinary 삭제결과를 함께 추적한다.
+
+## 독립 원본 백업·복원 계약
+
+1. 장부 JSON은 증빙대장 메타데이터만 담고 Cloudinary 원본은 별도 `.bjea` 암호화 아카이브로 보관한다.
+2. 아카이브 생성은 활성 증빙 전체를 대상으로 하며 하나라도 원본 URL이 없거나 다운로드·해시 검증에 실패하면 불완전 파일을 만들지 않는다.
+3. source는 `https://res.cloudinary.com/.../upload/...`만 허용한다. 이미지/PDF, 최대 500개·개별 20MB·전체 100MB를 넘으면 중단한다.
+4. 암호화는 AES-256-GCM, 키 파생은 PBKDF2-SHA-256 310,000회다. 비밀번호 최소 10자이며 저장하지 않는다.
+5. 복원은 현재 장부의 활성 `evidence_files.id`와 전부 일치해야 한다. 장부 JSON을 먼저 복원하지 않았다면 중단한다.
+6. 모든 원본의 비밀번호·암호문·파일 해시 검증과 Cloudinary 재업로드가 끝난 뒤에만 `evidence_files`·`audit_logs`·`sync_queue`를 한 IndexedDB transaction으로 기록한다.
+7. Cloudinary unsigned upload는 서버 파일 rollback 권한이 없다. 중간 실패 시 로컬 장부는 보존하되 이미 성공한 원본이 orphan으로 남을 수 있음을 숨기지 않는다.
+8. 신규 첨부와 복원 모두 `file_hash`에 원본 SHA-256을 기록한다. API secret이나 signed destroy 자격증명은 브라우저에 두지 않는다.
 
 ## 세무사 전달 패키지
 
