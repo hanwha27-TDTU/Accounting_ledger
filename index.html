@@ -478,7 +478,7 @@
       box-shadow: 0 24px 70px rgba(9, 24, 20, .24);
     }
     .modal.modal-wide { width: min(1100px, 100%); }
-    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .modal-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); background: #fff; }
     .modal-title { margin: 0; font-size: 18px; }
     .modal-body { padding: 20px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 20px; border-top: 1px solid var(--line); }
@@ -492,6 +492,7 @@
     .fixed-expense-row { padding: 13px 14px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
     .fixed-expense-row.overdue { border-color: #e4bcbc; background: #fffafa; }
     .fixed-expense-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .fixed-expense-copy { min-width: 0; flex: 1 1 auto; }
     .fixed-expense-name { font-weight: 850; }
     .fixed-expense-meta { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.45; }
     .fixed-expense-amount { flex: 0 0 210px; align-self: flex-start; color: var(--ink); font-size: 16px; font-weight: 900; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -645,6 +646,13 @@
       .topbar-actions > .button:not(.fixed-expense-trigger), .topbar-actions > .sync-chip { flex: 0 0 auto; }
       .topbar-actions > .button:not(.fixed-expense-trigger) { width: 38px; padding: 0; }
       .fixed-expense-trigger { flex: 1 1 auto; min-width: 0; width: auto; }
+      .modal-backdrop { padding: calc(8px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px)); }
+      .modal { max-height: calc(100vh - 16px); }
+      .modal-head { padding: 14px; }
+      .modal-body { padding: 14px; }
+      .fixed-expense-row-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
+      .fixed-expense-amount { width: 100%; white-space: normal; }
+      .fixed-expense-amount small { overflow-wrap: anywhere; white-space: normal; }
     }
     @media (max-width: 360px) {
       .sync-chip { width: 38px; padding: 0; justify-content: center; }
@@ -721,7 +729,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.65',
+      version: '0.66',
       schemaVersion: '0.06',
       backupSchemaVersion: '0.03',
       postingRuleVersion: 'posting-0.01',
@@ -736,7 +744,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.65', date: '2026-08-04', label: '최신 · 모바일 고정지출 요약', detail: '모바일 상단의 고정지출현황 버튼도 데스크톱처럼 기능명과 월 환산액·활성 건수를 함께 표시합니다. 작은 화면에서는 상단바를 두 줄로 배치해 다른 주요 버튼과 겹치거나 화면 밖으로 밀리지 않도록 했습니다.' },
+      { version: '0.66', date: '2026-08-07', label: '최신 · 모바일 고정지출 잘림·동기화 속도 개선', detail: '휴대폰의 고정지출현황에서 외화 금액과 환율 기준일이 카드 밖으로 잘리지 않도록 금액 영역을 독립 행으로 재배치하고, 모달 제목을 스크롤 중에도 고정했습니다. 동기화는 중복 실행을 하나로 합치고 여러 테이블을 제한 병렬 조회하며 대기 변경을 테이블 단위로 묶어 전송해, 정본·삭제·최신 수정 우선 규칙을 유지하면서 체감 대기 시간을 줄였습니다.' },
+      { version: '0.65', date: '2026-08-04', label: '모바일 고정지출 요약', detail: '모바일 상단의 고정지출현황 버튼도 데스크톱처럼 기능명과 월 환산액·활성 건수를 함께 표시합니다. 작은 화면에서는 상단바를 두 줄로 배치해 다른 주요 버튼과 겹치거나 화면 밖으로 밀리지 않도록 했습니다.' },
       { version: '0.64', date: '2026-08-04', label: '거래 입력 필드 정렬', detail: '계정과목 선택 가이드를 별도 줄에서 계정과목 라벨 오른쪽으로 옮겨 거래일·거래처·계정과목 선택 필드의 윗선을 맞췄습니다. 가이드 기능과 접근성은 그대로 유지하면서 입력 화면의 시각적 흐름을 정돈했습니다.' },
       { version: '0.63', date: '2026-08-04', label: '데이터 관리 카드 정렬', detail: '데이터 관리 화면의 2열 카드에 일반 패널용 세로 여백이 중복 적용되어 두 번째 카드부터 윗선이 내려가던 문제를 수정했습니다. 같은 행의 로컬 캐시·클라우드 동기화 카드와 이후 백업·복원, 삭제 카드가 같은 윗선과 높이로 정렬되고 모바일 1열에서는 그리드 간격만 일정하게 유지됩니다.' },
       { version: '0.62', date: '2026-08-04', label: '고정지출 금액 정렬·환율 기준일', detail: '고정지출 목록의 원화·외화 금액을 같은 폭의 오른쪽 정렬 열로 맞췄습니다. 외화 고정지출에는 환율 기준일을 직접 선택하는 입력을 추가하고, 선택일 이하의 가장 최근 우즈베키스탄 중앙은행 고시환율로 예상 원화액을 저장·표시합니다. 주말·공휴일이면 실제 고시일을 함께 보여주고, 미래 날짜는 아직 환율이 없으므로 오늘까지의 최신 고시환율을 예상값으로 사용한다고 명확히 안내합니다. 실제 거래를 만들 때는 거래일 환율을 다시 확정합니다.' },
@@ -1584,6 +1593,40 @@
         const merged = new Map(localRows.map(row => [row.id, row]));
         for (const cloudRow of cloudRows) merged.set(cloudRow.id, Utils.latestByUpdatedAt(merged.get(cloudRow.id), cloudRow));
         return [...merged.values()];
+      },
+      async mapWithConcurrency(items, requestedLimit, mapper) {
+        const list = Array.from(items || []);
+        if (!list.length) return [];
+        const limit = Math.max(1, Math.min(list.length, Number(requestedLimit) || 1));
+        const results = new Array(list.length);
+        let cursor = 0;
+        const worker = async () => {
+          while (cursor < list.length) {
+            const index = cursor++;
+            results[index] = await mapper(list[index], index);
+          }
+        };
+        await Promise.all(Array.from({ length: limit }, () => worker()));
+        return results;
+      },
+      planQueueBatches(queue) {
+        const sorted = [...queue].sort((a, b) => {
+          const aDelete = Boolean(a.payload?.deleted_at), bDelete = Boolean(b.payload?.deleted_at);
+          if (aDelete !== bDelete) return aDelete ? 1 : -1;
+          const order = aDelete ? SYNC_DELETE_ORDER : SYNC_TABLE_ORDER;
+          return order.indexOf(a.entity_type) - order.indexOf(b.entity_type);
+        });
+        const batches = [];
+        for (const item of sorted) {
+          const deleting = Boolean(item.payload?.deleted_at);
+          const previous = batches.at(-1);
+          if (!previous || previous.entityType !== item.entity_type || previous.deleting !== deleting) {
+            batches.push({ entityType: item.entity_type, deleting, items: [item] });
+          } else {
+            previous.items.push(item);
+          }
+        }
+        return batches;
       },
       page(rows, requestedPage, pageSize = 100) {
         const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -2483,6 +2526,7 @@
     };
     // 백그라운드 자동 동기화 디바운스 타이머 — SyncService.scheduleAutoSync/runAutoSync 전용.
     let autoSyncTimer = null;
+    let syncInFlight = null;
 
     const GuideService = Object.freeze({
       supabaseUrl() {
@@ -3274,13 +3318,22 @@
       },
 
       async connectAndSync() {
-        if (!remote.isConfigured()) throw new Error('SUPABASE_NOT_CONFIGURED');
-        state.syncStatus = 'syncing'; renderShellStatus();
-        state.session = await remote.session();
-        if (!state.session) throw new Error('AUTH_REQUIRED');
-        state.allowedUser = await remote.checkAllowed(state.session);
-        await this.loadAllowedUsers();
-        await this.syncNow();
+        if (syncInFlight) return syncInFlight;
+        syncInFlight = (async () => {
+          if (!remote.isConfigured()) throw new Error('SUPABASE_NOT_CONFIGURED');
+          state.syncStatus = 'syncing'; state.syncError = null; renderShellStatus();
+          try {
+            state.session = await remote.session();
+            if (!state.session) throw new Error('AUTH_REQUIRED');
+            state.allowedUser = await remote.checkAllowed(state.session);
+            await this.syncNow();
+          } catch (error) {
+            state.syncStatus = 'error'; state.syncError = error.message; renderShellStatus();
+            throw error;
+          }
+        })();
+        try { return await syncInFlight; }
+        finally { syncInFlight = null; }
       },
 
       async syncNow() {
@@ -3292,8 +3345,8 @@
           const cloudCanonical = Number(meta.canonical_version?.value || 0);
           const localCanonical = Number(state.config.canonicalVersion || 0);
           if (cloudCanonical > localCanonical) {
-            const cloudByTable = {};
-            for (const table of SYNC_TABLE_ORDER) cloudByTable[table] = (await remote.pullTable(table)) || [];
+            const cloudPairs = await SyncAlgorithms.mapWithConcurrency(SYNC_TABLE_ORDER, 4, async table => [table, (await remote.pullTable(table)) || []]);
+            const cloudByTable = Object.fromEntries(cloudPairs);
             // Empty-cloud guard: a real canonical final always carries the owner's business. If the pull
             // returns no business while we hold one locally, treat it as an RLS/auth failure and refuse to
             // wipe local data (protects against a broken empty response silently deleting everything).
@@ -3311,19 +3364,19 @@
             // 삭제 대상 business가 아직 활성일 때 tombstone을 먼저 올려 RLS를 통과시킨다.
             await this.convergeTombstones();
             const queue = (await storage.getAll('sync_queue')).filter(row => row.status === 'pending' && !row.deleted_at);
-            queue.sort((a, b) => {
-              const aDelete = Boolean(a.payload?.deleted_at), bDelete = Boolean(b.payload?.deleted_at);
-              if (aDelete !== bDelete) return aDelete ? 1 : -1;
-              const order = aDelete ? SYNC_DELETE_ORDER : SYNC_TABLE_ORDER;
-              return order.indexOf(a.entity_type) - order.indexOf(b.entity_type);
-            });
-            for (const item of queue) {
+            for (const batch of SyncAlgorithms.planQueueBatches(queue)) {
               try {
-                const payload = item.entity_type === 'accounts' ? AppService.remoteSafeAccount(item.payload) : item.payload;
-                await remote.upsert(item.entity_type, payload);
-                await storage.put('sync_queue', { ...item, status: 'complete', updated_at: Utils.now(), last_error: null });
+                const latestPayloadById = new Map();
+                for (const item of batch.items) {
+                  const payload = batch.entityType === 'accounts' ? AppService.remoteSafeAccount(item.payload) : item.payload;
+                  latestPayloadById.set(payload.id, Utils.latestByUpdatedAt(latestPayloadById.get(payload.id), payload));
+                }
+                await remote.upsertMany(batch.entityType, [...latestPayloadById.values()]);
+                const completedAt = Utils.now();
+                await storage.putMany({ sync_queue: batch.items.map(item => ({ ...item, status: 'complete', updated_at: completedAt, last_error: null })) });
               } catch (error) {
-                await storage.put('sync_queue', { ...item, retry_count: Number(item.retry_count || 0) + 1, last_error: error.message, updated_at: Utils.now() });
+                const failedAt = Utils.now();
+                await storage.putMany({ sync_queue: batch.items.map(item => ({ ...item, retry_count: Number(item.retry_count || 0) + 1, last_error: error.message, updated_at: failedAt })) });
                 throw error;
               }
             }
@@ -3331,8 +3384,11 @@
             const changedSince = Number.isFinite(previousSync) && previousSync > 0
               ? new Date(previousSync - 5 * 60 * 1000).toISOString()
               : null;
-            for (const table of SYNC_TABLE_ORDER) {
+            const syncPairs = await SyncAlgorithms.mapWithConcurrency(SYNC_TABLE_ORDER, 4, async table => {
               const [localRows, cloudRows] = await Promise.all([storage.getAll(table), remote.pullTable(table, { since: changedSince })]);
+              return [table, localRows, cloudRows];
+            });
+            for (const [table, localRows, cloudRows] of syncPairs) {
               await storage.replaceStore(table, SyncAlgorithms.mergeRows(localRows, cloudRows));
             }
           }
@@ -4123,7 +4179,7 @@
           ? `<button class="button small" type="button" data-fixed-status="paused" data-fixed-id="${row.id}">${icon('pause')}일시중지</button><button class="button small" type="button" data-fixed-status="ended" data-fixed-id="${row.id}">${icon('circle-stop')}해지</button>`
           : `<button class="button small" type="button" data-fixed-status="active" data-fixed-id="${row.id}">${icon('play')}다시 사용</button>`;
         return `<article class="fixed-expense-row ${overdue ? 'overdue' : ''}">
-          <div class="fixed-expense-row-head"><div><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.scheduleLabel(row)}</span><span>다음 ${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${amountDisplay}</div></div>
+          <div class="fixed-expense-row-head"><div class="fixed-expense-copy"><div class="fixed-expense-name">${Utils.escape(row.expense_name)} ${badge(FixedExpenseDomain.statusLabel(row.status), statusKind)} ${row.is_required ? badge('필수', 'info') : ''}</div><div class="fixed-expense-meta"><span>${Utils.escape(row.category || accountName(row.account_id))}</span><span>${FixedExpenseDomain.amountModeLabel(row.amount_mode)} · ${FixedExpenseDomain.scheduleLabel(row)}</span><span>다음 ${row.next_due_date} · ${fixedExpenseDueLabel(row.next_due_date)}</span>${payment ? `<span>${Utils.escape(payment)}</span>` : ''}</div></div><div class="fixed-expense-amount">${amountDisplay}</div></div>
           ${row.note ? `<div class="task-note">${Utils.escape(row.note)}</div>` : ''}
           <div class="fixed-expense-actions">${active ? `<button class="button small primary" type="button" data-fixed-book="${row.id}">${icon('receipt-text')}거래 입력</button>` : ''}<button class="button small" type="button" data-fixed-edit="${row.id}">${icon('pencil')}수정</button>${statusActions}</div>
         </article>`;

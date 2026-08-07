@@ -1,12 +1,12 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 개정 2026-08-04 · 기준 앱 버전 `0.65` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
+> 개정 2026-08-07 · 기준 앱 버전 `0.66` · 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **기준 앱은 0.65**(전 금액 입력 다중통화·CBU 일일환율, 월간·연간 반복 일정 자동 계산, 고정지출 환율 기준일, 데이터 관리 카드·거래 입력 필드 정렬, 모바일 고정지출 기능명·월 환산액·활성 건수 표시)이며 자동 테스트 기준은 로직 237 assertion + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration 0.06과 앱 0.65 배포가 완료됐다(PR #2 merge `167eb92`, Pages `30916762664`). BlueStacks 공개본은 가로 모드로 확인했고 세로 모바일 확인은 미완료다.
+- **기준 앱은 0.66**(전 금액 입력 다중통화·CBU 일일환율, 반복 일정 자동 계산, 모바일 고정지출 잘림 수정, 제한 병렬·batch·single-flight 동기화)이며 자동 테스트 기준은 로직 240 assertions + 하네스 17개(16 REQUIRED + 1 MANUAL)다. 운영 DB migration은 0.06으로 유지한다. 412×915 모바일 overflow 0px를 확인했고 배포 결과는 GitHub Actions 완료 후 `docs/claude-handoff.md`에 기록한다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 

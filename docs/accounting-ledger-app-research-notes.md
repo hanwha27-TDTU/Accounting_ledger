@@ -1,4 +1,4 @@
-> **📌 Sub_app-research-notes_0.83** · 개정 2026-08-04
+> **📌 Sub_app-research-notes_0.84** · 개정 2026-08-07
 
 # Accounting Ledger App Research Notes
 
@@ -1650,3 +1650,16 @@ advisor 잔여 항목:
 | 버전·데이터 | 앱 0.64→0.65. 순수 CSS·표시 변경이므로 schema 0.06·backup 0.03·로직 assertion 수는 유지한다. |
 | 스킬 갱신 | `Sub_mobile-apk-readiness_0.04`에서 Android 화면 변경·배포 때 BlueStacks 공개본 검증을 필수화했다. 세로 휴대폰 방향만 모바일 합격으로 인정하고, 가로 확인은 보조 결과로 분리한다. |
 | 배포 상태 | PR [#2](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/2), merge `167eb92`; PR Quality run `30916715565`, main Quality run `30916763412`, Pages run `30916762664` success. 공개 URL은 HTTP 200이며 v0.65와 모바일 고정지출·계정과목 인라인 표식을 확인했다. |
+
+## 2026-08-07 앱 0.66: 모바일 고정지출 잘림·동기화 왕복 개선
+
+| 항목 | 결정·검증 |
+|---|---|
+| note_type | `bug_fix` + `performance_review` |
+| 사용자 제보 | Android Chrome의 고정지출현황에서 오른쪽 내용이 잘리고, 클라우드 동기화 완료까지 체감 시간이 길다는 실사용 피드백. |
+| 원인 | 560px 이하에서도 금액 열이 한 행 안에서 축소되고 `white-space: nowrap`을 유지해 외화 환산액·기준일이 카드 폭을 넘었다. 동기화는 12개 테이블을 순차 pull하고 대기열을 한 건씩 upsert했으며, 여러 진입점이 동시에 호출될 여지도 있었다. |
+| 구현 | 모바일 고정지출 카드의 본문·금액을 1열 grid로 바꾸고 환산 보조문구 줄바꿈, 모달 헤더 sticky, 작은 화면 패딩을 적용했다. 동기화는 최대 4개 제한 병렬 pull, single-flight, 테이블·삭제상태별 batch upsert를 적용했다. 같은 레코드의 중복 대기 payload는 최신 `updated_at`만 전송하되 해당 큐 항목은 성공 후 함께 완료 처리한다. |
+| 계약 검토 | schema 0.06·backup 0.03 유지, migration 없음. LWW·canonical_version·tombstone과 부모 우선 upsert/자식 우선 delete 순서는 유지하며 `SupabaseAdapter.raw()`의 `response.ok` 검증 경로를 그대로 사용한다. RLS·allowlist·비밀값 변경 없음. |
+| 자동 검증 | 로직 237→240 assertions: 제한 병렬 처리의 순서·동시성 상한, 테이블 batch와 삭제 순서를 추가 검증. 하네스 16 REQUIRED PASS·1 MANUAL·실패 0, `git diff --check` 통과. |
+| 모바일 실측 | Chrome 412×915에서 공개 카드와 같은 외화 고정지출 fixture를 렌더링해 document/modal/body/row/amount overflow가 모두 0px, 금액 top 498px > 설명 bottom 489px, modal header `position:sticky`를 확인했다. |
+| BlueStacks·배포 | 배포 후 공개 v0.66을 BlueStacks Android Chrome에서 확인하고 PR·Quality·Pages 실행번호를 이 행에 추가한다. 세로 인스턴스를 만들 수 없으면 가로 확인과 세로 미검증을 분리 기록한다. |
