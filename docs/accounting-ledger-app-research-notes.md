@@ -30,7 +30,7 @@
 | 재발 방지 | `scripts/tests/app-audit.test.mjs`의 23개 계약과 Required `app-audit` 게이트가 접근성 이름·저장 안내·HTTPS 증빙 URL, 서명 APK fail-closed, Android 백업 차단, 백업·XLSX 자원 상한, tenant-scoped RLS 마이그레이션 표식을 고정한다. 이 게이트도 결함 주입 대조군을 가진다. 릴리스 프로필에 `app-audit`와 `gate-sensitivity` 그룹을 등록했다. |
 | 브라우저 실측 | 412×915 개인 모드 전 화면과 사업자 전용 전표·가져오기를 탐색해 overflow 0·콘솔 error 0. 개인 거래 11,000원 저장·새로고침 영속, 사업자 비용 11,000원의 차변 소모품비 10,000 + 부가세대급금 1,000 / 대변 보통예금 11,000 균형을 확인했다. 최종 재검증에서 업종 검색까지 포함한 이름 없는 컨트롤 5개를 재현했고 수정 후 0개를 확인 대상으로 고정했다. |
 | 보안 감사 | 기준 커밋 `5c84d99`를 대상으로 표준 감사를 봉인했다. 검증 10건(High 4·Medium 4·Low 2) 중 9건은 현재 작업 트리에서 보완했다: tenant-scoped tombstone/canonical meta, DB 역할 강제, audit RPC, 원격 `sync_queue` 차단, 백업 URL·행 검증, XLSX 자원 상한, 서명 APK fail-closed, Android 백업 차단. GitHub Pages 공유 origin 1건은 전용 custom origin이 필요해 잔여 위험으로 남긴다. |
-| 데이터·배포 | 앱 표시 schema는 0.07, backup은 0.03이다. `20260807000900_harden_tenant_authorization_and_sync_boundaries.sql`을 준비했지만 운영 DB에는 적용하지 않았다. 원격 브랜치, Pages, APK도 쓰지 않았다. 봉인된 Codex Security scan artifact를 감사 SSOT로 삼는다. |
+| 데이터·배포 | 앱 표시 schema는 0.07, backup은 0.03이다. 운영 프로젝트 `ihxiywffzmvrwmqvatzt`에 tenant 보안 migration(`20260807113011`)과 tombstone owner FK 인덱스 migration을 적용했다. schema 0.07, owner-scoped PK·정책, queue/직접 audit insert 차단을 되읽었고 Advisor의 공개 RPC·무정책 queue 알림은 엄격한 함수 내부 검증과 전 역할 grant 철회에 따른 의도된 경계로 기록한다. 웹·APK의 현재 배포 상태는 Git/Actions/공개 표면을 SSOT로 삼는다. 봉인된 Codex Security scan artifact를 감사 SSOT로 삼는다. |
 | 버전 | 앱 0.66→0.67, `Sub_harness-quality-gate_0.07`, `Sub_harness-baseline_0.07`, `Sub_app-research-notes_0.86` |
 
 ## 2026-07-09 설계 시작

@@ -12,7 +12,7 @@
 | 패키지·스크립트 | `package.json`, `scripts/harness-check.mjs`, `scripts/tests/{logic,app-audit,gate-controls}.test.mjs` |
 | CI | `.github/workflows/harness.yml`에서 같은 하네스 실행 |
 | 테스트 | 19개 Required 게이트마다 정상·결함주입 대조군 보유. 브라우저 왕복은 Manual을 유지하되 0.67 앱 내 브라우저 실측 완료 |
-| 데이터 | Supabase migration 9개. schema 0.07 보안 마이그레이션은 로컬 준비 상태이며 운영 DB에는 미적용 |
+| 데이터 | Supabase migration 10개. schema 0.07 보안 마이그레이션과 tombstone owner FK 인덱스를 운영 DB에 적용하고 카탈로그·RLS·Advisor를 되읽었다. |
 | 사용자 참고 파일 | Excel·PDF·ZIP 4개가 미추적 상태이며 커밋 제외 대상 |
 
 최초 설계 기준선에는 자동 검사가 없었다. 앱 0.01부터 런타임 계약은 Required로 승격했고, 실제 브라우저 왕복은 자동화 전까지 Manual 결과와 시나리오를 이 문서에 남긴다.

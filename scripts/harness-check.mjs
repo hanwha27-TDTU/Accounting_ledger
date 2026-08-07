@@ -25,7 +25,8 @@ const expectedMigrations = [
   '20260802000600_accounting_v1_fixed_expenses.sql',
   '20260802000700_accounting_v1_fixed_expenses_account_index.sql',
   '20260802000800_accounting_v1_multicurrency_daily_fx.sql',
-  '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql'
+  '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql',
+  '20260807113200_index_tombstones_owner_scope.sql'
 ];
 
 const referenceAssets = new Set([

@@ -32,7 +32,7 @@
 | workflow-action-pins | 외부 GitHub Actions 7개가 불변 commit SHA인지 확인 |
 | instruction-contract | AGENTS/CLAUDE의 canonical sync·RLS·하네스·Guardian 지침 |
 | adapter-parity | CONSTITUTION에서 생성된 AGENTS/CLAUDE 바이트 일치 |
-| migration-contract | migration 9개와 RLS·tenant 역할·canonical·tombstone·고정지출·다중통화 표식 |
+| migration-contract | migration 10개와 RLS·tenant 역할·canonical·tombstone·고정지출·다중통화 표식 |
 | tracked-scope-and-secrets | 참고 원본의 추적 여부와 자격증명 형태 값 |
 | git-diff-integrity | staged/unstaged diff 공백 오류 |
 | runtime-version-contract | 앱 버전·업데이트 이력·핵심 런타임 레이어·동기화·Supabase 공개 연결/RLS/OAuth 진단·동적 연결 가이드 표식·고정 CDN 의존성 |
