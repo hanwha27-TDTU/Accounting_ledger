@@ -346,4 +346,4 @@ owner(`hanwha27@gmail.com`)로 로그인:
 - [x] 모바일 금액 영역은 설명 영역 다음 행에 배치되고 보조 환산문구는 줄바꿈할 수 있다. **금액 top 498px, 설명 bottom 489px.**
 - [x] 모달 제목은 내부 스크롤 중 상단에 남도록 `position: sticky`가 적용된다.
 - [x] 테이블 pull은 최대 4개 동시 실행, 중복 동기화는 single-flight, 대기 변경은 테이블·삭제상태별 batch로 계획된다. **로직 240 assertions로 순서와 상한 검증.**
-- [ ] 배포된 공개 v0.66을 BlueStacks Android Chrome에서 열어 버전·모달 표시를 확인한다.
+- [x] 배포된 공개 v0.66을 BlueStacks Android Chrome에서 열어 버전을 확인한다. **Pie64 Android 9, 1920×1080·240 DPI 가로에서 `Accounting Ledger v0.66` 확인. 세로 모바일 레이아웃은 412×915 Chromium 실측으로 별도 검증.**

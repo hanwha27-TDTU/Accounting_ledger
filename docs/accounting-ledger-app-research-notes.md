@@ -1662,4 +1662,4 @@ advisor 잔여 항목:
 | 계약 검토 | schema 0.06·backup 0.03 유지, migration 없음. LWW·canonical_version·tombstone과 부모 우선 upsert/자식 우선 delete 순서는 유지하며 `SupabaseAdapter.raw()`의 `response.ok` 검증 경로를 그대로 사용한다. RLS·allowlist·비밀값 변경 없음. |
 | 자동 검증 | 로직 237→240 assertions: 제한 병렬 처리의 순서·동시성 상한, 테이블 batch와 삭제 순서를 추가 검증. 하네스 16 REQUIRED PASS·1 MANUAL·실패 0, `git diff --check` 통과. |
 | 모바일 실측 | Chrome 412×915에서 공개 카드와 같은 외화 고정지출 fixture를 렌더링해 document/modal/body/row/amount overflow가 모두 0px, 금액 top 498px > 설명 bottom 489px, modal header `position:sticky`를 확인했다. |
-| BlueStacks·배포 | 배포 후 공개 v0.66을 BlueStacks Android Chrome에서 확인하고 PR·Quality·Pages 실행번호를 이 행에 추가한다. 세로 인스턴스를 만들 수 없으면 가로 확인과 세로 미검증을 분리 기록한다. |
+| BlueStacks·배포 | BlueStacks Pie64(Android 9, 1920×1080·240 DPI·가로) Android Chrome에서 공개 `Accounting Ledger v0.66` 렌더를 확인했다. 가로 확인은 Android 공개본 호환 검증으로만 기록하고, 세로 모바일 판정은 위 412×915 Chromium 실측으로 분리했다. PR [#3](https://github.com/hanwha27-TDTU/Accounting_ledger/pull/3), merge `0795460`; PR Quality `31161572172`, main Quality `31161600606`, Pages `31161599411` success. 공개 URL HTTP 200과 v0.66·모바일·동기화 표식을 확인했다. |
