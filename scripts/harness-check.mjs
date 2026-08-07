@@ -134,6 +134,9 @@ addGate('project-contract', 'REQUIRED', () => {
     'docs/bareunjangbu-apk-install-playbook.md',
     'docs/CONSTITUTION.md',
     'scripts/build-agent-adapters.mjs',
+    'scripts/check-shared-skills.mjs',
+    'schemas/codex-shared-skills-lock.json',
+    'schemas/accounting-ledger-release-profile.json',
     '.gitattributes',
     'vendor/README.md',
     'vendor/lucide-0.468.0.min.js',
@@ -146,6 +149,16 @@ addGate('project-contract', 'REQUIRED', () => {
     throw new Error(`missing required project files: ${missing.join(', ')}`);
   }
   return { detail: `${requiredFiles.length} required harness files found` };
+});
+
+addGate('shared-skills-contract', 'REQUIRED', () => {
+  const output = execFileSync(process.execPath, ['scripts/check-shared-skills.mjs'], {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  const summary = output.trim().split(/\r?\n/)[0];
+  return { detail: summary || 'shared skills snapshot, lock and release profile verified' };
 });
 
 addGate('browser-dependency-integrity', 'REQUIRED', () => {

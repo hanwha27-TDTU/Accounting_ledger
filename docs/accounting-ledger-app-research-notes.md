@@ -1,8 +1,23 @@
-> **📌 Sub_app-research-notes_0.84** · 개정 2026-08-07
+> **📌 Sub_app-research-notes_0.85** · 개정 2026-08-07
 
 # Accounting Ledger App Research Notes
 
 이 문서는 회계장부 앱의 개발, 설계, 업데이트 이력을 남기는 연구노트다. 거래나 세무 판단 근거는 이 문서가 아니라 앱 내부 `decision_notes`에 남긴다.
+
+## 2026-08-07 전역 공용 스킬 소비자 등록
+
+| 항목 | 내용 |
+|---|---|
+| app_version | `index.html` 미변경이므로 `0.66` 유지 |
+| approved_shared_commit | `268126d44103df9ca709e7b8eec49d8e679437c2` |
+| project_profile | `schemas/accounting-ledger-release-profile.json` |
+| CI gate | `shared-skills-contract` — 고정 커밋·내용 해시·프로필·주입증명 오프라인 검증 |
+| 보안 예외 | 프로젝트와 Pages가 공개이므로 비공개 공통 스킬 본문은 커밋하지 않고, 정본 스크립트가 만든 해시 잠금만 추적한다. 로컬 본문 스냅샷·전역 설치는 각각 `--check-vendor`, `--check-global`로 검증한다. |
+| 실제 릴리스 표면 | main 정적 파일 → GitHub Pages, `android-shell/**` → `apk-latest`, `supabase/migrations/**` → 별도 승인 운영 DB 적용 |
+
+기존 데이터 안전·RLS·동기화·버전 규칙은 공통 기본값보다 엄격한 프로젝트 고유 규칙으로 유지한다. 공통 법 본문을 `AGENTS.md`/`CLAUDE.md`에 복사하지 않고 잠금과 프로젝트 프로필로만 연결했다.
+
+운영 설정 되읽기 결과 GitHub Pages는 `legacy`, source `main /`, public 상태이고 main branch protection은 없다. 따라서 현재 CI는 자동 실행되지만 GitHub가 merge를 강제 차단하지 않으므로 릴리스 주체가 최신 개정의 `harness` 성공을 직접 확인해야 한다. Android workflow도 Quality와 직렬화되지 않고 서명 비밀값 실패 시 debug fallback하는 기존 위험이 있어, Android 경로를 바꾸는 다음 릴리스 전에 별도 강화 대상으로 남긴다.
 
 ## 2026-07-09 설계 시작
 

@@ -78,6 +78,13 @@
 - `UPDATE_HISTORY` 맨 앞에 새 버전 항목을 추가하고, `최신 ·` 마커는 정확히 하나만 둔다(이전 항목의 마커는 제거). 현재 버전 문자열은 파일에 최소 2회 존재해야 한다(`APP_INFO` + `UPDATE_HISTORY`).
 - 사용자 영향이 있는 확정 변경에만 버전을 올린다. 문구·문서만 바꾸는 경우 `index.html`을 건드리지 않으면 버전을 올리지 않는다.
 
+## 전역 공용 스킬·릴리스 프로필
+
+- 공통 정본은 비공개 `https://github.com/hanwha27-TDTU/Codex-Shared-Skills`이며 승인 커밋과 내용 해시는 `schemas/codex-shared-skills-lock.json`만 SSOT로 삼는다.
+- 프로젝트별 게이트 그룹·버전 writer·산출물·브랜치 쓰기 주체·배포 표면은 `schemas/accounting-ledger-release-profile.json`이 SSOT다. 공통 규칙을 이 저장소에 복사하지 않는다.
+- 이 공개 저장소와 GitHub Pages에 비공개 스킬 본문을 노출하지 않는다. 로컬 `vendor/codex-shared-skills/`는 정본의 `sync-skills.mjs --vendor`가 만든 파생물이며 직접 고치거나 커밋하지 않는다.
+- CI의 `shared-skills-contract`는 고정 커밋·해시 잠금·프로필을 오프라인 검증한다. 전역 설치본과 로컬 본문 스냅샷은 승인된 정본에서 `--check-global`, `--check-vendor`로 추가 검증한다.
+
 ## 검증 절차
 
 1. 작업 전 `git status --short`, `git diff --stat`, `git diff`로 기존 상태를 확인한다.

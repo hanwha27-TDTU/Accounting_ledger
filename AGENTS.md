@@ -85,6 +85,13 @@
 - 실행하지 않은 검사를 통과했다고 보고하지 않는다. 실패·생략·실행 불가·수동 확인 항목을 모두 남긴다.
 - 작업 후 변경 파일, 핵심 변경, 스키마·마이그레이션 영향, 실행한 검증 명령과 결과, 잔여 위험, 수동 확인 항목을 남긴다.
 
+## 전역 공용 스킬·릴리스 프로필
+
+- 공통 정본은 비공개 `https://github.com/hanwha27-TDTU/Codex-Shared-Skills`이며 승인 커밋과 내용 해시는 `schemas/codex-shared-skills-lock.json`만 SSOT로 삼는다.
+- 프로젝트별 게이트 그룹·버전 writer·산출물·브랜치 쓰기 주체·배포 표면은 `schemas/accounting-ledger-release-profile.json`이 SSOT다. 공통 규칙을 이 저장소에 복사하지 않는다.
+- 이 공개 저장소와 GitHub Pages에 비공개 스킬 본문을 노출하지 않는다. 로컬 `vendor/codex-shared-skills/`는 정본의 `sync-skills.mjs --vendor`가 만든 파생물이며 직접 고치거나 커밋하지 않는다.
+- CI의 `shared-skills-contract`는 고정 커밋·해시 잠금·프로필을 오프라인 검증한다. 전역 설치본과 로컬 본문 스냅샷은 승인된 정본에서 `--check-global`, `--check-vendor`로 추가 검증한다.
+
 ## 배포 명령 해석 (이 절이 SSOT)
 
 사용자가 “배포해주세요”라고 말하면 다음 범위를 명시 요청으로 간주한다.
