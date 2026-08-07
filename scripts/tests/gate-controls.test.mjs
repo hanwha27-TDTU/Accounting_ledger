@@ -40,7 +40,8 @@ function copyFixture() {
     'scripts/tests/gate-controls.test.mjs',
     'scripts/tests/app-audit.test.mjs',
     'supabase/migrations/20260807000900_harden_tenant_authorization_and_sync_boundaries.sql',
-    'supabase/migrations/20260807113200_index_tombstones_owner_scope.sql'
+    'supabase/migrations/20260807113200_index_tombstones_owner_scope.sql',
+    'supabase/migrations/20260807114500_drop_unused_remote_sync_queue.sql'
   );
   for (const relativePath of new Set(tracked)) {
     const source = path.join(sourceRoot, relativePath);

@@ -26,7 +26,8 @@ const expectedMigrations = [
   '20260802000700_accounting_v1_fixed_expenses_account_index.sql',
   '20260802000800_accounting_v1_multicurrency_daily_fx.sql',
   '20260807000900_harden_tenant_authorization_and_sync_boundaries.sql',
-  '20260807113200_index_tombstones_owner_scope.sql'
+  '20260807113200_index_tombstones_owner_scope.sql',
+  '20260807114500_drop_unused_remote_sync_queue.sql'
 ];
 
 const referenceAssets = new Set([
@@ -263,6 +264,13 @@ addGate('migration-contract', 'REQUIRED', () => {
   const hardeningSchema = readText(`supabase/migrations/${hardeningMigration}`);
   for (const marker of ['accounting_can_write_ledgers()', 'owner_user_id = (select auth.uid())', 'primary key (owner_user_id, key)', 'revoke all on table public.sync_queue', 'accounting_log_access_event']) {
     hasRequiredText(hardeningSchema, marker, hardeningMigration);
+  }
+  const queueRetirementMigration = expectedMigrations.find(file => file.includes('drop_unused_remote_sync_queue'));
+  const queueRetirementSchema = readText(`supabase/migrations/${queueRetirementMigration}`);
+  hasRequiredText(queueRetirementSchema, 'if exists (select 1 from public.sync_queue limit 1)', queueRetirementMigration);
+  hasRequiredText(queueRetirementSchema, 'drop table if exists public.sync_queue', queueRetirementMigration);
+  if (/drop\s+table[\s\S]*?public\.sync_queue[\s\S]*?cascade/i.test(queueRetirementSchema)) {
+    throw new Error(`${queueRetirementMigration}: remote queue retirement must not use CASCADE`);
   }
   return { detail: `${expectedMigrations.length} migration files and sync/RLS markers verified` };
 });

@@ -57,7 +57,7 @@
 | workflow-action-pins | GitHub Actions 참조를 40자리 commit SHA로 고정 |
 | instruction-contract | AGENTS.md/CLAUDE.md에 동기화·보안·하네스 핵심 문구 존재 |
 | adapter-parity | CLAUDE.md·AGENTS.md가 `docs/CONSTITUTION.md` 생성 결과와 바이트 일치 |
-| migration-contract | 마이그레이션 10파일 + RLS/tenant 역할/canonical·tombstone·고정지출·다중통화 마커 |
+| migration-contract | 마이그레이션 11파일 + RLS/tenant 역할/canonical·tombstone·로컬 전용 queue·고정지출·다중통화 마커 |
 | tracked-scope-and-secrets | 참고자료 원본·비밀값류 커밋 금지 |
 | git-diff-integrity | 공백 오류 0 |
 | runtime-version-contract | `APP_INFO.version` +0.01 규칙, `최신 ·` 마커 1개, 버전 문자열 2회 |

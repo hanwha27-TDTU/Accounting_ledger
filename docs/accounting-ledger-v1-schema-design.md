@@ -609,7 +609,7 @@ period_closings (
 );
 ```
 
-## 12. 동기화 메타/대기열
+## 12. 동기화 메타와 삭제 신호
 
 ```sql
 accounting_sync_meta (
@@ -619,21 +619,7 @@ accounting_sync_meta (
 );
 ```
 
-```sql
-sync_queue (
-  id uuid primary key,
-  entity_type text not null,
-  entity_id uuid not null,
-  operation text not null,
-  payload jsonb,
-  status text default 'pending',
-  retry_count int default 0,
-  last_error text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  deleted_at timestamptz
-);
-```
+`sync_queue`는 네트워크 재시도를 위한 **기기별 IndexedDB 전용 대기열**이다. 클라우드 정본 데이터가 아니므로 Supabase에는 두지 않는다. 초기 스키마의 원격 동명 테이블은 실제 사용·행·의존성이 없음을 확인한 뒤 `20260807114500_drop_unused_remote_sync_queue.sql`로 퇴역한다.
 
 ```sql
 tombstones (
@@ -686,7 +672,7 @@ IndexedDB store 이름은 Supabase 테이블명과 최대한 맞춘다.
 | `tax_year_rules` | 세무 기준 캐시 |
 | `legal_form_snapshots` | 법정서식 스냅샷 |
 | `decision_notes` | 거래 판단메모 |
-| `sync_queue` | 오프라인 작업 대기열 |
+| `sync_queue` | 로컬 IndexedDB 전용 오프라인 작업 대기열(Supabase 테이블 없음) |
 | `tombstones` | 삭제 동기화 |
 
 ## 14. RLS 설계 초안
