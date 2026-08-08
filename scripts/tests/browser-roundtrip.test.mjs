@@ -169,7 +169,8 @@ try {
   const archiveBytes = await readFile(downloadPath);
   const archiveText = archiveBytes.toString('utf8');
   const archive = JSON.parse(archiveText);
-  ok(download.suggestedFilename().endsWith('-v0.70.bjea'), 'download filename carries the release version and .bjea extension');
+  const appVersion = await page.evaluate(() => window.__ACCOUNTING_APP_TEST__.APP_INFO.version);
+  ok(download.suggestedFilename().endsWith(`-v${appVersion}.bjea`), 'download filename carries the release version and .bjea extension');
   ok(archive.archiveType === 'bareunjangbu-evidence-originals', 'download is the encrypted evidence archive envelope');
   ok(archive.encryption?.algorithm === 'AES-256-GCM' && archive.encryption?.kdf === 'PBKDF2-SHA-256', 'envelope declares the approved encryption profile');
   ok(!archiveText.includes(originalFilename) && !archiveText.includes(originalBytes.toString('base64')), 'outer envelope contains no plaintext filename or original bytes');

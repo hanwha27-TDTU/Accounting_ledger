@@ -751,7 +751,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.70',
+      version: '0.71',
       schemaVersion: '0.08',
       backupSchemaVersion: '0.04',
       postingRuleVersion: 'posting-0.01',
@@ -766,7 +766,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.70', date: '2026-08-08', label: '최신 · 장부 진단 허브', detail: '관리 메뉴에 진단 허브를 추가해 이 기기 저장소, 레코드 필수 필드, 복식 전표 균형, 동기화 정본·대기열, 백업 준비, 증빙 연결, Supabase 연결 경계, RLS 격리 왕복, 앱 런타임을 한곳에서 확인할 수 있습니다. 허브를 여는 것만으로는 서버에 묻거나 자료를 바꾸지 않으며, 명시 실행 도구는 기존 연결 진단·일반 동기화와 격리 점검행 왕복을 재사용합니다. 각 결과는 정상·확인 필요·문제·미확인으로 구분하고 본 것·못 본 것·쓴 것을 공개하며, 키·토큰·주소·파일명을 제외한 보고서를 미리 보고 복사할 수 있습니다.' },
+      { version: '0.71', date: '2026-08-08', label: '최신 · 진단 허브 감사로그 오탐 수정', detail: '진단 허브의 "레코드 필수 필드" 검사가 append-only 감사로그(audit_logs)에도 updated_at·deleted_at을 요구해, 실기기에서 실사용 중 쌓인 감사로그가 전부 계약 불일치로 오탐되던 결함을 고쳤습니다(실제 진단 보고서로 발견). 감사로그는 백업 검증·원격 정렬에서 이미 예외였던 것과 같은 기준으로 이제 id·created_at만 확인합니다. 다른 저장 영역은 기존처럼 4개 필드를 모두 확인합니다.' },
+      { version: '0.70', date: '2026-08-08', label: '장부 진단 허브', detail: '관리 메뉴에 진단 허브를 추가해 이 기기 저장소, 레코드 필수 필드, 복식 전표 균형, 동기화 정본·대기열, 백업 준비, 증빙 연결, Supabase 연결 경계, RLS 격리 왕복, 앱 런타임을 한곳에서 확인할 수 있습니다. 허브를 여는 것만으로는 서버에 묻거나 자료를 바꾸지 않으며, 명시 실행 도구는 기존 연결 진단·일반 동기화와 격리 점검행 왕복을 재사용합니다. 각 결과는 정상·확인 필요·문제·미확인으로 구분하고 본 것·못 본 것·쓴 것을 공개하며, 키·토큰·주소·파일명을 제외한 보고서를 미리 보고 복사할 수 있습니다.' },
       { version: '0.69', date: '2026-08-07', label: '증빙 원본 암호화 독립 보관', detail: 'Cloudinary 링크와 별개로 이미지·PDF 증빙 원본을 비밀번호로 암호화한 전용 아카이브로 내려받을 수 있습니다. 복원할 때는 파일 전체의 암호화 무결성, 각 원본의 SHA-256·형식·크기를 먼저 확인하고 현재 장부의 증빙 ID와 맞는 경우에만 Cloudinary로 다시 올린 뒤 메타데이터와 동기화 대기열을 한 번에 갱신합니다. 브라우저 왕복 검증은 CI 필수 게이트로 승격했고 GitHub Actions도 Node 24 기반 공식 버전의 불변 SHA로 갱신했습니다.' },
       { version: '0.68', date: '2026-08-07', label: '원자 복원·서버 LWW·정본 트랜잭션', detail: '백업은 생성과 복원에 같은 용량·행 제한과 SHA-256 무결성 검사를 적용하고, 필수 필드·참조·복식부기 균형을 모두 확인한 뒤 하나의 IndexedDB 트랜잭션으로만 복원합니다. 이 기기 복원은 동기화 대기열을 격리하고 적용 전 건수 차이를 보여줍니다. 일반 동기화는 클라우드를 먼저 비교하며 서버가 오래된 updated_at 쓰기를 거부하고, 최종본 지정은 canonical version CAS를 포함한 단일 DB 트랜잭션으로 발행합니다. 클라우드 백업도 단일 DB 스냅샷이며 익명 테이블 권한을 명시적으로 회수했습니다.' },
       { version: '0.67', date: '2026-08-07', label: '품질 대조군·앱 보안 감사 보완', detail: '모든 필수 품질 게이트에 정상·실패 대조군을 붙였습니다. 검색·필터 접근성과 장부 저장 안내를 바로잡고, 백업 복원값과 Excel 압축 크기를 검증하며 증빙은 HTTPS 주소만 사용합니다. 차단·열람자 권한, 삭제 신호, 최종본 버전을 사용자별로 격리하는 DB 마이그레이션도 준비했고, Android 백업과 미서명 공식 APK 발행을 차단했습니다.' },
@@ -4244,10 +4245,21 @@
         : diagnosticVerdict('local-storage', 'problem', '이 기기 저장소를 열지 못했습니다', '현재 탭에서 장부 저장을 보장할 수 없습니다.', 'LOCAL_STORAGE_UNAVAILABLE', [{ id:'ready', label:'저장소 준비', actual:false, expected:true }]);
     }
 
+    // audit_logs는 이 앱의 다른 계약 검사(백업 검증 BACKUP_UPDATED_AT_REQUIRED 예외, 원격 정렬
+    // orderColumn)와 마찬가지로 append-only라 updated_at·deleted_at을 갖지 않는 것이 정상이다.
+    // 이 목록을 여기서만 깜빡하면 실제 사용 중 쌓이는 감사로그 전부가 오탐으로 잡힌다.
+    const RECORD_CONTRACT_IMMUTABLE_STORES = Object.freeze(['audit_logs']);
+    function recordContractIssues(rows) {
+      return rows.filter(({ store, row }) => {
+        if (!row?.id || !row?.created_at) return true;
+        if (RECORD_CONTRACT_IMMUTABLE_STORES.includes(store)) return false;
+        return !row?.updated_at || !Object.prototype.hasOwnProperty.call(row, 'deleted_at');
+      });
+    }
     function summarizeRecordContract() {
       const rows = diagnosticCollections().flatMap(([store, values]) => (values || []).map(row => ({ store, row })));
       if (!rows.length) return diagnosticVerdict('record-contract', 'unknown', '검사할 저장 레코드가 없습니다', '빈 모집단을 정상으로 판정하지 않았습니다.', 'NO_LOCAL_RECORDS', [{ id:'records', label:'검사 레코드', actual:0, expected:'1개 이상 또는 빈 이유' }], { kind:'structural', reason:'현재 가계부에 검사할 저장 레코드가 없습니다.' });
-      const bad = rows.filter(({ row }) => !row?.id || !row?.created_at || !row?.updated_at || !Object.prototype.hasOwnProperty.call(row, 'deleted_at'));
+      const bad = recordContractIssues(rows);
       return diagnosticVerdict('record-contract', bad.length ? 'problem' : 'ok', bad.length ? '필수 저장 필드가 빠진 레코드가 있습니다' : '필수 저장 필드가 일치합니다', `현재 장부 ${rows.length}건 중 계약 불일치 ${bad.length}건입니다.`, bad.length ? 'RECORD_CONTRACT_MISMATCH' : 'RECORD_CONTRACT_OK', [{ id:'checked', label:'검사 레코드', actual:rows.length, expected:rows.length }, { id:'invalid', label:'계약 불일치', actual:bad.length, expected:0 }]);
     }
 
@@ -6492,7 +6504,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, EvidenceArchive, SupabaseAdapter, CloudinaryAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, EVIDENCE_ARCHIVE_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, DiagnosticContract, DIAGNOSTIC_GROUPS, DIAGNOSTIC_TOOLS, DIAGNOSTIC_BLIND_SPOTS, buildDiagnosticReport, redactDiagnosticReport, failedDiagnosticToolIds, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, EvidenceArchive, SupabaseAdapter, CloudinaryAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, EVIDENCE_ARCHIVE_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, DiagnosticContract, DIAGNOSTIC_GROUPS, DIAGNOSTIC_TOOLS, DIAGNOSTIC_BLIND_SPOTS, recordContractIssues, buildDiagnosticReport, redactDiagnosticReport, failedDiagnosticToolIds, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>

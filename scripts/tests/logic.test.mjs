@@ -760,6 +760,15 @@ if (api) {
   ok(!redacted.includes('private.example') && !redacted.includes('owner@example.com') && !redacted.includes('sb_publishable_') && !redacted.includes('hidden-token'), 'DiagnosticReport: 주소·이메일·키·Bearer 토큰 형태 제거');
   const report = api.buildDiagnosticReport();
   ok(report.includes('# 바른장부 진단 결과') && report.includes('본 것:') && report.includes('못 본 것:') && report.includes('쓴 것:'), 'DiagnosticReport: 등록부 판정과 관측·사각지대·쓰기 범위를 같은 보고서에 포함');
+
+  // 회귀: audit_logs는 audit()가 updated_at·deleted_at 없이 만드는 append-only 레코드다(백업 검증의
+  // BACKUP_UPDATED_AT_REQUIRED 예외, 원격 정렬 orderColumn과 동일 계약). record-contract 판정이 이걸
+  // 몰라서 실사용 중 쌓이는 감사로그를 전부 계약 불일치로 오탐한 결함(실제 기기 진단 보고서로 발견)을 잠근다.
+  const auditRow = { store: 'audit_logs', row: { id: 'a1', created_at: '2026-08-08T00:00:00.000Z', business_id: null, actor_user_id: null, entity_type: 'account', entity_id: 'x', action: 'create', before_data: null, after_data: {}, reason: null } };
+  const goodAccountRow = { store: 'accounts', row: { id: 'ac1', created_at: '2026-08-08T00:00:00.000Z', updated_at: '2026-08-08T00:00:00.000Z', deleted_at: null } };
+  const brokenAccountRow = { store: 'accounts', row: { id: 'ac2', created_at: '2026-08-08T00:00:00.000Z' } };
+  ok(api.recordContractIssues([auditRow, goodAccountRow]).length === 0, 'RecordContract: updated_at·deleted_at 없는 audit_logs 행은 계약 불일치가 아님');
+  ok(api.recordContractIssues([auditRow, brokenAccountRow]).length === 1 && api.recordContractIssues([auditRow, brokenAccountRow])[0].store === 'accounts', 'RecordContract: audit_logs 외 저장 영역은 여전히 updated_at·deleted_at을 요구');
 }
 
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
