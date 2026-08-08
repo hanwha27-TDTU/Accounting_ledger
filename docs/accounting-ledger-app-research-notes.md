@@ -1,8 +1,20 @@
-> **📌 Sub_app-research-notes_0.90** · 개정 2026-08-08
+> **📌 Sub_app-research-notes_0.91** · 개정 2026-08-08
 
 # Accounting Ledger App Research Notes
 
 이 문서는 회계장부 앱의 개발, 설계, 업데이트 이력을 남기는 연구노트다. 거래나 세무 판단 근거는 이 문서가 아니라 앱 내부 `decision_notes`에 남긴다.
+
+## 2026-08-08 앱 0.71: 진단 허브 "레코드 필수 필드" 감사로그 오탐 수정
+
+| 항목 | 결정·검증 |
+|---|---|
+| note_type | `bug_fix` |
+| 사용자 제보 | 사용자가 실기기(Android 앱, 690×829, 온라인)에서 0.70 진단 허브를 직접 실행해 보낸 실제 보고서. "레코드 필수 필드" 도구가 `[문제]` 등급으로 "현재 장부 42건 중 계약 불일치 11건"을 보고했다. |
+| 재현·근본원인 | `summarizeRecordContract()`가 `diagnosticCollections()`의 12개 저장 영역 전체에 `id`·`created_at`·`updated_at`·`deleted_at` 4필드를 동일하게 요구했다. 그런데 `AppService.audit()`가 만드는 `audit_logs` 레코드는 `{ id, business_id, actor_user_id, entity_type, entity_id, action, before_data, after_data, reason, created_at }`뿐으로 `updated_at`·`deleted_at` 프로퍼티 자체가 없다 — append-only 감사 기록이라는 설계는 이미 다른 두 곳(백업 검증의 `BACKUP_UPDATED_AT_REQUIRED` 예외가 `audit_logs`·`tombstones`를 건너뜀, 원격 pull의 `orderColumn`이 `audit_logs`만 `created_at` 기준 정렬)에 반영돼 있었지만 진단 허브 판정에는 반영되지 않았다. 결과적으로 실사용 중 쌓이는 감사로그 레코드 각각이 계약 불일치로 오탐되고, 감사로그가 많을수록 "문제" 건수도 커지는 구조였다. |
+| 수정 | 판정 로직을 순수 함수 `recordContractIssues(rows)`로 분리했다. `id`·`created_at` 부재는 모든 저장 영역에서 계속 결함으로 잡되, `updated_at`·`deleted_at` 요구는 `RECORD_CONTRACT_IMMUTABLE_STORES = ['audit_logs']`에 대해서만 면제한다. 다른 11개 저장 영역의 계약은 그대로 유지된다. |
+| 자동 검증 | `recordContractIssues`를 `window.__ACCOUNTING_APP_TEST__`에 노출하고 `scripts/tests/logic.test.mjs`에 회귀 2건을 추가했다: ① `updated_at`·`deleted_at`이 없는 `audit_logs` 행은 불일치로 잡히지 않음, ② 같은 배열에서 진짜로 `id`만 있고 `created_at`이 없는 `accounts` 행은 여전히 잡힘(면제가 `audit_logs`에만 좁게 적용됨을 함께 확인). 로직 283→285 assertions. `npm run harness:check` 18/20 PASS(`gate-controls`·`browser-roundtrip` 2개는 이 세션 샌드박스에 캐시된 Chromium 리비전이 `playwright@1.62.1`이 기대하는 리비전과 달라 생기는 기존·환경 의존 실패이며 이번 변경 전후로 동일한 오류 메시지임을 확인했다 — 코드·문서 결함 아님). |
+| 미검증 | 이 수정으로 사용자의 실기기 재실행 결과가 실제로 `[정상]`으로 바뀌는지는 본 세션에서 직접 확인하지 못했다(사용자가 붙여넣은 텍스트 보고서만으로 진단, 실기기·실네트워크 접근 없음) — 사용자 재확인이 필요한 항목으로 남긴다. |
+| 버전·데이터 | 앱 0.70→0.71. schema 0.08·backup 0.04 유지, IndexedDB·Supabase·RLS·동기화 데이터 계약과 migration 변경 없음. `Sub_app-research-notes_0.91`. |
 
 ## 2026-08-08 앱 0.70: 바른장부 진단 허브
 
