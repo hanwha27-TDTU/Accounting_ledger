@@ -1,13 +1,13 @@
 # Codex 복귀 인계서 (Returning-Agent Onboarding)
 
-> 개정 2026-08-07 · 작업 트리 앱 버전 `0.69` · 공개 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
+> 개정 2026-08-08 · 작업 트리 앱 버전 `0.70` · 공개 배포 상태는 Git 최신 커밋과 GitHub Actions가 SSOT
 > 이 문서는 **오랜만에 복귀하는 협업자(Codex 등)를 위한 따라잡기 편지**다. 현재 상태·값의 SSOT는 언제나 `docs/claude-handoff.md`와 Git 최신 커밋이며, 이 문서는 "무엇이 어디에 있고, 그동안 무엇이 왜 바뀌었는지"의 지도다. 이 문서와 다른 문서가 어긋나면 `docs/claude-handoff.md`가 이긴다.
 > 전역 공용 스킬은 private 정본 승인 커밋 `268126d`에 고정되어 있다. 해시 잠금은 `schemas/codex-shared-skills-lock.json`, 프로젝트 릴리스 프로필은 `schemas/accounting-ledger-release-profile.json`이며 공개 저장소에는 스킬 본문을 커밋하지 않는다.
 
 ## 1. 60초 요약 — 지금 어디까지 와 있나
 
 - **제품**: 대한민국 개인사업자용 간편장부·복식부기 통합 회계 앱 "바른장부". 단일 `index.html` + GitHub Pages, 빌드 도구 없음(lucide·supabase-js는 `vendor/`에 버전·SHA-256 고정, 런타임 외부 CDN 없음).
-- **작업 릴리스는 0.69**다. 0.68의 원자 JSON backup 0.04·cloud-first LWW·canonical CAS는 유지한다. 여기에 장부 JSON과 분리된 AES-256-GCM 증빙 원본 `.bjea` 백업과 검증 후 Cloudinary 재업로드 복원을 추가했다. 실제 Chromium 왕복 15 assertions가 `browser-roundtrip` Required 게이트로 실행되며 전체 Required는 20개다. GitHub Pages는 저장소 소유 Node 24 pinned workflow가 index와 vendor 2개만 배포한다. schema 0.08·backup 0.04는 그대로이고 migration은 없다.
+- **작업 릴리스는 0.70**이다. 0.69의 증빙 원본 독립 보관과 0.68의 원자 JSON backup 0.04·cloud-first LWW·canonical CAS를 유지한다. 관리 메뉴에는 저장·레코드·전표·동기화·백업·증빙·연결/RLS·런타임을 보는 진단 허브(5그룹·9도구)가 생겼고 장부 설정 전에도 열 수 있다. 열기와 요약은 네트워크·쓰기가 없고, 서버 실행형은 기존 서비스만 재사용하며 보고서에는 비밀값·주소·파일명을 넣지 않는다. 로직 283 assertions, 실제 Chromium 왕복 24 assertions가 실행되며 전체 Required는 20개다. schema 0.08·backup 0.04는 그대로이고 migration은 없다.
 - **안드로이드 앱이 존재한다**(당신이 없던 사이 가장 큰 변화, 0.50~0.57): `android-shell/`(Capacitor 7 얇은 셸), GitHub Actions가 서명·빌드·고정 릴리스(`apk-latest`) 게시까지 자동, 실기기에서 설치·구글 로그인·이중 자동 업데이트까지 **실사용 검증 완료**.
 - 클라우드: Supabase Postgres + RLS(소유자 allowlist), 로컬: IndexedDB/localStorage. 내부 원장은 복식부기 SSOT, 간편장부는 view.
 

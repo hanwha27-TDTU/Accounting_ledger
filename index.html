@@ -324,6 +324,26 @@
     .amount-negative { color: var(--accent); font-weight: 800; }
 
     .status-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .diagnostic-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+    .diagnostic-summary-item { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 12px; }
+    .diagnostic-summary-value { display: block; margin-top: 4px; font-size: 22px; font-weight: 850; }
+    .diagnostic-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 18px; }
+    .diagnostic-toolbar .button, .diagnostic-tool-body .button { min-height: 44px; }
+    .diagnostic-group { border: 1px solid var(--line); border-radius: 14px; background: #fff; overflow: hidden; }
+    .diagnostic-group + .diagnostic-group { margin-top: 12px; }
+    .diagnostic-group > summary, .diagnostic-tool > summary { cursor: pointer; list-style: none; }
+    .diagnostic-group > summary::-webkit-details-marker, .diagnostic-tool > summary::-webkit-details-marker { display: none; }
+    .diagnostic-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 16px; min-height: 52px; }
+    .diagnostic-group-body { display: grid; gap: 10px; padding: 0 12px 12px; }
+    .diagnostic-tool { border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); overflow: hidden; }
+    .diagnostic-tool-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px; min-height: 50px; }
+    .diagnostic-tool-question { font-size: 13px; font-weight: 800; color: var(--text); }
+    .diagnostic-tool-body { padding: 0 13px 14px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .diagnostic-tool-body dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 10px; margin: 10px 0; }
+    .diagnostic-tool-body dt { font-weight: 800; color: var(--text); }
+    .diagnostic-tool-body dd { margin: 0; overflow-wrap: anywhere; }
+    .diagnostic-metrics { display: grid; gap: 6px; margin: 10px 0; }
+    .diagnostic-metric { display: flex; justify-content: space-between; gap: 12px; border-top: 1px dashed var(--line); padding-top: 6px; }
     .status-item { padding: 14px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
     .status-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .status-item-title { font-weight: 800; }
@@ -625,6 +645,8 @@
       .money-control { grid-template-columns: 1fr; }
       .money-conversion { grid-column: 1; }
       .status-board, .developer-grid, .guide-checks, .data-grid { grid-template-columns: 1fr; }
+      .diagnostic-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .diagnostic-tool-body dl { grid-template-columns: 1fr; gap: 2px; }
       .topbar-actions .button-label { display: none; }
       .fixed-expense-trigger { min-width: 150px; width: auto; padding: 6px 10px; }
       .fixed-expense-trigger-copy { display: grid; }
@@ -729,7 +751,7 @@
     // 1. Release and domain constants
     const APP_INFO = Object.freeze({
       name: '바른장부',
-      version: '0.69',
+      version: '0.70',
       schemaVersion: '0.08',
       backupSchemaVersion: '0.04',
       postingRuleVersion: 'posting-0.01',
@@ -744,7 +766,8 @@
     });
 
     const UPDATE_HISTORY = Object.freeze([
-      { version: '0.69', date: '2026-08-07', label: '최신 · 증빙 원본 암호화 독립 보관', detail: 'Cloudinary 링크와 별개로 이미지·PDF 증빙 원본을 비밀번호로 암호화한 전용 아카이브로 내려받을 수 있습니다. 복원할 때는 파일 전체의 암호화 무결성, 각 원본의 SHA-256·형식·크기를 먼저 확인하고 현재 장부의 증빙 ID와 맞는 경우에만 Cloudinary로 다시 올린 뒤 메타데이터와 동기화 대기열을 한 번에 갱신합니다. 브라우저 왕복 검증은 CI 필수 게이트로 승격했고 GitHub Actions도 Node 24 기반 공식 버전의 불변 SHA로 갱신했습니다.' },
+      { version: '0.70', date: '2026-08-08', label: '최신 · 장부 진단 허브', detail: '관리 메뉴에 진단 허브를 추가해 이 기기 저장소, 레코드 필수 필드, 복식 전표 균형, 동기화 정본·대기열, 백업 준비, 증빙 연결, Supabase 연결 경계, RLS 격리 왕복, 앱 런타임을 한곳에서 확인할 수 있습니다. 허브를 여는 것만으로는 서버에 묻거나 자료를 바꾸지 않으며, 명시 실행 도구는 기존 연결 진단·일반 동기화와 격리 점검행 왕복을 재사용합니다. 각 결과는 정상·확인 필요·문제·미확인으로 구분하고 본 것·못 본 것·쓴 것을 공개하며, 키·토큰·주소·파일명을 제외한 보고서를 미리 보고 복사할 수 있습니다.' },
+      { version: '0.69', date: '2026-08-07', label: '증빙 원본 암호화 독립 보관', detail: 'Cloudinary 링크와 별개로 이미지·PDF 증빙 원본을 비밀번호로 암호화한 전용 아카이브로 내려받을 수 있습니다. 복원할 때는 파일 전체의 암호화 무결성, 각 원본의 SHA-256·형식·크기를 먼저 확인하고 현재 장부의 증빙 ID와 맞는 경우에만 Cloudinary로 다시 올린 뒤 메타데이터와 동기화 대기열을 한 번에 갱신합니다. 브라우저 왕복 검증은 CI 필수 게이트로 승격했고 GitHub Actions도 Node 24 기반 공식 버전의 불변 SHA로 갱신했습니다.' },
       { version: '0.68', date: '2026-08-07', label: '원자 복원·서버 LWW·정본 트랜잭션', detail: '백업은 생성과 복원에 같은 용량·행 제한과 SHA-256 무결성 검사를 적용하고, 필수 필드·참조·복식부기 균형을 모두 확인한 뒤 하나의 IndexedDB 트랜잭션으로만 복원합니다. 이 기기 복원은 동기화 대기열을 격리하고 적용 전 건수 차이를 보여줍니다. 일반 동기화는 클라우드를 먼저 비교하며 서버가 오래된 updated_at 쓰기를 거부하고, 최종본 지정은 canonical version CAS를 포함한 단일 DB 트랜잭션으로 발행합니다. 클라우드 백업도 단일 DB 스냅샷이며 익명 테이블 권한을 명시적으로 회수했습니다.' },
       { version: '0.67', date: '2026-08-07', label: '품질 대조군·앱 보안 감사 보완', detail: '모든 필수 품질 게이트에 정상·실패 대조군을 붙였습니다. 검색·필터 접근성과 장부 저장 안내를 바로잡고, 백업 복원값과 Excel 압축 크기를 검증하며 증빙은 HTTPS 주소만 사용합니다. 차단·열람자 권한, 삭제 신호, 최종본 버전을 사용자별로 격리하는 DB 마이그레이션도 준비했고, Android 백업과 미서명 공식 APK 발행을 차단했습니다.' },
       { version: '0.66', date: '2026-08-07', label: '모바일 고정지출 잘림·동기화 속도 개선', detail: '휴대폰의 고정지출현황에서 외화 금액과 환율 기준일이 카드 밖으로 잘리지 않도록 금액 영역을 독립 행으로 재배치하고, 모달 제목을 스크롤 중에도 고정했습니다. 동기화는 중복 실행을 하나로 합치고 여러 테이블을 제한 병렬 조회하며 대기 변경을 테이블 단위로 묶어 전송해, 정본·삭제·최신 수정 우선 규칙을 유지하면서 체감 대기 시간을 줄였습니다.' },
@@ -845,6 +868,7 @@
       { group: '자료', id: 'reports', label: '리포트', icon: 'file-chart-column' },
       { group: '관리', id: 'closing', label: '마감', icon: 'lock-keyhole' },
       { group: '관리', id: 'settings', label: '설정', icon: 'settings-2' },
+      { group: '관리', id: 'diagnostics', label: '진단 허브', icon: 'stethoscope' },
       { group: '관리', id: 'developer', label: '개발 기록', icon: 'code-2' },
       { group: '관리', id: 'data', label: '데이터 관리', icon: 'database' },
       { group: '도움말', id: 'guide', label: '가이드', icon: 'circle-help' },
@@ -3786,7 +3810,7 @@
           };
         }
         renderShellStatus();
-        if (state.route === 'settings' || state.route === 'developer' || state.route === 'guide') render();
+        if (state.route === 'settings' || state.route === 'diagnostics' || state.route === 'developer' || state.route === 'guide') render();
         if (state.connectionDiagnostics.api === 'ready' && state.connectionDiagnostics.anonymousIsolation === 'pass' && state.session) {
           await this.connectAndSync();
         }
@@ -4115,6 +4139,267 @@
         }
       }
     });
+
+    // Diagnostic Hub — 판정·등록부·보고서는 한 계약에서 파생한다. 허브를 여는 것과 summary()는
+    // 메모리 상태만 읽으며, 네트워크와 쓰기는 사용자가 실행 버튼을 눌렀을 때만 기존 서비스가 맡는다.
+    const DiagnosticContract = Object.freeze({
+      states: Object.freeze(['ok', 'todo', 'problem', 'unknown']),
+      unknownKinds: Object.freeze(['structural', 'transient']),
+      priority: Object.freeze({ ok: 0, todo: 1, unknown: 2, problem: 3 }),
+      deriveState(states) {
+        const values = Array.isArray(states) && states.length ? states : ['unknown'];
+        return values.reduce((worst, current) => {
+          if (!this.states.includes(current)) throw new Error('DIAGNOSTIC_STATE_INVALID');
+          return this.priority[current] > this.priority[worst] ? current : worst;
+        }, 'ok');
+      },
+      validateVerdict(verdict) {
+        const errors = [];
+        if (!verdict || typeof verdict !== 'object') return ['판정 객체 없음'];
+        if (!this.states.includes(verdict.state)) errors.push('state 오류');
+        for (const key of ['toolId', 'title', 'summary', 'reasonCode']) if (!String(verdict[key] || '').trim()) errors.push(`${key} 누락`);
+        if (!Array.isArray(verdict.metrics)) errors.push('metrics 배열 누락');
+        else verdict.metrics.forEach((metric, index) => {
+          if (!String(metric?.id || '').trim()) errors.push(`metric ${index} id 누락`);
+          if (!Object.prototype.hasOwnProperty.call(metric || {}, 'actual')) errors.push(`metric ${index} actual 누락`);
+          if (!Object.prototype.hasOwnProperty.call(metric || {}, 'expected')) errors.push(`metric ${index} expected 누락`);
+        });
+        if (verdict.state === 'unknown') {
+          if (!this.unknownKinds.includes(verdict.unknown?.kind)) errors.push('unknown kind 오류');
+          if (!String(verdict.unknown?.reason || '').trim()) errors.push('unknown reason 누락');
+        } else if (verdict.unknown) errors.push('unknown 상태 밖 unknown 설명');
+        return errors;
+      },
+      validateSystem(groups, tools, blindSpots) {
+        const errors = [];
+        const groupIds = new Set((groups || []).map(group => group.id));
+        const toolIds = new Set();
+        const blindIds = new Set();
+        const references = new Map();
+        if (!groups?.length) errors.push('그룹 모집단 0');
+        if (!tools?.length) errors.push('도구 모집단 0');
+        if (!blindSpots?.length) errors.push('사각지대 모집단 0');
+        for (const tool of tools || []) {
+          if (!tool.id || toolIds.has(tool.id)) errors.push(`도구 id 오류: ${String(tool.id)}`);
+          toolIds.add(tool.id);
+          if (!groupIds.has(tool.group)) errors.push(`없는 그룹: ${tool.id}`);
+          if (!['summary', 'async'].includes(tool.mode)) errors.push(`도구 mode 오류: ${tool.id}`);
+          if (!['none', 'existing-sync', 'system-scratch'].includes(tool.writes?.scope)) errors.push(`쓰기 범위 오류: ${tool.id}`);
+          if (!Array.isArray(tool.blindSpotIds) || !tool.blindSpotIds.length) errors.push(`사각지대 참조 누락: ${tool.id}`);
+          for (const id of tool.blindSpotIds || []) references.set(id, (references.get(id) || 0) + 1);
+        }
+        for (const spot of blindSpots || []) {
+          if (!spot.id || blindIds.has(spot.id)) errors.push(`사각지대 id 오류: ${String(spot.id)}`);
+          blindIds.add(spot.id);
+          const owner = (tools || []).find(tool => tool.id === spot.ownerToolId);
+          if (!owner) errors.push(`사각지대 소유 도구 없음: ${spot.id}`);
+          else if (owner.group !== spot.group) errors.push(`사각지대 그룹 불일치: ${spot.id}`);
+          if (!spot.what || !spot.why || !spot.pendingReason) errors.push(`사각지대 설명 누락: ${spot.id}`);
+          if ((references.get(spot.id) || 0) !== 1) errors.push(`사각지대 참조 횟수 오류: ${spot.id}`);
+        }
+        for (const id of references.keys()) if (!blindIds.has(id)) errors.push(`끊긴 사각지대 참조: ${id}`);
+        return errors;
+      }
+    });
+
+    const DIAGNOSTIC_GROUPS = Object.freeze([
+      Object.freeze({ id: 'device', label: '이 기기', description: '로컬 저장소와 현재 장부 구조를 봅니다.' }),
+      Object.freeze({ id: 'ledger', label: '장부 무결성', description: '레코드 계약과 복식 전표 연결을 봅니다.' }),
+      Object.freeze({ id: 'sync', label: '클라우드·동기화', description: '정본 버전, 대기열, 공개 연결과 RLS 경계를 봅니다.' }),
+      Object.freeze({ id: 'safety', label: '백업·증빙 안전망', description: '백업 준비와 증빙 연결 상태를 봅니다.' }),
+      Object.freeze({ id: 'runtime', label: '앱 실행 환경', description: '배포 버전과 필수 브라우저 런타임을 봅니다.' })
+    ]);
+
+    const DIAGNOSTIC_BLIND_SPOTS = Object.freeze([
+      Object.freeze({ id: 'blind.storage.persistence', group: 'device', ownerToolId: 'local-storage', what: '브라우저 종료·용량 부족 뒤에도 계속 저장되는지와 다른 기기의 저장소', why: '현재 열린 IndexedDB 준비 상태만 읽습니다.', pendingReason: '장기 영속성과 다른 기기는 실제 기기 왕복이 필요합니다.' }),
+      Object.freeze({ id: 'blind.records.semantic', group: 'ledger', ownerToolId: 'record-contract', what: '금액·설명의 회계적 옳고 그름과 아직 저장하지 않은 입력', why: '필수 식별·시간·삭제 필드의 모양만 검사합니다.', pendingReason: '내용 판단은 거래·세무 도메인 검증의 책임입니다.' }),
+      Object.freeze({ id: 'blind.journals.tax', group: 'ledger', ownerToolId: 'journal-balance', what: '균형 전표의 계정과목·세무 분류가 올바른지', why: '차변·대변 합계와 줄 연결만 비교합니다.', pendingReason: '분류 적정성은 별도 회계 검토가 필요합니다.' }),
+      Object.freeze({ id: 'blind.sync.other-device', group: 'sync', ownerToolId: 'sync-canonical', what: '다른 기기의 미전송 변경과 클라우드에만 있는 최신 행', why: '이 기기의 메모리 상태·대기열·마지막 동기화만 읽습니다.', pendingReason: '실제 서버 대조는 명시 동기화 또는 클라우드 백업이 필요합니다.' }),
+      Object.freeze({ id: 'blind.backup.file', group: 'safety', ownerToolId: 'backup-readiness', what: '백업 파일이 안전한 곳에 남아 있고 실제 복원되는지', why: '앱이 기억한 마지막 생성 시각과 현재 모집단만 봅니다.', pendingReason: '파일 보관과 복원 성공은 격리 왕복 또는 사용자 확인이 필요합니다.' }),
+      Object.freeze({ id: 'blind.evidence.bytes', group: 'safety', ownerToolId: 'evidence-links', what: 'Cloudinary 원본 바이트가 실제로 열리고 내용이 온전한지', why: '현재 장부의 증빙 메타데이터와 거래 연결만 검사합니다.', pendingReason: '원본 실물은 암호화 아카이브 왕복과 표본 열람으로 확인합니다.' }),
+      Object.freeze({ id: 'blind.connection.authenticated-data', group: 'sync', ownerToolId: 'connection-boundary', what: '로그인한 사용자의 모든 표·행이 정확히 보이는지', why: '공개 API, 익명 격리, Google 제공자 준비만 검사합니다.', pendingReason: '전체 사용자 데이터 대조는 정본 스냅샷 검증이 필요합니다.' }),
+      Object.freeze({ id: 'blind.rls.other-roles', group: 'sync', ownerToolId: 'rls-roundtrip', what: '다른 사용자·열람자·편집자의 모든 권한 조합', why: '현재 로그인 계정의 businesses 격리 점검행 하나만 왕복합니다.', pendingReason: '역할별 허용·거부는 별도 계정 매트릭스 검증이 필요합니다.' }),
+      Object.freeze({ id: 'blind.runtime.future', group: 'runtime', ownerToolId: 'runtime-release', what: '미래 배포·다른 브라우저·실기기 WebView에서의 동작', why: '현재 탭의 버전과 로드된 필수 런타임만 봅니다.', pendingReason: 'Pages 되읽기와 Android 실기기 검증은 릴리스 절차가 맡습니다.' })
+    ]);
+
+    function diagnosticVerdict(toolId, stateValue, title, summary, reasonCode, metrics, unknown = null) {
+      const verdict = { toolId, state: stateValue, title, summary, reasonCode, metrics, ...(unknown ? { unknown } : {}) };
+      const faults = DiagnosticContract.validateVerdict(verdict);
+      if (faults.length) throw new Error(`DIAGNOSTIC_VERDICT_INVALID:${toolId}:${faults.join('|')}`);
+      return verdict;
+    }
+
+    function diagnosticCollections() {
+      return [
+        ['businesses', state.businesses], ['business_sites', state.site ? [state.site] : []], ['accounts', state.accounts],
+        ['counterparties', state.counterparties], ['fixed_expenses', state.fixedExpenses], ['source_transactions', state.transactions],
+        ['journal_entries', state.journals], ['journal_entry_lines', state.journalLines], ['evidence_files', state.evidenceFiles],
+        ['audit_logs', state.auditLogs], ['period_closings', state.closings], ['sync_queue', state.queue]
+      ];
+    }
+
+    function summarizeLocalStorage() {
+      return state.ready
+        ? diagnosticVerdict('local-storage', 'ok', '이 기기 저장소를 열었습니다', `IndexedDB와 ${LOCAL_STORES.length}개 저장 영역을 사용할 준비가 됐습니다.`, 'LOCAL_STORAGE_READY', [{ id:'ready', label:'저장소 준비', actual:true, expected:true }, { id:'stores', label:'등록 저장 영역', actual:LOCAL_STORES.length, expected:LOCAL_STORES.length }])
+        : diagnosticVerdict('local-storage', 'problem', '이 기기 저장소를 열지 못했습니다', '현재 탭에서 장부 저장을 보장할 수 없습니다.', 'LOCAL_STORAGE_UNAVAILABLE', [{ id:'ready', label:'저장소 준비', actual:false, expected:true }]);
+    }
+
+    function summarizeRecordContract() {
+      const rows = diagnosticCollections().flatMap(([store, values]) => (values || []).map(row => ({ store, row })));
+      if (!rows.length) return diagnosticVerdict('record-contract', 'unknown', '검사할 저장 레코드가 없습니다', '빈 모집단을 정상으로 판정하지 않았습니다.', 'NO_LOCAL_RECORDS', [{ id:'records', label:'검사 레코드', actual:0, expected:'1개 이상 또는 빈 이유' }], { kind:'structural', reason:'현재 가계부에 검사할 저장 레코드가 없습니다.' });
+      const bad = rows.filter(({ row }) => !row?.id || !row?.created_at || !row?.updated_at || !Object.prototype.hasOwnProperty.call(row, 'deleted_at'));
+      return diagnosticVerdict('record-contract', bad.length ? 'problem' : 'ok', bad.length ? '필수 저장 필드가 빠진 레코드가 있습니다' : '필수 저장 필드가 일치합니다', `현재 장부 ${rows.length}건 중 계약 불일치 ${bad.length}건입니다.`, bad.length ? 'RECORD_CONTRACT_MISMATCH' : 'RECORD_CONTRACT_OK', [{ id:'checked', label:'검사 레코드', actual:rows.length, expected:rows.length }, { id:'invalid', label:'계약 불일치', actual:bad.length, expected:0 }]);
+    }
+
+    function summarizeJournalBalance() {
+      const journals = state.journals.filter(row => !row.deleted_at);
+      if (!journals.length) return diagnosticVerdict('journal-balance', 'unknown', '검사할 전표가 없습니다', '전표 모집단 0개를 정상으로 세지 않았습니다.', 'NO_JOURNALS', [{ id:'journals', label:'활성 전표', actual:0, expected:'1개 이상 또는 빈 이유' }], { kind:'structural', reason:'현재 가계부에 활성 전표가 없습니다.' });
+      const broken = journals.filter(entry => {
+        const lines = state.journalLines.filter(line => !line.deleted_at && line.journal_entry_id === entry.id);
+        const debit = lines.reduce((sum, line) => sum + Number(line.debit_amount || 0), 0);
+        const credit = lines.reduce((sum, line) => sum + Number(line.credit_amount || 0), 0);
+        return !lines.length || Math.abs(debit - credit) > 0.001;
+      });
+      return diagnosticVerdict('journal-balance', broken.length ? 'problem' : 'ok', broken.length ? '균형이 맞지 않는 전표가 있습니다' : '활성 전표의 차변·대변이 맞습니다', `활성 전표 ${journals.length}건 중 불균형 또는 줄 없음 ${broken.length}건입니다.`, broken.length ? 'JOURNAL_BALANCE_MISMATCH' : 'JOURNAL_BALANCE_OK', [{ id:'journals', label:'활성 전표', actual:journals.length, expected:journals.length }, { id:'broken', label:'불균형·줄 없음', actual:broken.length, expected:0 }]);
+    }
+
+    function summarizeSyncCanonical() {
+      if (!state.session) return diagnosticVerdict('sync-canonical', 'unknown', '로그인 전이라 클라우드 수렴을 판정할 수 없습니다', `이 기기 canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건입니다.`, 'AUTH_NOT_READY', [{ id:'session', label:'로그인 세션', actual:false, expected:true }, { id:'pending', label:'동기화 대기', actual:state.queue.length, expected:0 }], { kind:'transient', reason:'Google 로그인 뒤 다시 확인할 수 있습니다.' });
+      if (state.syncStatus === 'error' || state.syncError) return diagnosticVerdict('sync-canonical', 'problem', '최근 동기화 오류가 기록돼 있습니다', `canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건입니다.`, 'SYNC_ERROR_RECORDED', [{ id:'pending', label:'동기화 대기', actual:state.queue.length, expected:0 }, { id:'sync_status', label:'동기화 상태', actual:state.syncStatus, expected:'complete 또는 idle' }]);
+      const needsReview = state.queue.length > 0 || !state.config.lastSyncAt;
+      return diagnosticVerdict('sync-canonical', needsReview ? 'todo' : 'ok', needsReview ? '클라우드 반영을 확인해 주세요' : '최근 동기화 상태가 안정적입니다', `canonical v${Number(state.config.canonicalVersion || 0)} · 대기 ${state.queue.length}건입니다.`, needsReview ? 'SYNC_PENDING_OR_NEVER' : 'SYNC_STATE_OK', [{ id:'pending', label:'동기화 대기', actual:state.queue.length, expected:0 }, { id:'canonical', label:'최종본 버전', actual:Number(state.config.canonicalVersion || 0), expected:'클라우드 메타와 일치' }]);
+    }
+
+    function summarizeBackupReadiness() {
+      const population = state.transactions.filter(row => !row.deleted_at).length + state.evidenceFiles.filter(row => !row.deleted_at).length;
+      if (!population) return diagnosticVerdict('backup-readiness', 'unknown', '백업할 장부 자료가 없습니다', '빈 장부에서는 백업 최신성을 판정하지 않습니다.', 'NO_BACKUP_POPULATION', [{ id:'records', label:'거래·증빙 모집단', actual:0, expected:'1개 이상 또는 빈 이유' }], { kind:'structural', reason:'현재 가계부에 활성 거래·증빙이 없습니다.' });
+      const backedUp = Boolean(state.config.lastBackupAt);
+      return diagnosticVerdict('backup-readiness', backedUp ? 'ok' : 'todo', backedUp ? '앱에 마지막 장부 백업 시각이 기록돼 있습니다' : '장부 백업을 아직 만들지 않았습니다', `활성 거래·증빙 ${population}건 · ${backedUp ? '백업 기록 있음' : '백업 기록 없음'}입니다.`, backedUp ? 'BACKUP_TIMESTAMP_PRESENT' : 'BACKUP_NOT_RECORDED', [{ id:'records', label:'거래·증빙 모집단', actual:population, expected:population }, { id:'backup_recorded', label:'백업 생성 기록', actual:backedUp, expected:true }]);
+    }
+
+    function summarizeEvidenceLinks() {
+      const evidence = state.evidenceFiles.filter(row => !row.deleted_at);
+      if (!evidence.length) return diagnosticVerdict('evidence-links', 'unknown', '검사할 증빙이 없습니다', '증빙 모집단 0개를 정상으로 세지 않았습니다.', 'NO_EVIDENCE', [{ id:'evidence', label:'활성 증빙', actual:0, expected:'1개 이상 또는 빈 이유' }], { kind:'structural', reason:'현재 가계부에 활성 증빙이 없습니다.' });
+      const txIds = new Set(state.transactions.filter(row => !row.deleted_at).map(row => row.id));
+      const broken = evidence.filter(row => !txIds.has(row.source_transaction_id) || !/^https:\/\//i.test(String(row.secure_url || '')));
+      const unhashed = evidence.filter(row => !row.file_hash).length;
+      const level = broken.length ? 'problem' : unhashed ? 'todo' : 'ok';
+      return diagnosticVerdict('evidence-links', level, broken.length ? '끊기거나 안전하지 않은 증빙 연결이 있습니다' : unhashed ? '원본 해시가 없는 기존 증빙이 있습니다' : '증빙 메타데이터 연결이 맞습니다', `활성 증빙 ${evidence.length}건 · 연결 오류 ${broken.length}건 · 원본 해시 없음 ${unhashed}건입니다.`, broken.length ? 'EVIDENCE_LINK_BROKEN' : unhashed ? 'EVIDENCE_HASH_MISSING' : 'EVIDENCE_LINK_OK', [{ id:'evidence', label:'활성 증빙', actual:evidence.length, expected:evidence.length }, { id:'broken', label:'연결 오류', actual:broken.length, expected:0 }, { id:'unhashed', label:'원본 해시 없음', actual:unhashed, expected:0 }]);
+    }
+
+    function summarizeConnectionBoundary() {
+      const d = state.connectionDiagnostics;
+      if (d.status === 'checking') return diagnosticVerdict('connection-boundary', 'unknown', '연결 경계를 확인하는 중입니다', '공개 API·익명 격리·Google 제공자를 확인하고 있습니다.', 'CONNECTION_CHECKING', [{ id:'status', label:'점검 상태', actual:'checking', expected:'complete' }], { kind:'transient', reason:'현재 점검이 끝나면 판정할 수 있습니다.' });
+      if (!d.checkedAt || d.status === 'idle') return diagnosticVerdict('connection-boundary', 'unknown', '연결 경계를 아직 확인하지 않았습니다', '명시 실행 전에는 서버에 새로 묻지 않습니다.', 'CONNECTION_NOT_RUN', [{ id:'checked', label:'실행 여부', actual:false, expected:true }], { kind:'transient', reason:'연결 경계 점검을 실행하면 확인할 수 있습니다.' });
+      if (d.anonymousIsolation && !['unknown', 'pass'].includes(d.anonymousIsolation)) return diagnosticVerdict('connection-boundary', 'problem', '익명 회계자료 격리 계약이 맞지 않습니다', '로그인하지 않은 읽기 경계를 우선 점검해야 합니다.', 'ANONYMOUS_ISOLATION_FAILED', [{ id:'anonymous', label:'익명 격리', actual:d.anonymousIsolation, expected:'pass' }]);
+      if (d.api === 'ready' && d.anonymousIsolation === 'pass' && d.googleProvider === 'ready') return diagnosticVerdict('connection-boundary', 'ok', '공개 연결과 익명 격리 경계가 맞습니다', 'Data API, 익명 격리, Google 제공자 준비를 확인했습니다.', 'CONNECTION_BOUNDARY_OK', [{ id:'api', label:'Data API', actual:d.api, expected:'ready' }, { id:'anonymous', label:'익명 격리', actual:d.anonymousIsolation, expected:'pass' }, { id:'google', label:'Google 제공자', actual:d.googleProvider, expected:'ready' }]);
+      if (d.googleProvider === 'disabled') return diagnosticVerdict('connection-boundary', 'problem', 'Google 로그인 제공자가 비활성입니다', 'Supabase Auth 제공자 설정을 확인해야 합니다.', 'GOOGLE_PROVIDER_DISABLED', [{ id:'google', label:'Google 제공자', actual:'disabled', expected:'ready' }]);
+      return diagnosticVerdict('connection-boundary', 'unknown', '연결 경계를 끝까지 판정하지 못했습니다', '네트워크·프로젝트 설정·권한 상태를 다시 확인할 수 있습니다.', 'CONNECTION_INCOMPLETE', [{ id:'api', label:'Data API', actual:d.api, expected:'ready' }, { id:'anonymous', label:'익명 격리', actual:d.anonymousIsolation, expected:'pass' }], { kind:'transient', reason:'현재 응답만으로 계약 불일치와 일시 장애를 구분할 수 없습니다.' });
+    }
+
+    function summarizeRlsRoundtrip() {
+      const d = state.businessRoundtrip;
+      if (!state.session) return diagnosticVerdict('rls-roundtrip', 'unknown', '로그인 전이라 RLS 왕복을 실행할 수 없습니다', '현재 계정의 격리 점검행을 만들 권한이 없습니다.', 'RLS_AUTH_REQUIRED', [{ id:'session', label:'로그인 세션', actual:false, expected:true }], { kind:'transient', reason:'허용된 Google 계정으로 로그인하면 실행할 수 있습니다.' });
+      if (d.status === 'pass') return diagnosticVerdict('rls-roundtrip', 'ok', '현재 계정의 CRUD·RLS 왕복이 통과했습니다', '격리 점검행 생성·조회·수정·소프트삭제·정리를 확인했습니다.', 'RLS_ROUNDTRIP_OK', [{ id:'steps', label:'통과 단계', actual:Object.values(d.steps || {}).filter(value => value === 'pass').length, expected:5 }]);
+      if (d.status === 'error') {
+        const failed = Object.values(d.steps || {}).filter(value => value === 'fail').length;
+        return failed
+          ? diagnosticVerdict('rls-roundtrip', 'problem', 'CRUD·RLS 왕복 단계가 실패했습니다', `실패 단계 ${failed}개입니다.`, 'RLS_ROUNDTRIP_FAILED', [{ id:'failed', label:'실패 단계', actual:failed, expected:0 }])
+          : diagnosticVerdict('rls-roundtrip', 'unknown', 'RLS 왕복을 끝까지 판정하지 못했습니다', '일시적 연결 실패와 권한 불일치를 현재 결과만으로 구분할 수 없습니다.', 'RLS_ROUNDTRIP_INCOMPLETE', [{ id:'status', label:'점검 상태', actual:'error', expected:'pass' }], { kind:'transient', reason:'연결 상태를 확인한 뒤 다시 실행할 수 있습니다.' });
+      }
+      return diagnosticVerdict('rls-roundtrip', 'unknown', 'RLS 왕복을 아직 실행하지 않았습니다', '명시 실행 전에는 점검행을 만들지 않습니다.', 'RLS_ROUNDTRIP_NOT_RUN', [{ id:'checked', label:'실행 여부', actual:false, expected:true }], { kind:'transient', reason:'로그인한 상태에서 격리 왕복을 실행하면 확인할 수 있습니다.' });
+    }
+
+    function summarizeRuntimeRelease() {
+      const loaded = Number(Boolean(window.lucide)) + Number(Boolean(window.supabase));
+      return diagnosticVerdict('runtime-release', loaded === 2 ? 'ok' : 'problem', loaded === 2 ? '필수 브라우저 런타임을 불러왔습니다' : '필수 브라우저 런타임이 빠졌습니다', `앱 v${APP_INFO.version} · 필수 런타임 ${loaded}/2개를 확인했습니다.`, loaded === 2 ? 'RUNTIME_READY' : 'RUNTIME_MISSING', [{ id:'runtime', label:'필수 런타임', actual:loaded, expected:2 }, { id:'version', label:'앱 버전', actual:APP_INFO.version, expected:UPDATE_HISTORY[0].version }]);
+    }
+
+    function diagnosticBlindText(ids) {
+      return ids.map(id => DIAGNOSTIC_BLIND_SPOTS.find(spot => spot.id === id)?.what || '').filter(Boolean).join(' · ');
+    }
+
+    const DIAGNOSTIC_TOOLS = Object.freeze([
+      Object.freeze({ id:'local-storage', group:'device', label:'로컬 저장소 준비', question:'이 기기에 장부를 저장할 준비가 됐나요?', mode:'summary', summary:summarizeLocalStorage, writes:Object.freeze({ scope:'none', text:'아무것도 쓰지 않습니다.' }), sees:'현재 탭의 IndexedDB 열림 상태와 등록 저장 영역 수', blindSpotIds:Object.freeze(['blind.storage.persistence']) }),
+      Object.freeze({ id:'record-contract', group:'ledger', label:'레코드 필수 필드', question:'동기화 레코드에 식별·시간·삭제 필드가 모두 있나요?', mode:'summary', summary:summarizeRecordContract, writes:Object.freeze({ scope:'none', text:'아무것도 쓰지 않습니다.' }), sees:'현재 장부 메모리의 id·created_at·updated_at·deleted_at', blindSpotIds:Object.freeze(['blind.records.semantic']) }),
+      Object.freeze({ id:'journal-balance', group:'ledger', label:'복식 전표 균형', question:'활성 전표의 차변과 대변이 맞나요?', mode:'summary', summary:summarizeJournalBalance, writes:Object.freeze({ scope:'none', text:'아무것도 쓰지 않습니다.' }), sees:'활성 전표와 연결 줄의 차변·대변 합계', blindSpotIds:Object.freeze(['blind.journals.tax']) }),
+      Object.freeze({ id:'sync-canonical', group:'sync', label:'정본·동기화 대기', question:'이 기기의 정본 버전과 전송 대기가 안정적인가요?', mode:'summary', summary:summarizeSyncCanonical, writes:Object.freeze({ scope:'none', text:'요약은 아무것도 쓰지 않습니다.' }), sees:'로그인, canonical version, 마지막 동기화, 로컬 대기열과 오류 표시', blindSpotIds:Object.freeze(['blind.sync.other-device']) }),
+      Object.freeze({ id:'backup-readiness', group:'safety', label:'장부 백업 준비', question:'현재 자료에 대한 백업 생성 기록이 있나요?', mode:'summary', summary:summarizeBackupReadiness, writes:Object.freeze({ scope:'none', text:'아무것도 쓰지 않습니다.' }), sees:'활성 거래·증빙 수와 앱이 기억한 마지막 장부 백업 시각', blindSpotIds:Object.freeze(['blind.backup.file']) }),
+      Object.freeze({ id:'evidence-links', group:'safety', label:'증빙 연결·해시', question:'증빙이 거래와 안전한 주소로 연결돼 있나요?', mode:'summary', summary:summarizeEvidenceLinks, writes:Object.freeze({ scope:'none', text:'아무것도 쓰지 않습니다.' }), sees:'활성 증빙의 거래 참조, HTTPS 주소 여부, 원본 SHA-256 기록 여부', blindSpotIds:Object.freeze(['blind.evidence.bytes']) }),
+      Object.freeze({ id:'connection-boundary', group:'sync', label:'Supabase 연결 경계', question:'공개 API·익명 격리·Google 로그인 경계가 맞나요?', mode:'async', summary:summarizeConnectionBoundary, run:() => SyncService.runConnectionDiagnostics(), didRun:() => Boolean(state.connectionDiagnostics.checkedAt), writes:Object.freeze({ scope:'existing-sync', text:'연결 통과 후 로그인 상태이면 기존 규칙대로 즉시 일반 동기화를 실행합니다.' }), sees:'Data API 응답, 익명 회계자료 격리, Google 제공자 준비', blindSpotIds:Object.freeze(['blind.connection.authenticated-data']) }),
+      Object.freeze({ id:'rls-roundtrip', group:'sync', label:'CRUD·RLS 격리 왕복', question:'현재 계정이 자기 점검행만 만들고 정리할 수 있나요?', mode:'async', summary:summarizeRlsRoundtrip, run:() => SyncService.runBusinessRoundtrip(), didRun:() => Boolean(state.businessRoundtrip.checkedAt), writes:Object.freeze({ scope:'system-scratch', text:'서버의 __rls_probe__ 점검행 1개를 생성·조회·수정·소프트삭제한 뒤 삭제합니다.' }), sees:'현재 로그인 계정의 businesses 생성·조회·수정·소프트삭제 격리·정리', blindSpotIds:Object.freeze(['blind.rls.other-roles']) }),
+      Object.freeze({ id:'runtime-release', group:'runtime', label:'앱 버전·런타임', question:'현재 배포판의 버전과 필수 스크립트가 맞나요?', mode:'summary', summary:summarizeRuntimeRelease, writes:Object.freeze({ scope:'none', text:'아무것도 쓰지 않습니다.' }), sees:'APP_INFO·UPDATE_HISTORY와 로드된 Lucide·Supabase JS', blindSpotIds:Object.freeze(['blind.runtime.future']) })
+    ].map(tool => Object.freeze({ ...tool, blind: diagnosticBlindText(tool.blindSpotIds) })));
+
+    const diagnosticSystemFaults = DiagnosticContract.validateSystem(DIAGNOSTIC_GROUPS, DIAGNOSTIC_TOOLS, DIAGNOSTIC_BLIND_SPOTS);
+    if (diagnosticSystemFaults.length) throw new Error(`DIAGNOSTIC_SYSTEM_INVALID:${diagnosticSystemFaults.join('|')}`);
+    const diagnosticRuntime = { running: new Set(), lastRunAt: {}, lastError: {} };
+
+    function diagnosticToolVerdict(tool) {
+      try { return tool.summary(); }
+      catch {
+        return diagnosticVerdict(tool.id, 'unknown', '점검 결과를 만들지 못했습니다', '현재 상태를 안전하게 판정하지 못했습니다.', 'SUMMARY_FAILED', [{ id:'summary', label:'요약 생성', actual:false, expected:true }], { kind:'transient', reason:'화면을 새로 열거나 앱을 다시 시작한 뒤 확인할 수 있습니다.' });
+      }
+    }
+
+    function diagnosticSnapshot() {
+      return DIAGNOSTIC_TOOLS.map(tool => ({ tool, verdict:diagnosticToolVerdict(tool) }));
+    }
+
+    async function runDiagnosticTool(toolId, { renderAfter = true } = {}) {
+      const tool = DIAGNOSTIC_TOOLS.find(item => item.id === toolId);
+      if (!tool || tool.mode !== 'async' || diagnosticRuntime.running.has(toolId)) return;
+      diagnosticRuntime.running.add(toolId);
+      if (renderAfter && state.route === 'diagnostics') render();
+      try { await tool.run(); diagnosticRuntime.lastError[toolId] = null; }
+      catch (error) { diagnosticRuntime.lastError[toolId] = String(error?.message || error); }
+      finally {
+        diagnosticRuntime.lastRunAt[toolId] = Utils.now();
+        diagnosticRuntime.running.delete(toolId);
+        if (renderAfter && state.route === 'diagnostics') render();
+      }
+    }
+
+    async function runDiagnosticBatch(toolIds) {
+      const ids = [...new Set(toolIds)].filter(id => DIAGNOSTIC_TOOLS.some(tool => tool.id === id && tool.mode === 'async'));
+      const tasks = ids.map(id => runDiagnosticTool(id, { renderAfter:false }));
+      if (state.route === 'diagnostics') render();
+      await Promise.all(tasks);
+      if (state.route === 'diagnostics') render();
+      return ids;
+    }
+
+    function failedDiagnosticToolIds() {
+      return DIAGNOSTIC_TOOLS.filter(tool => tool.mode === 'async' && (tool.didRun?.() || diagnosticRuntime.lastRunAt[tool.id]))
+        .filter(tool => ['problem', 'unknown'].includes(diagnosticToolVerdict(tool).state)).map(tool => tool.id);
+    }
+
+    function diagnosticStateLabel(stateValue) { return ({ ok:'정상', todo:'확인 필요', problem:'문제', unknown:'미확인' }[stateValue] || '미확인'); }
+    function diagnosticStateKind(stateValue) { return ({ ok:'success', todo:'warning', problem:'danger', unknown:'info' }[stateValue] || 'info'); }
+
+    function redactDiagnosticReport(text) {
+      return String(text || '')
+        .replace(/https?:\/\/[^\s)]+/gi, '[주소 제외]')
+        .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[이메일 제외]')
+        .replace(/\b(?:sb_[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_.-]+|Bearer\s+\S+)\b/gi, '[비밀값 제외]');
+    }
+
+    function buildDiagnosticReport() {
+      const rows = diagnosticSnapshot();
+      const lines = [`# ${APP_INFO.name} 진단 결과`, `생성: ${Utils.now()}`, `앱: v${APP_INFO.version} · schema ${APP_INFO.schemaVersion} · backup ${APP_INFO.backupSchemaVersion}`, `환경: ${CapacitorShell.isNative() ? 'Android 앱' : '웹'} · ${state.online ? '온라인' : '오프라인'} · 화면 ${window.innerWidth || 0}x${window.innerHeight || 0}`, '', '서버 점검은 명시 실행한 마지막 결과만 포함합니다.', ''];
+      for (const group of DIAGNOSTIC_GROUPS) {
+        lines.push(`## ${group.label}`);
+        for (const { tool, verdict } of rows.filter(row => row.tool.group === group.id)) {
+          lines.push(`[${diagnosticStateLabel(verdict.state)}] ${tool.label} — ${verdict.summary}`);
+          for (const metric of verdict.metrics) lines.push(`  ${metric.label}: 실제 ${String(metric.actual)} · 기대 ${String(metric.expected)}`);
+          lines.push(`  본 것: ${tool.sees}`, `  못 본 것: ${tool.blind}`, `  쓴 것: ${tool.writes.text}`, `  사유 코드: ${verdict.reasonCode}`);
+          if (verdict.unknown) lines.push(`  미확인: ${verdict.unknown.kind} · ${verdict.unknown.reason}`);
+        }
+        lines.push('');
+      }
+      lines.push('비밀값(키·토큰·이메일·전체 주소·파일명)은 포함하지 않습니다.');
+      return redactDiagnosticReport(lines.join('\n'));
+    }
 
     // 7. View formatters and renderers
     const el = id => document.getElementById(id);
@@ -5494,6 +5779,67 @@
         <div class="form-actions"><button class="button" type="button" data-route="reports">${icon('chart-column')}리포트에서 계산기 열기</button></div></section>`;
     }
 
+    function diagnosticMetricHtml(metric) {
+      return `<div class="diagnostic-metric"><span>${Utils.escape(metric.label)}</span><span><strong>실제</strong> ${Utils.escape(String(metric.actual))} · <strong>기대</strong> ${Utils.escape(String(metric.expected))}</span></div>`;
+    }
+
+    function renderDiagnostics() {
+      const snapshot = diagnosticSnapshot();
+      const counts = Object.fromEntries(DiagnosticContract.states.map(stateValue => [stateValue, snapshot.filter(row => row.verdict.state === stateValue).length]));
+      const asyncTools = DIAGNOSTIC_TOOLS.filter(tool => tool.mode === 'async');
+      const failedIds = failedDiagnosticToolIds();
+      const summaryCards = [
+        ['problem', '문제', counts.problem], ['unknown', '미확인', counts.unknown], ['todo', '확인 필요', counts.todo], ['ok', '정상', counts.ok]
+      ].map(([stateValue, label, count]) => `<div class="diagnostic-summary-item"><span>${badge(label, diagnosticStateKind(stateValue))}</span><span class="diagnostic-summary-value">${count}</span></div>`).join('');
+      const groups = DIAGNOSTIC_GROUPS.map(group => {
+        const rows = snapshot.filter(row => row.tool.group === group.id);
+        const groupState = DiagnosticContract.deriveState(rows.map(row => row.verdict.state));
+        const tools = rows.map(({ tool, verdict }) => {
+          const running = diagnosticRuntime.running.has(tool.id);
+          const action = tool.mode === 'async' ? `<button class="button small ${verdict.state === 'problem' ? 'danger' : ''}" type="button" data-diagnostic-run="${tool.id}" ${running ? 'disabled aria-busy="true"' : ''}>${icon(running ? 'loader-circle' : 'play')}${running ? '확인 중' : '이 점검 실행'}</button>` : '';
+          return `<details class="diagnostic-tool" data-diagnostic-tool="${tool.id}" ${verdict.state === 'problem' ? 'open' : ''}>
+            <summary class="diagnostic-tool-head"><span class="diagnostic-tool-question">${Utils.escape(tool.question)}</span>${badge(diagnosticStateLabel(verdict.state), diagnosticStateKind(verdict.state))}</summary>
+            <div class="diagnostic-tool-body"><strong>${Utils.escape(verdict.title)}</strong><br>${Utils.escape(verdict.summary)}
+              <div class="diagnostic-metrics">${verdict.metrics.map(diagnosticMetricHtml).join('')}</div>
+              <dl><dt>본 것</dt><dd>${Utils.escape(tool.sees)}</dd><dt>못 본 것</dt><dd>${Utils.escape(tool.blind)}</dd><dt>쓴 것</dt><dd>${Utils.escape(tool.writes.text)}</dd><dt>사유 코드</dt><dd><code>${Utils.escape(verdict.reasonCode)}</code>${verdict.unknown ? ` · ${Utils.escape(verdict.unknown.kind)} · ${Utils.escape(verdict.unknown.reason)}` : ''}</dd></dl>
+              ${action}
+            </div></details>`;
+        }).join('');
+        return `<details class="diagnostic-group" data-diagnostic-group="${group.id}" ${groupState === 'problem' ? 'open' : ''}><summary class="diagnostic-group-head"><span><strong>${Utils.escape(group.label)}</strong><br><span class="section-help">${Utils.escape(group.description)}</span></span>${badge(`${rows.length}개 · ${diagnosticStateLabel(groupState)}`, diagnosticStateKind(groupState))}</summary><div class="diagnostic-group-body">${tools}</div></details>`;
+      }).join('');
+      return `${pageHeader('진단 허브','저장·장부·동기화·백업·증빙·권한 경계를 한곳에서 확인합니다.')}
+        <div class="notice info">${icon('shield-check')}<div><strong>화면을 여는 것만으로는 서버에 새로 묻거나 자료를 바꾸지 않습니다.</strong><br>「전체 실행형 점검」을 누르면 기존 Supabase 연결 진단과 RLS 격리 왕복만 실행합니다. 연결 진단이 통과하고 로그인돼 있으면 프로젝트 규칙에 따라 일반 동기화도 즉시 실행됩니다. 자동 수정·삭제·최종본 지정은 하지 않습니다.</div></div>
+        <div class="diagnostic-summary" aria-label="진단 결과 요약">${summaryCards}</div>
+        <div class="diagnostic-toolbar">
+          <button class="button primary" id="diagnosticRunAllButton" type="button" ${diagnosticRuntime.running.size ? 'disabled aria-busy="true"' : ''}>${icon('play')}전체 실행형 점검 (${asyncTools.length})</button>
+          <button class="button" id="diagnosticRetryButton" type="button" ${failedIds.length && !diagnosticRuntime.running.size ? '' : 'disabled'}>${icon('rotate-cw')}실패·미확인 다시 (${failedIds.length})</button>
+          <button class="button" id="diagnosticExpandButton" type="button">${icon('list-tree')}모두 펼치기</button>
+          <button class="button" id="diagnosticReportButton" type="button">${icon('clipboard-list')}점검 결과</button>
+          <span class="section-help" role="status" aria-live="polite">${diagnosticRuntime.running.size ? `${diagnosticRuntime.running.size}개 점검 실행 중` : `등록 도구 ${DIAGNOSTIC_TOOLS.length}개 · 실행형 ${asyncTools.length}개`}</span>
+        </div>
+        ${groups}
+        <p class="section-help" style="margin-top:14px">정상은 각 도구가 밝힌 범위 안에서만 문제가 없다는 뜻입니다. 초록 결과도 「못 본 것」을 함께 확인하세요.</p>`;
+    }
+
+    function showDiagnosticReport() {
+      const report = buildDiagnosticReport();
+      openModal(`<div class="modal-head"><div><h3 class="modal-title">점검 결과</h3><p class="section-help">읽어 본 뒤 복사하세요. 서버 점검은 마지막 명시 실행 결과만 포함합니다.</p></div><button class="icon-button" type="button" data-modal-close aria-label="닫기">${icon('x')}</button></div>
+        <div class="modal-body"><div id="diagnosticReportStatus" class="section-help" role="status" aria-live="polite">${report.split('\n').length}줄 · 키·토큰·이메일·전체 주소·파일명을 제외했습니다.</div><pre id="diagnosticReportText" tabindex="0" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:56vh;overflow:auto;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);font-size:12px;line-height:1.65">${Utils.escape(report)}</pre></div>
+        <div class="modal-actions"><button class="button" type="button" data-modal-close>닫기</button><button class="button primary" id="diagnosticReportCopyButton" type="button">${icon('copy')}복사</button></div>`, 'modal-wide');
+      const root = el('modalRoot');
+      root.querySelectorAll('[data-modal-close]').forEach(button => button.addEventListener('click', closeModal));
+      el('diagnosticReportCopyButton')?.addEventListener('click', async () => {
+        const status = el('diagnosticReportStatus');
+        try { await navigator.clipboard.writeText(report); status.textContent = '복사했습니다.'; }
+        catch {
+          const target = el('diagnosticReportText');
+          try { const range = document.createRange(); range.selectNodeContents(target); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); target.focus(); } catch { /* selection fallback is best effort */ }
+          status.textContent = '클립보드가 막혀 복사하지 못했습니다. 위 글을 직접 복사해 주세요.';
+        }
+      });
+      requestAnimationFrame(() => el('diagnosticReportText')?.focus());
+    }
+
     function renderDeveloper() {
       const statusText = { implemented:'구현', manual_only:'부분/수동', planned:'계획', blocked:'차단' };
       const statusKind = { implemented:'success', manual_only:'warning', planned:'', blocked:'danger' };
@@ -5552,7 +5898,8 @@
     }
 
     function render() {
-      if (!state.business && !state.config.ledgerMode) {
+      // 진단 허브는 설정 전 저장소·연결 문제를 확인해야 하므로 시작 모드 선택보다 먼저 열 수 있다.
+      if (!state.business && !state.config.ledgerMode && state.route !== 'diagnostics') {
         el('topbarTitle').textContent = '시작하기';
         el('app').innerHTML = renderModeSelect();
         renderNav(); renderShellStatus(); bindViewEvents(); refreshIcons();
@@ -5560,7 +5907,7 @@
         markScreenTransition();
         return;
       }
-      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, developer:renderDeveloper, data:renderData, guide:renderGuide, propertyTax:renderPropertyTaxCalculator };
+      const renderers = { dashboard:renderDashboard, transactions:renderTransactionForm, ledger:renderLedger, journals:renderJournals, evidence:renderEvidence, imports:renderImports, reports:renderReports, closing:renderClosing, settings:renderSettings, diagnostics:renderDiagnostics, developer:renderDeveloper, data:renderData, guide:renderGuide, propertyTax:renderPropertyTaxCalculator };
       if (!renderers[state.route]) state.route = 'dashboard';
       const item = NAV_ITEMS.find(nav => nav.id === state.route);
       el('topbarTitle').textContent = item?.label || '대시보드';
@@ -5573,6 +5920,17 @@
     // 8. UI event layer delegates to services and domain functions
     function bindViewEvents() {
       document.querySelectorAll('[data-route]').forEach(button => button.addEventListener('click', () => routeTo(button.dataset.route)));
+      document.querySelectorAll('[data-diagnostic-run]').forEach(button => button.addEventListener('click', () => runDiagnosticTool(button.dataset.diagnosticRun)));
+      el('diagnosticRunAllButton')?.addEventListener('click', () => runDiagnosticBatch(DIAGNOSTIC_TOOLS.filter(tool => tool.mode === 'async').map(tool => tool.id)));
+      el('diagnosticRetryButton')?.addEventListener('click', () => runDiagnosticBatch(failedDiagnosticToolIds()));
+      el('diagnosticExpandButton')?.addEventListener('click', event => {
+        const details = [...el('app').querySelectorAll('[data-diagnostic-group], [data-diagnostic-tool]')];
+        const expand = details.some(item => !item.open);
+        details.forEach(item => { item.open = expand; });
+        event.currentTarget.innerHTML = `${icon(expand ? 'list-collapse' : 'list-tree')}${expand ? '모두 접기' : '모두 펼치기'}`;
+        refreshIcons();
+      });
+      el('diagnosticReportButton')?.addEventListener('click', showDiagnosticReport);
       document.querySelectorAll('[data-select-mode]').forEach(button => button.addEventListener('click', () => {
         state.config.ledgerMode = button.dataset.selectMode;
         ConfigAdapter.save(state.config);
@@ -6134,7 +6492,7 @@
       }
     }
 
-    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, EvidenceArchive, SupabaseAdapter, CloudinaryAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, EVIDENCE_ARCHIVE_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
+    window.__ACCOUNTING_APP_TEST__ = Object.freeze({ APP_INFO, UPDATE_HISTORY, APK_INFO, GuideService, AccountingDomain, MoneyDomain, FixedExpenseDomain, SyncAlgorithms, EvidenceArchive, SupabaseAdapter, CloudinaryAdapter, CentralBankRateAdapter, ExchangeRateService, SYNC_TABLE_ORDER, SYNC_DELETE_ORDER, BACKUP_LIMITS, EVIDENCE_ARCHIVE_LIMITS, Utils, IndustryCodes, ExpenseRates, BookkeepingDuty, ExpenseRateMethod, VatExemption, EstimatedIncome, SimpleBookAccounts, SimpleBookImport, TermService, CURRENCIES, ACCOUNT_TEMPLATES, CORE_ACCOUNT_TEMPLATES, CORE_ACCOUNT_KEYS, PERSONAL_ACCOUNT_TEMPLATES, AUTO_SYNC_UNSAFE_ROUTES, pickActiveBusiness, DOMAIN_GUARDIANS, ARCH_GUARDIANS, GOVERNANCE_AGENTS, TAX_CALC_GUARDIANS, PropertyTax, CapacitorShell, WebUpdateService, DiagnosticContract, DIAGNOSTIC_GROUPS, DIAGNOSTIC_TOOLS, DIAGNOSTIC_BLIND_SPOTS, buildDiagnosticReport, redactDiagnosticReport, failedDiagnosticToolIds, checkForWebUpdate, showShellUpdateBar, androidInstallGuideHtml });
     init();
   })();
   </script>
