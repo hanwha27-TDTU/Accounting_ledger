@@ -1,8 +1,19 @@
-> **📌 Sub_app-research-notes_0.89** · 개정 2026-08-07
+> **📌 Sub_app-research-notes_0.90** · 개정 2026-08-08
 
 # Accounting Ledger App Research Notes
 
 이 문서는 회계장부 앱의 개발, 설계, 업데이트 이력을 남기는 연구노트다. 거래나 세무 판단 근거는 이 문서가 아니라 앱 내부 `decision_notes`에 남긴다.
+
+## 2026-08-08 앱 0.70: 바른장부 진단 허브
+
+| 항목 | 결정·검증 |
+|---|---|
+| 외부 청사진 비교 | Medical Note v8.17 진단 허브 설계와 실제 `diagnostic-contract.js`·`diagnostic-hub.js`·구조 게이트를 대조했다. 의료 도구 이름은 복사하지 않고 네 상태 판정, 실제/기대 지표, 본 것·못 본 것·쓴 것, 명시 실행 전 네트워크 금지, 실패 실행형만 재시도, 비밀값 없는 보고서 계약을 채택했다. |
+| 바른장부 모집단 | 관리 메뉴의 설정 다음에 `진단 허브`를 배치했다. 이 기기·장부 무결성·클라우드/동기화·백업/증빙 안전망·앱 실행환경 5개 그룹과 로컬 저장소, 레코드 필드, 전표 균형, canonical/queue, 백업, 증빙, 연결 경계, RLS 왕복, 런타임 9개 도구 및 사각지대 9개를 등록부로 관리한다. |
+| 안전 경계 | 화면 열기와 7개 `summary()`는 메모리 상태만 읽는다. 실행형 2개는 기존 `SyncService.runConnectionDiagnostics()`와 `runBusinessRoundtrip()`만 재사용한다. 연결 진단 성공 뒤 일반 동기화가 즉시 실행되는 프로젝트 불변조건은 `existing-sync` 쓰기로 공개하고, RLS 도구는 `__rls_probe__` 격리행 생성·정리임을 표시한다. 자동 수정·삭제·canonical 지정은 없다. |
+| 보고서·개인정보 | 화면과 보고서는 같은 Verdict·도구·사각지대 객체를 쓴다. 보고서는 허용 필드로 새로 만들고 URL·이메일·Supabase 키/JWT/Bearer 형태를 최종 문자열에서 재차 제거하며 파일명·원문 오류를 포함하지 않는다. |
+| 자동·시각 검증 | 로직 268→283 assertions: 등록부 정상 대조군과 상태·unknown·metric·중복 ID·끊긴 그룹·쓰기 범위 결함 주입, 보고서 redaction을 검증했다. 실제 Chromium 15→24 assertions: 장부 모드·사업자 설정 전 직접 진입, 관리 메뉴 진입만으로 Supabase 요청 증가 0, 그룹 5·도구 9·실행형 2, 모두 펼침, 보고서 비밀값 0, 375px overflow 0. 앱 내 브라우저 실측에서 데스크톱 위계와 375×812 레이아웃을 확인했고, 최초 38px이던 진단 버튼을 44px로 보완한 뒤 전 버튼 44px·가로 overflow 0을 다시 확인했다. |
+| 버전·데이터 | 앱 0.69→0.70, `Sub_code-architecture-guardians_0.04`, `Sub_app-research-notes_0.90`. schema 0.08·backup 0.04 유지, IndexedDB·Supabase·RLS·동기화 데이터 계약과 migration 변경 없음. Android는 배포된 Pages를 여는 얇은 셸이므로 APK 입력은 바뀌지 않는다. |
 
 ## 2026-08-07 앱 0.69: 증빙 원본 독립 보관·실브라우저 Required 게이트
 

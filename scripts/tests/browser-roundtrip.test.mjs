@@ -149,6 +149,12 @@ try {
   });
   await page.route('https://cbu.uz/**', (route) => route.abort());
 
+  const onboardingPage = await browser.newPage();
+  await onboardingPage.goto(`${origin}/index.html#diagnostics`, { waitUntil: 'domcontentloaded' });
+  await onboardingPage.locator('#diagnosticRunAllButton').waitFor({ state: 'visible' });
+  ok(await onboardingPage.locator('[data-diagnostic-tool]').count() === 9, 'diagnostic hub remains available before ledger mode or business setup');
+  await onboardingPage.close();
+
   await seed(page, origin);
   await page.goto(`${origin}/index.html#data`, { waitUntil: 'domcontentloaded' });
   await page.locator('#dataEvidenceArchiveExportButton').waitFor({ state: 'visible' });
@@ -163,7 +169,7 @@ try {
   const archiveBytes = await readFile(downloadPath);
   const archiveText = archiveBytes.toString('utf8');
   const archive = JSON.parse(archiveText);
-  ok(download.suggestedFilename().endsWith('-v0.69.bjea'), 'download filename carries the release version and .bjea extension');
+  ok(download.suggestedFilename().endsWith('-v0.70.bjea'), 'download filename carries the release version and .bjea extension');
   ok(archive.archiveType === 'bareunjangbu-evidence-originals', 'download is the encrypted evidence archive envelope');
   ok(archive.encryption?.algorithm === 'AES-256-GCM' && archive.encryption?.kdf === 'PBKDF2-SHA-256', 'envelope declares the approved encryption profile');
   ok(!archiveText.includes(originalFilename) && !archiveText.includes(originalBytes.toString('base64')), 'outer envelope contains no plaintext filename or original bytes');
@@ -192,6 +198,28 @@ try {
   ok(/^[0-9a-f]{64}$/.test(restored.evidence.file_hash), 'valid restore persists a SHA-256 original hash');
   ok(restored.queue.filter((row) => row.status === 'pending').length === 2, 'valid restore queues evidence metadata and audit log for sync');
   ok(!consoleErrors.some((message) => /Content Security Policy.*res\.cloudinary\.com/i.test(message)), 'delivery download is allowed by the CSP connect policy');
+
+  // 진단 허브(0.70) — 실제 관리 메뉴 진입, 읽기 전용 열기, 모집단, 펼침, 보고서 비밀값 경계, 모바일 넘침.
+  let supabaseRequests = 0;
+  page.on('request', (request) => { if (/\.supabase\.co\//i.test(request.url())) supabaseRequests += 1; });
+  const requestsBeforeOpen = supabaseRequests;
+  await page.locator('[data-route="diagnostics"]').click();
+  await page.locator('h1').filter({ hasText: '진단 허브' }).waitFor();
+  await page.waitForTimeout(100);
+  ok(supabaseRequests === requestsBeforeOpen, 'opening the diagnostic hub starts no new Supabase request');
+  ok(await page.locator('[data-diagnostic-group]').count() === 5, 'diagnostic hub renders the five registered groups');
+  ok(await page.locator('[data-diagnostic-tool]').count() === 9, 'diagnostic hub renders the nine registered tools');
+  ok(await page.locator('[data-diagnostic-run]').count() === 2, 'only the two explicitly networked diagnostics expose run buttons');
+  await page.locator('#diagnosticExpandButton').click();
+  ok(await page.locator('[data-diagnostic-group]:not([open]), [data-diagnostic-tool]:not([open])').count() === 0, 'expand all opens every diagnostic group and tool');
+  await page.locator('#diagnosticReportButton').click();
+  const reportText = await page.locator('#diagnosticReportText').textContent();
+  ok(reportText.includes('본 것:') && reportText.includes('못 본 것:') && reportText.includes('쓴 것:'), 'diagnostic report carries observation, blind-spot, and write boundaries');
+  ok(!reportText.includes('hanwha27@gmail.com') && !reportText.includes('supabase.co') && !reportText.includes('sb_publishable_') && !reportText.includes(originalFilename), 'diagnostic report excludes email, server URL, key shape, and filename');
+  await page.locator('[data-modal-close]').first().click();
+  await page.setViewportSize({ width: 375, height: 760 });
+  const geometry = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, summaryColumns: getComputedStyle(document.querySelector('.diagnostic-summary')).gridTemplateColumns }));
+  ok(geometry.scrollWidth === geometry.clientWidth && geometry.summaryColumns.split(' ').length === 2, 'diagnostic hub has no page overflow and uses two summary columns at 375px');
 
   console.log(`BROWSER ROUNDTRIP: ${passed} passed, 0 failed`);
 } catch (error) {

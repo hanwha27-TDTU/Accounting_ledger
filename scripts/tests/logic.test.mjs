@@ -736,5 +736,31 @@ if (api) {
   ok(P(null) === null && P(undefined) === null, 'parseShellVersion: body가 없어도(null/undefined) 안전');
 }
 
+// 진단 허브(0.70) — 화면과 보고서가 공유하는 판정·등록부·사각지대 계약을 실제 앱 코드로 검증한다.
+{
+  const DC = api.DiagnosticContract;
+  const groups = api.DIAGNOSTIC_GROUPS;
+  const tools = api.DIAGNOSTIC_TOOLS;
+  const blindSpots = api.DIAGNOSTIC_BLIND_SPOTS;
+  ok(groups.length === 5 && tools.length === 9 && blindSpots.length === 9, 'DiagnosticHub: 그룹 5·도구 9·사각지대 9 모집단 유지');
+  ok(DC.validateSystem(groups, tools, blindSpots).length === 0, 'DiagnosticHub: 정상 등록부의 그룹·소유·참조·쓰기 계약 일치');
+  ok(DC.deriveState(['ok', 'todo', 'unknown', 'problem']) === 'problem', 'DiagnosticContract: problem > unknown > todo > ok 우선순위');
+  ok(DC.validateVerdict({ state:'unknown', toolId:'x', title:'x', summary:'x', reasonCode:'X', metrics:[] }).some(x => x.includes('unknown')), 'DiagnosticContract: unknown 종류·이유 누락 차단');
+  ok(DC.validateVerdict({ state:'ok', toolId:'x', title:'x', summary:'x', reasonCode:'X', metrics:[{ id:'n', actual:1 }] }).some(x => x.includes('expected')), 'DiagnosticContract: 실제값만 있고 기대값 없는 지표 차단');
+  ok(DC.validateSystem(groups, [...tools, tools[0]], blindSpots).some(x => x.includes('도구 id 오류')), 'DiagnosticContract: 도구 id 중복 결함 주입 탐지');
+  ok(DC.validateSystem(groups, tools, [...blindSpots, blindSpots[0]]).some(x => x.includes('사각지대 id 오류')), 'DiagnosticContract: 사각지대 id 중복 결함 주입 탐지');
+  ok(DC.validateSystem(groups, tools.map((tool, index) => index ? tool : { ...tool, group:'missing-group' }), blindSpots).some(x => x.includes('없는 그룹')), 'DiagnosticContract: 끊긴 그룹 참조 결함 주입 탐지');
+  ok(DC.validateSystem(groups, tools.map((tool, index) => index ? tool : { ...tool, writes:{ scope:'user-data' } }), blindSpots).some(x => x.includes('쓰기 범위 오류')), 'DiagnosticContract: 허용되지 않은 사용자자료 쓰기 결함 주입 탐지');
+  ok(tools.every(tool => tool.blind && tool.sees && tool.writes?.text), 'DiagnosticHub: 모든 도구가 본 것·못 본 것·쓴 것을 공개');
+  ok(tools.filter(tool => tool.mode === 'async').length === 2 && tools.filter(tool => tool.mode === 'summary').length === 7, 'DiagnosticHub: 실행형 2개·로컬 요약 7개로 네트워크 경계 고정');
+  ok(tools.find(tool => tool.id === 'connection-boundary').writes.scope === 'existing-sync', 'DiagnosticHub: 연결 성공 뒤 기존 즉시 동기화 쓰기를 숨기지 않음');
+  ok(tools.find(tool => tool.id === 'rls-roundtrip').writes.scope === 'system-scratch', 'DiagnosticHub: RLS 왕복은 격리 점검행 쓰기로 선언');
+  const secretSample = 'https://private.example/path owner@example.com sb_publishable_abcdefghijklmnopqrstuvwxyz Bearer hidden-token';
+  const redacted = api.redactDiagnosticReport(secretSample);
+  ok(!redacted.includes('private.example') && !redacted.includes('owner@example.com') && !redacted.includes('sb_publishable_') && !redacted.includes('hidden-token'), 'DiagnosticReport: 주소·이메일·키·Bearer 토큰 형태 제거');
+  const report = api.buildDiagnosticReport();
+  ok(report.includes('# 바른장부 진단 결과') && report.includes('본 것:') && report.includes('못 본 것:') && report.includes('쓴 것:'), 'DiagnosticReport: 등록부 판정과 관측·사각지대·쓰기 범위를 같은 보고서에 포함');
+}
+
 console.log(`\nLOGIC TESTS: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
