@@ -16,6 +16,7 @@
 | 미검증 | 이 수정으로 사용자의 실기기 재실행 결과가 실제로 `[정상]`으로 바뀌는지는 본 세션에서 직접 확인하지 못했다(사용자가 붙여넣은 텍스트 보고서만으로 진단, 실기기·실네트워크 접근 없음) — 사용자 재확인이 필요한 항목으로 남긴다. |
 | 버전·데이터 | 앱 0.70→0.71. schema 0.08·backup 0.04 유지, IndexedDB·Supabase·RLS·동기화 데이터 계약과 migration 변경 없음. `Sub_app-research-notes_0.91`. |
 | 스킬 갱신 | `Sub_code-architecture-guardians_0.04→0.05`에 "저장 영역별 레코드 계약을 검사할 때 append-only 저장 영역에는 updated_at·deleted_at을 요구하지 않는다"를 진단 허브 계약 10번 항목으로 추가해, 다음에 진단 도구를 늘릴 때 같은 클래스의 오탐을 미리 차단한다. |
+| PR CI로 발견한 2차 결함 | 이 세션 샌드박스는 Chromium 실행 파일 리비전 불일치로 `browser-roundtrip`을 아예 실행하지 못해(위 "자동 검증" 행) 로컬에서는 못 잡았지만, PR #12의 실제 GitHub Actions(정확한 Chromium 설치)에서 `browser-roundtrip`이 "download filename carries the release version and .bjea extension"으로 실패했다. **원인**: 그 assertion이 `download.suggestedFilename().endsWith('-v0.70.bjea')`로 앱 버전을 하드코딩하고 있어 0.71로 올리자마자 깨졌다(0.70 진단 허브 커밋에서 이 테스트를 처음 추가할 때 생긴 결함으로, 이번이 첫 버전 증가라 지금까지 드러나지 않았음). **수정**: `page.evaluate(() => window.__ACCOUNTING_APP_TEST__.APP_INFO.version)`로 런타임에서 실제 버전을 읽어 비교하도록 바꿔 향후 버전 증가에서 다시 깨지지 않게 했다. `/opt/pw-browsers/chromium`(리비전은 다르지만 실행 가능한 로컬 캐시)으로 임시 실행해 24 assertions 전부 통과를 직접 확인한 뒤 원래 커맨드로 복구했다. 다른 테스트 파일에 하드코딩된 버전 문자열이 더 있는지 `scripts/` 전체를 검색해 없음을 확인했다. |
 
 ## 2026-08-08 앱 0.70: 바른장부 진단 허브
 
