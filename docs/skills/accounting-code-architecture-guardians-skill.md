@@ -1,4 +1,4 @@
-> **Sub_code-architecture-guardians_0.04** · 개정 2026-08-08
+> **Sub_code-architecture-guardians_0.05** · 개정 2026-08-08
 
 # Accounting Ledger Code Architecture Guardians Skill
 
@@ -302,3 +302,4 @@
 7. 보고서는 허용 필드로 새 객체를 만들고 이메일·전체 주소·키·토큰·파일명·원문 오류를 제외한다. 문자열 단계 redaction은 두 번째 방어선이다.
 8. 정적·순수 로직 게이트는 빈 모집단, 중복 ID, 끊긴 참조, 잘못된 상태, 기대값 없는 지표, 허용되지 않은 쓰기에 결함을 주입해 빨간불을 증명한다.
 9. 브라우저 검증은 실제 관리 메뉴 진입, 열기만으로 서버 요청 0, 등록 모집단, 펼침, 보고서 경계, 375px overflow와 44px 터치 목표를 확인한다.
+10. 저장 영역별 레코드 계약을 검사할 때는 `id`·`created_at`·`updated_at`·`deleted_at`을 모든 저장 영역에 동일하게 요구하지 않는다. `audit_logs`처럼 append-only로 설계된 저장 영역(백업 검증 `BACKUP_UPDATED_AT_REQUIRED` 예외, 원격 pull `orderColumn`이 이미 같은 예외를 적용)은 `updated_at`·`deleted_at`이 아예 없는 것이 정상이다. 새 저장 영역을 진단 대상에 추가할 때는 그 영역의 실제 생성 코드(`AppService.audit()` 등)가 어떤 필드를 실제로 채우는지 먼저 확인한다 — 그렇지 않으면 정상 사용만으로 쌓이는 레코드가 계약 불일치로 오탐된다(0.71에서 실기기 진단 보고서로 발견해 `recordContractIssues`에 `audit_logs` 면제를 추가).

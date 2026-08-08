@@ -15,6 +15,7 @@
 | 자동 검증 | `recordContractIssues`를 `window.__ACCOUNTING_APP_TEST__`에 노출하고 `scripts/tests/logic.test.mjs`에 회귀 2건을 추가했다: ① `updated_at`·`deleted_at`이 없는 `audit_logs` 행은 불일치로 잡히지 않음, ② 같은 배열에서 진짜로 `id`만 있고 `created_at`이 없는 `accounts` 행은 여전히 잡힘(면제가 `audit_logs`에만 좁게 적용됨을 함께 확인). 로직 283→285 assertions. `npm run harness:check` 18/20 PASS(`gate-controls`·`browser-roundtrip` 2개는 이 세션 샌드박스에 캐시된 Chromium 리비전이 `playwright@1.62.1`이 기대하는 리비전과 달라 생기는 기존·환경 의존 실패이며 이번 변경 전후로 동일한 오류 메시지임을 확인했다 — 코드·문서 결함 아님). |
 | 미검증 | 이 수정으로 사용자의 실기기 재실행 결과가 실제로 `[정상]`으로 바뀌는지는 본 세션에서 직접 확인하지 못했다(사용자가 붙여넣은 텍스트 보고서만으로 진단, 실기기·실네트워크 접근 없음) — 사용자 재확인이 필요한 항목으로 남긴다. |
 | 버전·데이터 | 앱 0.70→0.71. schema 0.08·backup 0.04 유지, IndexedDB·Supabase·RLS·동기화 데이터 계약과 migration 변경 없음. `Sub_app-research-notes_0.91`. |
+| 스킬 갱신 | `Sub_code-architecture-guardians_0.04→0.05`에 "저장 영역별 레코드 계약을 검사할 때 append-only 저장 영역에는 updated_at·deleted_at을 요구하지 않는다"를 진단 허브 계약 10번 항목으로 추가해, 다음에 진단 도구를 늘릴 때 같은 클래스의 오탐을 미리 차단한다. |
 
 ## 2026-08-08 앱 0.70: 바른장부 진단 허브
 
